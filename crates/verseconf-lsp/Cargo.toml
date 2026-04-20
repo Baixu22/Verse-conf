@@ -1,0 +1,15 @@
+[package]
+name = "verseconf-lsp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Language Server Protocol implementation for VerseConf"
+
+[dependencies]
+verseconf-core = { path = "../verseconf-core" }
+tower-lsp = "0.20"
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "io-std"] }
+serde_json = "1.0"
+log = "0.4"
+env_logger = "0.10"

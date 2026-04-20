@@ -1,0 +1,21 @@
+[package]
+name = "verseconf-compare"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "generate_test_data"
+path = "src/bin/generate_test_data.rs"
+
+[[bin]]
+name = "benchmark"
+path = "src/bin/benchmark.rs"
+
+[dependencies]
+verseconf-core = { path = "../crates/verseconf-core" }
+toml = "0.8"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+verseconf-core = { path = "../crates/verseconf-core" }

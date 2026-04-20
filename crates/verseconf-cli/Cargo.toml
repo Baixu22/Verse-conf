@@ -1,0 +1,13 @@
+[package]
+name = "verseconf-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CLI tool for VerseConf configuration language"
+
+[dependencies]
+verseconf-core = { path = "../verseconf-core" }
+clap.workspace = true
+anyhow.workspace = true
+chrono = "0.4"

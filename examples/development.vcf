@@ -1,0 +1,19 @@
+# Development configuration
+# Includes base config and overrides for development
+
+@include "base.vcf" merge=deep_merge
+
+debug = true
+logging {
+    level = "debug"
+}
+
+server {
+    port = 3000
+}
+
+database {
+    host = "localhost"
+    port = 5432
+    name = "dev_db"
+}

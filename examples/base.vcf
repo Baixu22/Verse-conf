@@ -1,0 +1,16 @@
+# Base configuration file
+# This file is included by other configurations
+
+app_name = "BaseApp"
+version = "1.0.0"
+debug = false
+
+logging {
+    level = "info"
+    format = "text"
+}
+
+server {
+    host = "0.0.0.0"
+    port = 8080
+}

@@ -1,0 +1,22 @@
+[package]
+name = "verseconf-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core library for VerseConf configuration language"
+
+[dependencies]
+pest.workspace = true
+pest_derive.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+regex.workspace = true
+atty.workspace = true
+notify.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
+criterion.workspace = true
+insta.workspace = true

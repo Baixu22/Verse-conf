@@ -1,0 +1,136 @@
+# VerseConf 综合示例配置文件
+# 展示所有支持的语法特性
+
+#@ version=1.0, author="VerseConf"
+
+# 基础键值对
+app_name = "MyApplication"
+version = "2.0.0"
+port = 8080 #@ range(1024..65535)
+debug = true
+max_connections = 1000
+
+# 字符串类型
+host = "localhost"
+database_url = "postgresql://user:pass@localhost:5432/mydb"
+
+# 表达式计算
+timeout = 30s + 15s
+retry_interval = 5m * 2
+max_retries = 10 / 2
+buffer_size = 1024 * 4
+
+# 持续时间
+startup_timeout = 2h
+heartbeat_interval = 30s
+cache_ttl = 1d
+
+# 日期时间
+created_at = 2024-01-15T10:30:00Z
+updated_at = 2024-01-15T10:30:00+08:00
+local_time = 2024-01-15T10:30:00
+
+# 数组
+allowed_hosts = ["localhost", "127.0.0.1", "example.com"]
+ports = [8080, 8081, 8082]
+mixed_array = [1, "two", true, 3.14]
+
+# 内联表
+database = { host = "localhost", port = 5432, name = "mydb" }
+
+# 嵌套表块
+server {
+    host = "0.0.0.0"
+    port = 8080
+    
+    ssl {
+        enabled = true
+        cert_path = "/etc/ssl/cert.pem"
+        key_path = "/etc/ssl/key.pem"
+    }
+    
+    cors {
+        allowed_origins = ["http://localhost:3000", "https://example.com"]
+        allowed_methods = ["GET", "POST", "PUT", "DELETE"]
+        max_age = 3600
+    }
+}
+
+# 数据库配置
+database {
+    host = "localhost"
+    port = 5432 #@ range(1..65535)
+    name = "production_db"
+    username = "admin"
+    password = "secret" #@ sensitive
+    
+    pool {
+        min_connections = 5
+        max_connections = 20 #@ range(1..100)
+        idle_timeout = 300s
+    }
+}
+
+# 日志配置
+logging {
+    level = "info"
+    format = "json"
+    
+    outputs = [
+        {
+            type = "console"
+            level = "debug"
+        },
+        {
+            type = "file"
+            path = "/var/log/app.log"
+            level = "info"
+            max_size = "100MB"
+        },
+    ]
+}
+
+# 缓存配置
+cache {
+    enabled = true
+    backend = "redis"
+    
+    redis {
+        host = "localhost"
+        port = 6379
+        db = 0
+        password = "" #@ sensitive
+    }
+    
+    default_ttl = 1h
+    max_memory = "512MB"
+}
+
+# 数组表
+[[workers]]
+name = "worker-1"
+type = "background"
+concurrency = 4
+
+[[workers]]
+name = "worker-2"
+type = "scheduled"
+concurrency = 2
+schedule = "0 */6 * * *"
+
+[[workers]]
+name = "worker-3"
+type = "event"
+concurrency = 8
+
+# 特性开关
+features {
+    new_ui = true
+    dark_mode = false
+    beta_api = true #@ experimental
+    legacy_support = false #@ deprecated
+}
+
+# 环境变量插值
+api_key = "${API_KEY}"
+secret_token = "${SECRET_TOKEN:default_token}"

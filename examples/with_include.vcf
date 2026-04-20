@@ -1,0 +1,43 @@
+# VerseConf Example with Include Directives
+# Demonstrates file inclusion and merge strategies
+
+# Include base configuration with deep merge
+@include "common/base.vcf" merge=deep_merge
+
+# Include monitoring configuration
+@include "features/monitoring.vcf" merge=override
+
+# Application-specific overrides
+app {
+    name = "MyCustomService"
+    environment = "production"
+    
+    database {
+        host = "${DB_HOST|prod-db.example.com}"
+        port = 5432 #@ range(1024..65535)
+        
+        credentials {
+            user = "${DB_USER}" #@ required
+            password = "${DB_PASS}" #@ sensitive, required
+        }
+    }
+    
+    servers [[
+        name = "primary"
+        ip = "10.0.0.1"
+        role = "master"
+    ]]
+    
+    servers [[
+        name = "secondary"
+        ip = "10.0.0.2"
+        role = "replica"
+    ]]
+}
+
+# Production-specific settings
+cache {
+    enabled = true
+    ttl = 300s #@ range(60..3600)
+    max_size = 1000 #@ range(100..10000)
+}

@@ -1,0 +1,31 @@
+# VerseConf Basic Example
+# This demonstrates the core syntax features
+
+app {
+    name = "MyService"
+    version = "1.2.3"
+    description = "A sample application"
+}
+
+server {
+    host = "0.0.0.0"
+    port = 8080
+    debug = false
+}
+
+database {
+    host = "localhost"
+    port = 5432
+    name = "myapp_db"
+    
+    credentials {
+        user = "admin"
+        password = "secret123"
+    }
+}
+
+features = [
+    "auth",
+    "logging",
+    "monitoring",
+]

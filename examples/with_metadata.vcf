@@ -1,0 +1,34 @@
+# VerseConf Example with Metadata
+# Demonstrates all standard metadata tags
+
+server {
+    port = 8080 #@ range(1024..65535), description="HTTP server port", type_hint="int"
+    host = "0.0.0.0" #@ description="Bind address"
+    timeout = 30s #@ range(1..300), description="Request timeout"
+}
+
+database {
+    host = "${DB_HOST|localhost}" #@ description="Database host"
+    port = 5432 #@ range(1024..65535), type_hint="int"
+    
+    credentials {
+        user = "admin" #@ required, description="Database user"
+        password = "${DB_PASS}" #@ sensitive, required, description="Database password"
+        api_key = "sk-12345" #@ sensitive, deprecated="v2, use token instead"
+    }
+}
+
+logging {
+    level = "info" #@ type_hint="string", example="debug"
+    format = "json" #@ type_hint="string"
+    output = ["stdout", "file"] #@ item_type=string, description="Log outputs"
+}
+
+features = [
+    "auth",
+    "logging",
+    "monitoring",
+] #@ item_type=string, description="Enabled features"
+
+# Custom metadata example
+custom_setting = "value" #@ my_team=backend, priority=high

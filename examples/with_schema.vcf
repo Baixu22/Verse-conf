@@ -1,0 +1,114 @@
+#@schema {
+    version = "1.0"
+    description = "VerseConf server configuration schema with LLM-friendly hints"
+    
+    server {
+        type = "table"
+        desc = "Server configuration section"
+        example = "server { host = \"0.0.0.0\", port = 8080 }"
+        
+        host {
+            type = "string"
+            required = true
+            default = "0.0.0.0"
+            desc = "Server bind address"
+            example = "127.0.0.1"
+            llm_hint = "Use 0.0.0.0 for all interfaces, 127.0.0.1 for localhost only"
+        }
+        
+        port {
+            type = "integer"
+            required = true
+            default = 8080
+            range = (1..65535)
+            desc = "Server port number"
+            example = "3000"
+            llm_hint = "Must be a valid port number between 1 and 65535"
+        }
+        
+        workers {
+            type = "integer"
+            default = 4
+            range = (1..32)
+            desc = "Number of worker threads"
+            llm_hint = "Typically set to number of CPU cores"
+        }
+    }
+    
+    logging {
+        type = "table"
+        desc = "Logging configuration"
+        
+        level {
+            type = "string"
+            required = true
+            default = "info"
+            enum = ["debug", "info", "warn", "error"]
+            desc = "Log level"
+            example = "debug"
+            llm_hint = "Only these values are allowed: debug, info, warn, error"
+        }
+        
+        file {
+            type = "string"
+            desc = "Log file path"
+            example = "/var/log/app.log"
+        }
+    }
+    
+    database {
+        type = "table"
+        desc = "Database connection settings"
+        
+        url {
+            type = "string"
+            required = true
+            desc = "Database connection URL"
+            example = "postgres://localhost:5432/mydb"
+            sensitive = true
+            llm_hint = "Connection string format: protocol://host:port/database"
+        }
+        
+        pool_size {
+            type = "integer"
+            default = 10
+            range = (1..100)
+            desc = "Connection pool size"
+        }
+    }
+    
+    features {
+        type = "array"
+        desc = "Enabled feature flags"
+        example = "[\"auth\", \"cache\", \"metrics\"]"
+        llm_hint = "Array of string feature flags"
+    }
+    
+    debug {
+        type = "boolean"
+        default = false
+        desc = "Enable debug mode"
+        llm_hint = "Set to true only during development"
+    }
+}
+
+# Actual configuration values
+server {
+    host = "0.0.0.0"
+    port = 8080
+    workers = 4
+}
+
+logging {
+    level = "info"
+    file = "/var/log/verseconf.log"
+}
+
+database {
+    url = "postgres://localhost:5432/verseconf"
+    pool_size = 10
+}
+
+features = ["auth", "cache"]
+
+debug = false
