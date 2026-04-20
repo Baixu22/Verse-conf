@@ -1,0 +1,40 @@
+# Source files
+src/
+
+# Configuration
+tsconfig.json
+.eslintrc.*
+*.config.js
+jest.config.*
+
+# Development files
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+__tests__/
+
+# Build intermediates
+*.tsbuildinfo
+
+# Documentation
+*.md
+!README.md
+
+# Cargo (Rust build - shouldn't be in npm anyway)
+Cargo.toml
+Cargo.lock

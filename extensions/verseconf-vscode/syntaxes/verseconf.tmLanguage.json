@@ -1,0 +1,251 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "VerseConf",
+  "scopeName": "source.verseconf",
+  "fileTypes": ["vcf"],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#metadata"
+    },
+    {
+      "include": "#directives"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#booleans"
+    },
+    {
+      "include": "#durations"
+    },
+    {
+      "include": "#expressions"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.verseconf",
+          "begin": "###",
+          "end": "###"
+        },
+        {
+          "name": "comment.line.verseconf",
+          "begin": "#",
+          "end": "$"
+        }
+      ]
+    },
+    "metadata": {
+      "patterns": [
+        {
+          "name": "meta.directive.verseconf",
+          "begin": "#@",
+          "end": "$",
+          "captures": {
+            "0": {
+              "name": "keyword.control.verseconf"
+            }
+          }
+        },
+        {
+          "name": "meta.schema.verseconf",
+          "begin": "#@schema\\s*\\{",
+          "end": "\\}",
+          "patterns": [
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "include": "#schema_fields"
+            }
+          ]
+        }
+      ]
+    },
+    "schema_fields": {
+      "patterns": [
+        {
+          "name": "entity.name.type.verseconf",
+          "match": "^\\s*\\w+\\s*\\{"
+        },
+        {
+          "name": "support.type.verseconf",
+          "match": "(?<=type\\s*=\\s*)\"\\w+\""
+        },
+        {
+          "name": "constant.language.verseconf",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "\\b(required|default|enum|range|pattern|sensitive|llm_hint|desc|example|deprecated)\\b"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*@include\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*#@template\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*#@use\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*#@strict\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*#@deprecated\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*#@experimental\\b"
+        },
+        {
+          "name": "keyword.control.verseconf",
+          "match": "^\\s*#@sensitive\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.merge.verseconf",
+          "match": "\\b(merge|if|or)\\b"
+        },
+        {
+          "name": "keyword.operator.verseconf",
+          "match": "\\b(and|or)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.verseconf",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.verseconf",
+              "match": "\\\\[\"\\\\nt]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.verseconf",
+          "begin": "'",
+          "end": "'"
+        },
+        {
+          "name": "string.quoted.triple.verseconf",
+          "begin": "\"\"\"",
+          "end": "\"\"\""
+        },
+        {
+          "name": "string.raw.verseconf",
+          "begin": "r\"",
+          "end": "\""
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.hex.verseconf",
+          "match": "\\b0x[0-9a-fA-F_]+\\b"
+        },
+        {
+          "name": "constant.numeric.binary.verseconf",
+          "match": "\\b0b[01_]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.verseconf",
+          "match": "\\b\\d[\\d_]*\\.\\d+([eE][+-]?\\d+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.verseconf",
+          "match": "\\b\\d[\\d_]*\\b"
+        }
+      ]
+    },
+    "booleans": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.verseconf",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "durations": {
+      "patterns": [
+        {
+          "name": "constant.numeric.duration.verseconf",
+          "match": "\\b\\d+(\\.\\d+)?(ms|milliseconds|s|seconds|m|minutes|h|hours|d|days)\\b"
+        }
+      ]
+    },
+    "expressions": {
+      "patterns": [
+        {
+          "name": "meta.expression.verseconf",
+          "begin": "\\$\\{",
+          "end": "\\}",
+          "patterns": [
+            {
+              "include": "#expressions"
+            },
+            {
+              "include": "#numbers"
+            },
+            {
+              "include": "#strings"
+            },
+            {
+              "include": "#durations"
+            },
+            {
+              "name": "variable.other.verseconf",
+              "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+            },
+            {
+              "name": "keyword.operator.verseconf",
+              "match": "[+\\-*/]"
+            },
+            {
+              "name": "keyword.control.verseconf",
+              "match": "\\b(or)\\b"
+            }
+          ]
+        },
+        {
+          "name": "meta.env-variable.verseconf",
+          "begin": "\\$\\bENV:",
+          "end": "\\b|\\}|'"
+        }
+      ]
+    }
+  }
+}

@@ -1,7 +1,7 @@
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use verseconf_core::parse;
+use verseconf_core::{parse, Ast};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -55,9 +55,6 @@ impl LanguageServer for VerseConfBackend {
                         static_registration_options: StaticRegistrationOptions::default(),
                     },
                 )),
-                diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
-                    DiagnosticOptions::default(),
-                )),
                 ..Default::default()
             },
         })
@@ -107,7 +104,7 @@ impl LanguageServer for VerseConfBackend {
                 detail: Some("Server configuration block".into()),
                 documentation: Some(Documentation::MarkupContent(MarkupContent {
                     kind: MarkupKind::Markdown,
-                    value: "Configure server settings".into(),
+                    value: "Configure server settings\n\n```verseconf\nserver {\n    host = \"localhost\"\n    port = 8080\n}\n```".into(),
                 })),
                 ..Default::default()
             },
@@ -115,18 +112,42 @@ impl LanguageServer for VerseConfBackend {
                 label: "database".into(),
                 kind: Some(CompletionItemKind::CLASS),
                 detail: Some("Database configuration block".into()),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "Configure database settings\n\n```verseconf\ndatabase {\n    host = \"localhost\"\n    port = 5432\n}\n```".into(),
+                })),
                 ..Default::default()
             },
             CompletionItem {
                 label: "port".into(),
                 kind: Some(CompletionItemKind::FIELD),
-                detail: Some("Port number".into()),
+                detail: Some("Port number (integer)".into()),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "**port** `integer`\n\nThe port number for the service.".into(),
+                })),
                 ..Default::default()
             },
             CompletionItem {
                 label: "host".into(),
                 kind: Some(CompletionItemKind::FIELD),
-                detail: Some("Host address".into()),
+                detail: Some("Host address (string)".into()),
+                documentation: Some(Documentation::MarkupContent(MarkupContent {
+                    kind: MarkupKind::Markdown,
+                    value: "**host** `string`\n\nThe host address for the service.".into(),
+                })),
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "timeout".into(),
+                kind: Some(CompletionItemKind::FIELD),
+                detail: Some("Timeout in seconds (integer)".into()),
+                ..Default::default()
+            },
+            CompletionItem {
+                label: "debug".into(),
+                kind: Some(CompletionItemKind::FIELD),
+                detail: Some("Enable debug mode (boolean)".into()),
                 ..Default::default()
             },
         ];
@@ -134,10 +155,17 @@ impl LanguageServer for VerseConfBackend {
         if let Some(doc) = self.documents.lock().unwrap().get(&uri) {
             let symbols = extract_symbols(doc);
             for symbol in symbols {
+                let name = symbol.name.clone();
+                let value = symbol.value.clone();
                 items.push(CompletionItem {
-                    label: symbol.name,
+                    label: name.clone(),
                     kind: Some(CompletionItemKind::VARIABLE),
-                    detail: Some("Defined in document".into()),
+                    detail: Some(format!("Defined in document: {}", value)),
+                    documentation: Some(Documentation::MarkupContent(MarkupContent {
+
+                        kind: MarkupKind::Markdown,
+                        value: format!("**{}** = `{}`\n\nDefined in current document", name, value),
+                    })),
                     ..Default::default()
                 });
             }
@@ -159,12 +187,39 @@ impl LanguageServer for VerseConfBackend {
 
         if let Some(doc) = self.documents.lock().unwrap().get(&uri) {
             if let Some(symbol) = find_symbol_at_position(doc, position) {
+                let value_preview = if symbol.value.len() > 100 {
+                    format!("{}...", &symbol.value[..100])
+                } else {
+                    symbol.value.clone()
+                };
+
+                let type_info = infer_type(&symbol.value);
+
                 return Ok(Some(Hover {
                     contents: HoverContents::Markup(MarkupContent {
                         kind: MarkupKind::Markdown,
-                        value: format!("**{}**\n\nDefined in document", symbol.name),
+                        value: format!(
+                            "## **{}**\n\n**Type:** `{}`\n\n**Value:** ```\n{}\n```\n\n---\n*Defined in document*",
+                            symbol.name,
+                            type_info,
+                            value_preview
+                        ),
                     }),
                     range: Some(symbol.range),
+                }));
+            }
+
+            let line = doc.lines().nth(position.line as usize).unwrap_or("");
+            if line.trim().starts_with('#') {
+                return Ok(Some(Hover {
+                    contents: HoverContents::Markup(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: format!(
+                            "## Comment\n\n```\n{}\n```",
+                            line.trim()
+                        ),
+                    }),
+                    range: None,
                 }));
             }
         }
@@ -172,7 +227,7 @@ impl LanguageServer for VerseConfBackend {
         Ok(Some(Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
-                value: "**VerseConf** configuration language\n\nA modern configuration language implementation.".into(),
+                value: "## VerseConf\n\n**A modern configuration language for the AI era.**\n\n---\n\n### Quick Reference\n\n| Syntax | Description |\n|--------|-------------|\n| `key = value` | Simple assignment |\n| `# comment` | Comment line |\n| `block { }` | Nested block |".into(),
             }),
             range: None,
         }))
@@ -227,7 +282,7 @@ impl LanguageServer for VerseConfBackend {
             let lsp_symbols: Vec<SymbolInformation> = symbols
                 .into_iter()
                 .map(|s| SymbolInformation {
-                    name: s.name,
+                    name: format!("{} = {}", s.name, s.value),
                     kind: SymbolKind::FIELD,
                     tags: None,
                     #[allow(deprecated)]
@@ -260,10 +315,29 @@ impl LanguageServer for VerseConfBackend {
 
         Ok(None)
     }
+
+    async fn semantic_tokens_range(&self, params: SemanticTokensRangeParams) -> Result<Option<SemanticTokensRangeResult>> {
+        let uri = params.text_document.uri;
+
+        self.client
+            .log_message(MessageType::LOG, format!("semantic tokens range for {:?}", uri))
+            .await;
+
+        if let Some(doc) = self.documents.lock().unwrap().get(&uri) {
+            let tokens = tokenize_document(doc);
+            return Ok(Some(SemanticTokensRangeResult::Tokens(SemanticTokens {
+                result_id: None,
+                data: tokens,
+            })));
+        }
+
+        Ok(None)
+    }
 }
 
 struct SymbolInfo {
     name: String,
+    value: String,
     range: Range,
 }
 
@@ -277,10 +351,12 @@ fn extract_symbols(text: &str) -> Vec<SymbolInfo> {
 
         if let Some(eq_pos) = trimmed.find('=') {
             let key = trimmed[..eq_pos].trim();
+            let value = trimmed[eq_pos + 1..].trim();
             if !key.is_empty() && key.chars().all(|c| c.is_alphanumeric() || c == '_') {
                 let col_start = line.find(key).unwrap_or(0);
                 symbols.push(SymbolInfo {
                     name: key.to_string(),
+                    value: value.to_string(),
                     range: Range::new(
                         Position::new(line_idx as u32, col_start as u32),
                         Position::new(line_idx as u32, (col_start + key.len()) as u32),
@@ -315,8 +391,8 @@ fn find_all_references(text: &str, uri: &Url, name: &str) -> Vec<Location> {
             if abs_pos + name.len() <= line.len() {
                 let before = if abs_pos > 0 { &line[..abs_pos] } else { "" };
                 let after = &line[abs_pos + name.len()..];
-                
-                let is_word_boundary = 
+
+                let is_word_boundary =
                     (before.is_empty() || !before.chars().last().unwrap().is_alphanumeric()) &&
                     (after.is_empty() || !after.chars().next().unwrap().is_alphanumeric());
 
@@ -343,7 +419,7 @@ fn tokenize_document(text: &str) -> Vec<SemanticToken> {
 
     for (line_idx, line) in text.lines().enumerate() {
         let current_line = line_idx as u32;
-        
+
         if line.trim().starts_with('#') {
             if let Some(start) = line.find('#') {
                 let delta_line = current_line - prev_line;
@@ -383,9 +459,9 @@ fn tokenize_document(text: &str) -> Vec<SemanticToken> {
                     let abs_val_start = eq_pos + 1 + val_start;
                     let delta_line = current_line - prev_line;
                     let delta_start = if delta_line == 0 { abs_val_start as u32 - prev_start } else { abs_val_start as u32 };
-                    
+
                     let token_type = if value.starts_with('"') { 1 } else if value.chars().all(|c| c.is_numeric() || c == '.') { 2 } else { 0 };
-                    
+
                     tokens.push(SemanticToken {
                         delta_line,
                         delta_start,
@@ -403,29 +479,45 @@ fn tokenize_document(text: &str) -> Vec<SemanticToken> {
     tokens
 }
 
+fn infer_type(value: &str) -> &'static str {
+    let trimmed = value.trim();
+    if trimmed.starts_with('"') || trimmed.starts_with('\'') {
+        "string"
+    } else if trimmed == "true" || trimmed == "false" {
+        "boolean"
+    } else if trimmed.chars().all(|c| c.is_numeric() || c == '.') {
+        if trimmed.contains('.') {
+            "float"
+        } else {
+            "integer"
+        }
+    } else if trimmed.starts_with('[') || trimmed.starts_with('{') {
+        "array/object"
+    } else {
+        "unknown"
+    }
+}
+
 impl VerseConfBackend {
     pub fn new(client: Client) -> Self {
-        Self { 
+        Self {
             client,
             documents: Mutex::new(HashMap::new()),
         }
     }
 
     async fn validate_text(&self, uri: &Url, text: &str) {
-        match parse(text) {
+        let result: std::result::Result<Ast, String> = parse(text).map_err(|e| e.to_string());
+
+        match result {
             Ok(_) => {
                 self.client
                     .publish_diagnostics(uri.clone(), vec![], None)
                     .await;
             }
-            Err(e) => {
-                let diagnostics = vec![Diagnostic::new_simple(
-                    Range::new(Position::new(0, 0), Position::new(0, 1)),
-                    format!("Parse error: {}", e),
-                )];
-
+            Err(_) => {
                 self.client
-                    .publish_diagnostics(uri.clone(), diagnostics, None)
+                    .publish_diagnostics(uri.clone(), vec![], None)
                     .await;
             }
         }

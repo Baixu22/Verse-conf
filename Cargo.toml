@@ -5,6 +5,7 @@ members = [
     "crates/verseconf-test",
     "crates/verseconf-lsp",
     "compare",
+    "integrations/verseconf-wasm",
 ]
 resolver = "2"
 

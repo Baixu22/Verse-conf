@@ -1,0 +1,113 @@
+{
+  "name": "verseconf",
+  "displayName": "VerseConf",
+  "description": "VerseConf language support - A modern configuration language for the AI era",
+  "version": "0.1.0",
+  "publisher": "verseconf",
+  "license": "MIT OR Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Baixu22/Verse-conf"
+  },
+  "engines": {
+    "vscode": "^1.115.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Formatters"
+  ],
+  "keywords": [
+    "verseconf",
+    "config",
+    "configuration",
+    "vcf"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:verseconf",
+    "onPattern:*.vcf"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "verseconf",
+        "aliases": [
+          "VerseConf",
+          "VCF"
+        ],
+        "extensions": [
+          ".vcf"
+        ],
+        "filenames": [],
+        "firstLine": "^#@",
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "verseconf",
+        "scopeName": "source.verseconf",
+        "path": "./syntaxes/verseconf.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "VerseConf Configuration",
+      "properties": {
+        "verseconf.format.aiCanonical": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable AI-friendly canonical formatting"
+        },
+        "verseconf.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Language Server Protocol features"
+        },
+        "verseconf.lsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to the VerseConf LSP server executable (leave empty to use bundled)"
+        },
+        "verseconf.validation.strict": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable strict validation mode"
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "verseconf.format",
+        "title": "Format Document",
+        "category": "VerseConf"
+      },
+      {
+        "command": "verseconf.validate",
+        "title": "Validate Document",
+        "category": "VerseConf"
+      },
+      {
+        "command": "verseconf.schema.generate",
+        "title": "Generate Schema from Document",
+        "category": "VerseConf"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
+  }
+}

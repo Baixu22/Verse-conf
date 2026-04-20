@@ -1,0 +1,6 @@
+services:
+  verseconf:
+    image: verseconf
+    build:
+      context: .
+      dockerfile: ./Dockerfile

@@ -4,6 +4,9 @@
 /debug
 /release
 
+/dev/
+**/dev/
+
 # IDE 和编辑器
 .vscode/
 .idea/
@@ -11,6 +14,7 @@
 *.swo
 *~
 .DS_Store
+.metals/
 
 # 操作系统
 Thumbs.db
@@ -50,3 +54,14 @@ coverage/
 *.tmp
 *.temp
 *.bak
+
+# VSCode 扩展构建产物
+extensions/verseconf-vscode/out/
+extensions/verseconf-vscode/node_modules/
+extensions/verseconf-vscode/*.vsix
+
+# JavaScript/TypeScript WASM 包构建产物
+integrations/verseconf-wasm/js-api/node_modules/
+integrations/verseconf-wasm/js-api/pkg/
+integrations/verseconf-wasm/js-api/dist/
+integrations/verseconf-wasm/js-api/*.wasm
