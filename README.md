@@ -61,8 +61,11 @@ large:   VCF 6.7ms  |  TOML 18.9ms (2.8x slower) |  JSON 3.0ms
 ## 🚀 Quick Start
 
 ```bash
-# Install CLI
-cargo install verseconf-cli
+# 从克隆的仓库安装 CLI（可执行文件叫 verseconf）
+cargo install --path crates/verseconf-cli
+
+# 或：crates 发布到 crates.io 之后
+# cargo install verseconf-cli
 
 # Parse and validate
 verseconf parse config.vcf
@@ -74,6 +77,27 @@ verseconf format config.vcf --ai-canonical
 # Generate documentation from schema
 verseconf doc config.vcf
 ```
+
+---
+
+## 🔧 从源码构建
+
+克隆之后一条命令完成构建与测试（工作区全部 crate，253 个用例）：
+
+```bash
+cargo test --workspace
+```
+
+发布到 crates.io 的顺序（需要 `CARGO_REGISTRY_TOKEN`）：
+
+```bash
+cargo publish -p verseconf-core   # 其余 crate 都依赖它，必须第一个发
+cargo publish -p verseconf-cli    # 提供 `verseconf` 可执行文件
+cargo publish -p verseconf-mcp    # 工具协议服务端
+cargo publish -p verseconf-lsp    # 编辑器语言服务器
+```
+
+`cargo package --workspace` 可以在不发布的情况下检查打包内容与清单是否合法。
 
 ---
 
@@ -194,7 +218,7 @@ cargo bench
 cd compare && cargo run --bin benchmark
 ```
 
-> **📊 Current Status**: 161/161 tests passing ✅
+> **📊 Current Status**: 253/253 tests passing ✅
 
 ---
 
@@ -213,6 +237,8 @@ cd compare && cargo run --bin benchmark
 ```bash
 npm install verseconf
 ```
+
+CommonJS 与 ESM 两种引入方式都可用（包内自带 WebAssembly，无需编译）：
 
 ```typescript
 import { VerseConf, parseConfig, getVersion } from 'verseconf';
@@ -239,17 +265,41 @@ config2.getString('database.host')  // "localhost"
 config2.getNumber('database.port')   // 5432
 config2.toJson()                    // Convert to JSON
 
-getVersion()  // "0.1.0"
+getVersion()  // 内嵌 Rust 核心的版本
 ```
 
-**CDN Usage (Browser):**
+包内还带着与本机 `verseconf-mcp` **完全相同**的四个工具（校验、安全审计、
+意图应用、区间编辑），结果逐字节一致：
+
+```typescript
+import { validate, audit, applyEdit, editRange } from 'verseconf';
+
+validate('port = 8080\n');            // { isError: false, structuredContent: { valid: true, ... } }
+audit('db_password = "secret"\n');    // structuredContent.findings -> [{ rule_id: 'SEC-SENS-001', ... }]
+```
+
+**零安装的工具协议服务端**（宿主只要有 Node，不需要 Rust 工具链）：
+
+```bash
+npx verseconf-mcp-wasm --list-tools
+npx verseconf-mcp-wasm            # 逐行 JSON-RPC over stdio
+```
+
+```json
+{ "mcpServers": { "verseconf": { "command": "npx", "args": ["-y", "verseconf-mcp-wasm"] } } }
+```
+
+详见 [docs/MCP.md](docs/MCP.md)。
+
+**CDN Usage (Browser):** 浏览器用 wasm-bindgen 的 web 目标产物 `pkg-web/`：
+
 ```html
 <script type="module">
-  import init, { VerseConf } from 'https://cdn.jsdelivr.net/npm/verseconf/dist/index.mjs';
+  import init, { call_tool_json } from 'https://cdn.jsdelivr.net/npm/verseconf/pkg-web/verseconf_wasm.js';
   await init();
 
-  const config = new VerseConf('app_name = "my-app"');
-  console.log(config.getString('app_name'));
+  const result = JSON.parse(call_tool_json('verseconf_validate', JSON.stringify({ source: 'port = 8080\n' })));
+  console.log(result.structuredContent.valid);  // true
 </script>
 ```
 
@@ -257,18 +307,19 @@ getVersion()  // "0.1.0"
 
 ## 🧩 VSCode Extension
 
-Install the official VerseConf extension for syntax highlighting, autocomplete, and validation in Visual Studio Code.
+VerseConf 的编辑器支持：语法高亮、实时诊断、格式化。扩展包由流水线产出，
+按平台自带语言服务器。
 
-**Installation:**
-1. Open VSCode
-2. Press `Ctrl+Shift+X` (or `Cmd+Shift+X` on Mac) to open Extensions
-3. Search for **"VerseConf"**
-4. Click **Install**
+**从扩展包安装：**
 
-**Or install from .vsix file:**
 ```bash
-code --install-extension extensions/verseconf-vscode/verseconf-0.1.0.vsix
+code --install-extension verseconf-0.1.0.vsix
 ```
+
+扩展包由 `.github/workflows/extension.yml` 产出：矩阵构建
+`linux-x64` / `win32-x64` / `darwin-x64` / `darwin-arm64` 四份语言服务器，
+聚合后打包并作为构建产物上传。本地打包见
+[extensions/verseconf-vscode/README.md](extensions/verseconf-vscode/README.md)。
 
 **Features:**
 - 🎨 Syntax highlighting for `.vcf` files
