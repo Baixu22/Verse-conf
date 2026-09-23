@@ -1,0 +1,6 @@
+# 内联表、数组与非常规空白：值替换不该动到别的写法
+app = { name = "demo", debug = true }
+features = ["auth", "logging"]
+port=8080
+host   =    "127.0.0.1"
+quoted = "带 空格 的 值"

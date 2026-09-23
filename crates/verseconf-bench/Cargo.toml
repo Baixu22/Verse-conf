@@ -1,0 +1,19 @@
+[package]
+name = "verseconf-bench"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Agent 编辑保真度基准：在固定语料上度量正确率、附带损伤、误改、拒绝准确率与确定性"
+# 基准从仓库里跑（cargo run -p verseconf-bench），不发布到 crates.io。
+publish = false
+
+[[bin]]
+name = "verseconf-bench"
+path = "src/main.rs"
+
+[dependencies]
+verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
+serde.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,23 @@
+# 服务端配置
+# 这份文档专门用来检验「改动之外字节零变化」：
+# 有多余空白、行尾注释、#@ 元数据与嵌套表。
+server {
+  port = 8080 #@ range(1024..65535), description="HTTP 端口"
+  host = "0.0.0.0"
+  timeout = 30s #@ description="请求超时"
+
+  # 数据库连接
+  database {
+    host    =   "db.internal"     # 故意保留多余空白
+    port = 5432
+    credentials {
+      user = "admin"
+      password = "${DB_PASS|changeme}"
+    }
+  }
+}
+
+logging {
+  level = "info" #@ type_hint="string"
+  output = ["stdout", "file"]
+}

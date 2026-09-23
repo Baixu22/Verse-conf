@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "documents": {
+    "commented": "documents/commented.vcf",
+    "named-list": "documents/named-list.vcf",
+    "inline": "documents/inline.vcf",
+    "schema": "documents/schema.vcf",
+    "secrets": "documents/secrets.vcf",
+    "crlf": "documents/crlf.vcf"
+  },
+  "tasks": [
+    {
+      "id": "set-nested-with-comment",
+      "document": "commented",
+      "description": "改一个带行尾注释与 #@ 元数据的嵌套标量",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          { "op": "set", "path": ["server", "port"], "value": 9090, "reason": "端口冲突" }
+        ]
+      },
+      "expect": { "outcome": "applied", "path": ["server", "port"], "value": 9090 }
+    },
+    {
+      "id": "set-deep-nested",
+      "document": "commented",
+      "description": "改三层嵌套里的标量",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["server", "database", "port"], "value": 5433 }]
+      },
+      "expect": { "outcome": "applied", "path": ["server", "database", "port"], "value": 5433 }
+    },
+    {
+      "id": "set-unusual-spacing",
+      "document": "commented",
+      "description": "目标行本身有非常规空白，替换后必须原样保留",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          { "op": "set", "path": ["server", "database", "host"], "value": "db2.internal" }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": ["server", "database", "host"],
+        "value": "db2.internal"
+      }
+    },
+    {
+      "id": "set-with-expect",
+      "document": "commented",
+      "description": "带前置条件的改动，条件成立时正常落地",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": ["server", "host"],
+            "value": "127.0.0.1",
+            "expect": { "value": "0.0.0.0" }
+          }
+        ]
+      },
+      "expect": { "outcome": "applied", "path": ["server", "host"], "value": "127.0.0.1" }
+    },
+    {
+      "id": "set-crlf",
+      "document": "crlf",
+      "description": "CRLF 文件改一处，换行符必须保持 CRLF",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["server", "port"], "value": 9090 }]
+      },
+      "expect": { "outcome": "applied", "path": ["server", "port"], "value": 9090 }
+    },
+    {
+      "id": "set-root-scalar",
+      "document": "inline",
+      "description": "改根表里一个没有空格的赋值",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["port"], "value": 9090 }]
+      },
+      "expect": { "outcome": "applied", "path": ["port"], "value": 9090 }
+    },
+    {
+      "id": "set-quoted-value",
+      "document": "inline",
+      "description": "改一个含空格的非 ASCII 字符串值",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["quoted"], "value": "新的 值" }]
+      },
+      "expect": { "outcome": "applied", "path": ["quoted"], "value": "新的 值" }
+    },
+    {
+      "id": "set-named-list-element",
+      "document": "named-list",
+      "description": "命名列表里唯一命中时按名称定位",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [{ "key": "servers", "match": { "name": "replica" } }, "weight"],
+            "value": 20
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [{ "key": "servers", "match": { "name": "replica" } }, "weight"],
+        "value": 20
+      }
+    },
+    {
+      "id": "refuse-ambiguous",
+      "document": "named-list",
+      "description": "命名列表命中两个同名元素时必须拒绝，而不是挑第一个",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [{ "key": "servers", "match": { "name": "primary" } }, "ip"],
+            "value": "10.9.9.9"
+          }
+        ]
+      },
+      "expect": { "outcome": "refused", "code": "target_ambiguous" }
+    },
+    {
+      "id": "refuse-missing",
+      "document": "commented",
+      "description": "目标字段不存在时必须拒绝",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["server", "missing"], "value": 1 }]
+      },
+      "expect": { "outcome": "refused", "code": "target_not_found" }
+    },
+    {
+      "id": "refuse-stale-expect",
+      "document": "commented",
+      "description": "前置条件与当前值不符时必须拒绝",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": ["server", "port"],
+            "value": 1,
+            "expect": { "value": 1234 }
+          }
+        ]
+      },
+      "expect": { "outcome": "refused", "code": "expectation_mismatch" }
+    },
+    {
+      "id": "refuse-schema-break",
+      "document": "schema",
+      "description": "把 schema 声明为整数的字段改成字符串必须被拒绝",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["server", "port"], "value": "not-a-number" }]
+      },
+      "expect": { "outcome": "refused", "code": "validation_failed" }
+    },
+    {
+      "id": "refuse-security",
+      "document": "secrets",
+      "description": "关闭证书校验必须被拒绝",
+      "plan": {
+        "version": "1.0",
+        "edits": [{ "op": "set", "path": ["tls", "ssl_verify"], "value": false }]
+      },
+      "expect": { "outcome": "refused", "code": "security_rejected" }
+    },
+    {
+      "id": "refuse-invalid-plan",
+      "document": "commented",
+      "description": "契约版本不符的编辑计划必须被拒绝",
+      "plan": {
+        "version": "9.9",
+        "edits": [{ "op": "set", "path": ["server", "port"], "value": 9090 }]
+      },
+      "expect": { "outcome": "refused", "code": "invalid_plan" }
+    }
+  ]
+}

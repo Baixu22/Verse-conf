@@ -1,0 +1,21 @@
+[package]
+name = "verseconf-mcp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Tool-protocol server exposing VerseConf validation, audit and deterministic editing to agent hosts"
+
+[lib]
+name = "verseconf_mcp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "verseconf-mcp"
+path = "src/main.rs"
+
+[dependencies]
+verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
+serde.workspace = true
+serde_json.workspace = true

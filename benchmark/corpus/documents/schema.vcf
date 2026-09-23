@@ -1,0 +1,14 @@
+# 带 schema：把整数字段改成字符串必须被拒绝
+#@schema {
+  server {
+    type = "table"
+    port {
+      type = "integer"
+      range = (1..65535)
+    }
+  }
+}
+
+server {
+  port = 8080 #@ description="HTTP 端口"
+}

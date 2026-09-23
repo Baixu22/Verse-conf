@@ -1,0 +1,16 @@
+# 命名列表：按 name 字段定位唯一元素。
+# 前两条同名，任何"挑第一个"的实现都会改错目标。
+[[servers]]
+name = "primary"
+ip = "10.0.0.1"
+weight = 100
+
+[[servers]]
+name = "primary"
+ip = "10.0.0.2"
+weight = 50
+
+[[servers]]
+name = "replica"
+ip = "10.0.0.3"
+weight = 10

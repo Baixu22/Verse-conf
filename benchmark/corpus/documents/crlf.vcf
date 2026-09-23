@@ -1,0 +1,5 @@
+# CRLF 语料：改一处不该把整个文件的换行符换掉
+server {
+  host = "0.0.0.0"
+  port = 8080 #@ description="HTTP 端口"
+}

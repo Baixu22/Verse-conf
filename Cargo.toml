@@ -4,6 +4,8 @@ members = [
     "crates/verseconf-cli",
     "crates/verseconf-test",
     "crates/verseconf-lsp",
+    "crates/verseconf-mcp",
+    "crates/verseconf-bench",
     "compare",
     "integrations/verseconf-wasm",
 ]
@@ -14,7 +16,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["VerseConf Contributors"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/verseconf"
+repository = "https://github.com/Baixu22/Verse-conf"
 description = "A modern configuration language implementation in Rust based on VerseConf v1.1 spec"
 
 [workspace.dependencies]
@@ -38,3 +40,10 @@ anyhow = "1.0"
 rstest = "0.18"
 criterion = "0.5"
 insta = "1.34"
+
+# wasm 分发希望产物更小。profile 只能在作为工作区根的这个文件里声明：
+# 写在 integrations/verseconf-wasm/Cargo.toml 里的 [profile.release] 会被 cargo
+# 忽略（"profiles for the non root package will be ignored"），此前那条设置
+# 实际上从未生效。lto 不能按 package 覆盖，所以只覆盖 opt-level。
+[profile.release.package.verseconf-wasm]
+opt-level = "s"

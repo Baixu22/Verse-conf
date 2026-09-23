@@ -1,0 +1,440 @@
+{
+  "methodology_version": "1.0",
+  "corpus_fingerprint": "115811767f1177d0",
+  "document_count": 6,
+  "task_count": 14,
+  "strategies": [
+    {
+      "name": "verseconf-intent",
+      "summary": "意图契约 + 字符区间最小改动 + 写入前双重校验",
+      "metrics": {
+        "applied_tasks": 8,
+        "refused_tasks": 6,
+        "correct": 8,
+        "collateral": 0,
+        "wrong": 0,
+        "refused_correctly": 6,
+        "refused_wrongly": 0,
+        "applied_wrongly": 0,
+        "comments_kept": 8,
+        "deterministic": true
+      },
+      "results": [
+        {
+          "task_id": "set-nested-with-comment",
+          "description": "改一个带行尾注释与 #@ 元数据的嵌套标量",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-deep-nested",
+          "description": "改三层嵌套里的标量",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-unusual-spacing",
+          "description": "目标行本身有非常规空白，替换后必须原样保留",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-with-expect",
+          "description": "带前置条件的改动，条件成立时正常落地",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-crlf",
+          "description": "CRLF 文件改一处，换行符必须保持 CRLF",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-root-scalar",
+          "description": "改根表里一个没有空格的赋值",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-quoted-value",
+          "description": "改一个含空格的非 ASCII 字符串值",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-named-list-element",
+          "description": "命名列表里唯一命中时按名称定位",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-ambiguous",
+          "description": "命名列表命中两个同名元素时必须拒绝，而不是挑第一个",
+          "expected": "refused(target_ambiguous)",
+          "outcome": "refused_correctly",
+          "detail": "按 target_ambiguous 拒绝：目标有歧义：servers[name=\"primary\"].ip 命中了 2 个元素，必须唯一命中",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-missing",
+          "description": "目标字段不存在时必须拒绝",
+          "expected": "refused(target_not_found)",
+          "outcome": "refused_correctly",
+          "detail": "按 target_not_found 拒绝：目标不存在：server.missing",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-stale-expect",
+          "description": "前置条件与当前值不符时必须拒绝",
+          "expected": "refused(expectation_mismatch)",
+          "outcome": "refused_correctly",
+          "detail": "按 expectation_mismatch 拒绝：前置条件不符：server.port 期望 1234，实际 8080",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-schema-break",
+          "description": "把 schema 声明为整数的字段改成字符串必须被拒绝",
+          "expected": "refused(validation_failed)",
+          "outcome": "refused_correctly",
+          "detail": "按 validation_failed 拒绝：改动后校验失败：<result>（Validation error at 5:5: type mismatch for field 'port': expected integer, found \"not-a-number\" (type: string)）",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-security",
+          "description": "关闭证书校验必须被拒绝",
+          "expected": "refused(security_rejected)",
+          "outcome": "refused_correctly",
+          "detail": "按 security_rejected 拒绝：改动引入新的安全风险：<result>（SEC-005）",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-invalid-plan",
+          "description": "契约版本不符的编辑计划必须被拒绝",
+          "expected": "refused(invalid_plan)",
+          "outcome": "refused_correctly",
+          "detail": "按 invalid_plan 拒绝：unsupported_version: 契约版本 '9.9' 不受支持，当前只接受 1.0",
+          "comments_kept": true,
+          "deterministic": true
+        }
+      ]
+    },
+    {
+      "name": "whole-file-rewrite",
+      "summary": "改值后整个文件按 AI 友好规范形式重新序列化，无写入前校验",
+      "metrics": {
+        "applied_tasks": 8,
+        "refused_tasks": 6,
+        "correct": 0,
+        "collateral": 8,
+        "wrong": 0,
+        "refused_correctly": 3,
+        "refused_wrongly": 0,
+        "applied_wrongly": 3,
+        "comments_kept": 8,
+        "deterministic": true
+      },
+      "results": [
+        {
+          "task_id": "set-nested-with-comment",
+          "description": "改一个带行尾注释与 #@ 元数据的嵌套标量",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 23→21，不同行 17，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-deep-nested",
+          "description": "改三层嵌套里的标量",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 23→21，不同行 17，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-unusual-spacing",
+          "description": "目标行本身有非常规空白，替换后必须原样保留",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 23→21，不同行 17，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-with-expect",
+          "description": "带前置条件的改动，条件成立时正常落地",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 23→21，不同行 17，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-crlf",
+          "description": "CRLF 文件改一处，换行符必须保持 CRLF",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 5→5，不同行 1，CRLF 是→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-root-scalar",
+          "description": "改根表里一个没有空格的赋值",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 6→9，不同行 8，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-quoted-value",
+          "description": "改一个含空格的非 ASCII 字符串值",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前的字节也变了：行数 6→9，不同行 8，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-named-list-element",
+          "description": "命名列表里唯一命中时按名称定位",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前的字节也变了：行数 16→14，不同行 13，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-ambiguous",
+          "description": "命名列表命中两个同名元素时必须拒绝，而不是挑第一个",
+          "expected": "refused(target_ambiguous)",
+          "outcome": "refused_correctly",
+          "detail": "按 target_ambiguous 拒绝：目标有歧义：servers[name=\"primary\"].ip 命中了 2 个元素，必须唯一命中",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-missing",
+          "description": "目标字段不存在时必须拒绝",
+          "expected": "refused(target_not_found)",
+          "outcome": "refused_correctly",
+          "detail": "按 target_not_found 拒绝：目标不存在：server.missing",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-stale-expect",
+          "description": "前置条件与当前值不符时必须拒绝",
+          "expected": "refused(expectation_mismatch)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 expectation_mismatch 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-schema-break",
+          "description": "把 schema 声明为整数的字段改成字符串必须被拒绝",
+          "expected": "refused(validation_failed)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 validation_failed 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-security",
+          "description": "关闭证书校验必须被拒绝",
+          "expected": "refused(security_rejected)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 security_rejected 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-invalid-plan",
+          "description": "契约版本不符的编辑计划必须被拒绝",
+          "expected": "refused(invalid_plan)",
+          "outcome": "refused_correctly",
+          "detail": "按 invalid_plan 拒绝：unsupported_version: 契约版本 '9.9' 不受支持，当前只接受 1.0",
+          "comments_kept": true,
+          "deterministic": true
+        }
+      ]
+    },
+    {
+      "name": "line-diff",
+      "summary": "按字段名找第一处匹配行并整行替换，无路径解析、无写入前校验",
+      "metrics": {
+        "applied_tasks": 8,
+        "refused_tasks": 6,
+        "correct": 2,
+        "collateral": 3,
+        "wrong": 3,
+        "refused_correctly": 2,
+        "refused_wrongly": 0,
+        "applied_wrongly": 4,
+        "comments_kept": 3,
+        "deterministic": true
+      },
+      "results": [
+        {
+          "task_id": "set-nested-with-comment",
+          "description": "改一个带行尾注释与 #@ 元数据的嵌套标量",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之后的字节也变了：行数 23→23，不同行 1，CRLF 否→否",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-deep-nested",
+          "description": "改三层嵌套里的标量",
+          "expected": "applied",
+          "outcome": "wrong",
+          "detail": "目标值应为 5433，实际为 5432",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-unusual-spacing",
+          "description": "目标行本身有非常规空白，替换后必须原样保留",
+          "expected": "applied",
+          "outcome": "wrong",
+          "detail": "目标值应为 \"db2.internal\"，实际为 \"db.internal\"",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-with-expect",
+          "description": "带前置条件的改动，条件成立时正常落地",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-crlf",
+          "description": "CRLF 文件改一处，换行符必须保持 CRLF",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之后的字节也变了：行数 5→5，不同行 1，CRLF 是→是",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-root-scalar",
+          "description": "改根表里一个没有空格的赋值",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前的字节也变了：行数 6→6，不同行 1，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-quoted-value",
+          "description": "改一个含空格的非 ASCII 字符串值",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "set-named-list-element",
+          "description": "命名列表里唯一命中时按名称定位",
+          "expected": "applied",
+          "outcome": "wrong",
+          "detail": "目标值应为 20，实际为 10",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-ambiguous",
+          "description": "命名列表命中两个同名元素时必须拒绝，而不是挑第一个",
+          "expected": "refused(target_ambiguous)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 target_ambiguous 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-missing",
+          "description": "目标字段不存在时必须拒绝",
+          "expected": "refused(target_not_found)",
+          "outcome": "refused_correctly",
+          "detail": "按 target_not_found 拒绝：找不到字段 'missing' 所在的行",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-stale-expect",
+          "description": "前置条件与当前值不符时必须拒绝",
+          "expected": "refused(expectation_mismatch)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 expectation_mismatch 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-schema-break",
+          "description": "把 schema 声明为整数的字段改成字符串必须被拒绝",
+          "expected": "refused(validation_failed)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 validation_failed 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-security",
+          "description": "关闭证书校验必须被拒绝",
+          "expected": "refused(security_rejected)",
+          "outcome": "applied_wrongly",
+          "detail": "应以 security_rejected 拒绝，实际改动了文件",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "refuse-invalid-plan",
+          "description": "契约版本不符的编辑计划必须被拒绝",
+          "expected": "refused(invalid_plan)",
+          "outcome": "refused_correctly",
+          "detail": "按 invalid_plan 拒绝：unsupported_version: 契约版本 '9.9' 不受支持，当前只接受 1.0",
+          "comments_kept": true,
+          "deterministic": true
+        }
+      ]
+    }
+  ]
+}
