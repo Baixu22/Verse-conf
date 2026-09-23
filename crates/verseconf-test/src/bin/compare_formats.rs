@@ -1,6 +1,6 @@
 use std::fs;
 use std::time::Instant;
-use verseconf_core::{parse, format as vcf_format, PrettyPrinter};
+use verseconf_core::{format as vcf_format, parse, PrettyPrinter};
 
 #[allow(dead_code)]
 /// Benchmark result
@@ -622,7 +622,10 @@ struct FormatScore {
 }
 
 fn print_benchmark_results(results: &[BenchmarkResult]) {
-    println!("{:<10} {:>15} {:>15} {:>12}", "格式", "解析时间(ns)", "序列化(ns)", "文件大小(B)");
+    println!(
+        "{:<10} {:>15} {:>15} {:>12}",
+        "格式", "解析时间(ns)", "序列化(ns)", "文件大小(B)"
+    );
     println!("{}", "-".repeat(55));
     for r in results {
         println!(
@@ -633,29 +636,48 @@ fn print_benchmark_results(results: &[BenchmarkResult]) {
     println!();
 
     let fastest = results.iter().min_by_key(|r| r.parse_time_ns).unwrap();
-    println!("⚡ 最快解析: {} ({} ns/次)", fastest.format, fastest.parse_time_ns);
+    println!(
+        "⚡ 最快解析: {} ({} ns/次)",
+        fastest.format, fastest.parse_time_ns
+    );
 }
 
 fn print_feature_results(features: &[FeatureTest]) {
-    println!("{:<20} {:>8} {:>8} {:>8}  {}", "特性", "VCF", "TOML", "JSON", "备注");
+    println!(
+        "{:<20} {:>8} {:>8} {:>8}  备注",
+        "特性", "VCF", "TOML", "JSON"
+    );
     println!("{}", "-".repeat(75));
     for f in features {
         let vcf = if f.vcf { "✅" } else { "❌" };
         let toml = if f.toml { "✅" } else { "❌" };
         let json = if f.json { "✅" } else { "❌" };
-        println!("{:<20} {:>8} {:>8} {:>8}  {}", f.feature, vcf, toml, json, f.notes);
+        println!(
+            "{:<20} {:>8} {:>8} {:>8}  {}",
+            f.feature, vcf, toml, json, f.notes
+        );
     }
 
     let vcf_count = features.iter().filter(|f| f.vcf).count();
     let toml_count = features.iter().filter(|f| f.toml).count();
     let json_count = features.iter().filter(|f| f.json).count();
     println!();
-    println!("功能支持数量: VCF: {}/{} | TOML: {}/{} | JSON: {}/{}", 
-        vcf_count, features.len(), toml_count, features.len(), json_count, features.len());
+    println!(
+        "功能支持数量: VCF: {}/{} | TOML: {}/{} | JSON: {}/{}",
+        vcf_count,
+        features.len(),
+        toml_count,
+        features.len(),
+        json_count,
+        features.len()
+    );
 }
 
 fn print_error_results(errors: &[ErrorTest]) {
-    println!("{:<20} {:>8} {:>8} {:>8}", "错误类型", "VCF", "TOML", "JSON");
+    println!(
+        "{:<20} {:>8} {:>8} {:>8}",
+        "错误类型", "VCF", "TOML", "JSON"
+    );
     println!("{}", "-".repeat(50));
     for e in errors {
         let vcf = if e.vcf_error { "✅" } else { "❌" };
@@ -666,24 +688,32 @@ fn print_error_results(errors: &[ErrorTest]) {
 }
 
 fn print_accuracy_results(accuracy: &[AccuracyTest]) {
-    println!("{:<20} {:>8} {:>8} {:>8}  {}", "测试项", "VCF", "TOML", "JSON", "备注");
+    println!(
+        "{:<20} {:>8} {:>8} {:>8}  备注",
+        "测试项", "VCF", "TOML", "JSON"
+    );
     println!("{}", "-".repeat(75));
     for a in accuracy {
         let vcf = if a.vcf_correct { "✅" } else { "❌" };
         let toml = if a.toml_correct { "✅" } else { "❌" };
         let json = if a.json_correct { "✅" } else { "❌" };
-        println!("{:<20} {:>8} {:>8} {:>8}  {}", a.test_name, vcf, toml, json, a.notes);
+        println!(
+            "{:<20} {:>8} {:>8} {:>8}  {}",
+            a.test_name, vcf, toml, json, a.notes
+        );
     }
 }
 
 fn print_scores(scores: &[FormatScore]) {
-    println!("{:<10} {:>12} {:>12} {:>12} {:>12} {:>12}", 
-        "格式", "性能(25%)", "功能(35%)", "错误(20%)", "准确(20%)", "总分");
+    println!(
+        "{:<10} {:>12} {:>12} {:>12} {:>12} {:>12}",
+        "格式", "性能(25%)", "功能(35%)", "错误(20%)", "准确(20%)", "总分"
+    );
     println!("{}", "-".repeat(75));
-    
+
     let mut sorted = scores.to_vec();
     sorted.sort_by(|a, b| b.total_score.partial_cmp(&a.total_score).unwrap());
-    
+
     for (rank, s) in sorted.iter().enumerate() {
         let medal = match rank {
             0 => "🥇",
@@ -693,8 +723,13 @@ fn print_scores(scores: &[FormatScore]) {
         };
         println!(
             "{}{:<10} {:>11.1} {:>11.1} {:>11.1} {:>11.1} {:>11.1}",
-            medal, s.format, s.performance_score, s.feature_score, 
-            s.error_score, s.accuracy_score, s.total_score
+            medal,
+            s.format,
+            s.performance_score,
+            s.feature_score,
+            s.error_score,
+            s.accuracy_score,
+            s.total_score
         );
     }
 }
@@ -707,10 +742,10 @@ fn generate_report(
     scores: &[FormatScore],
 ) {
     let mut report = String::new();
-    
+
     report.push_str("# VerseConf vs TOML vs JSON 格式对比报告\n\n");
     report.push_str("## 测试日期: 2026-04-20\n\n");
-    
+
     report.push_str("## 一、性能基准测试\n\n");
     report.push_str("| 格式 | 解析时间(ns) | 序列化(ns) | 文件大小(B) |\n");
     report.push_str("|------|-------------|-----------|------------|\n");
@@ -721,7 +756,7 @@ fn generate_report(
         ));
     }
     report.push('\n');
-    
+
     report.push_str("## 二、功能特性对比\n\n");
     report.push_str("| 特性 | VCF | TOML | JSON | 备注 |\n");
     report.push_str("|------|-----|------|------|------|\n");
@@ -735,7 +770,7 @@ fn generate_report(
         ));
     }
     report.push('\n');
-    
+
     report.push_str("## 三、错误处理对比\n\n");
     report.push_str("| 错误类型 | VCF | TOML | JSON |\n");
     report.push_str("|---------|-----|------|------|\n");
@@ -743,10 +778,13 @@ fn generate_report(
         let vcf = if e.vcf_error { "✅" } else { "❌" };
         let toml = if e.toml_error { "✅" } else { "❌" };
         let json = if e.json_error { "✅" } else { "❌" };
-        report.push_str(&format!("| {} | {} | {} | {} |\n", e.test_name, vcf, toml, json));
+        report.push_str(&format!(
+            "| {} | {} | {} | {} |\n",
+            e.test_name, vcf, toml, json
+        ));
     }
     report.push('\n');
-    
+
     report.push_str("## 四、解析准确性对比\n\n");
     report.push_str("| 测试项 | VCF | TOML | JSON | 备注 |\n");
     report.push_str("|--------|-----|------|------|------|\n");
@@ -760,23 +798,27 @@ fn generate_report(
         ));
     }
     report.push('\n');
-    
+
     report.push_str("## 五、综合评分\n\n");
     report.push_str("| 格式 | 性能(25%) | 功能(35%) | 错误(20%) | 准确(20%) | 总分 |\n");
     report.push_str("|------|----------|----------|----------|----------|------|\n");
-    
+
     let mut sorted = scores.to_vec();
     sorted.sort_by(|a, b| b.total_score.partial_cmp(&a.total_score).unwrap());
-    
+
     for s in &sorted {
         report.push_str(&format!(
             "| {} | {:.1} | {:.1} | {:.1} | {:.1} | {:.1} |\n",
-            s.format, s.performance_score, s.feature_score, 
-            s.error_score, s.accuracy_score, s.total_score
+            s.format,
+            s.performance_score,
+            s.feature_score,
+            s.error_score,
+            s.accuracy_score,
+            s.total_score
         ));
     }
     report.push('\n');
-    
+
     report.push_str("## 六、总结与建议\n\n");
     report.push_str("### VCF (VerseConf Format)\n\n");
     report.push_str("**优势:**\n");
@@ -787,7 +829,7 @@ fn generate_report(
     report.push_str("**劣势:**\n");
     report.push_str("- 解析速度相对较慢（由于功能复杂）\n");
     report.push_str("- 生态系统较新，工具链不如 TOML/JSON 成熟\n\n");
-    
+
     report.push_str("### TOML\n\n");
     report.push_str("**优势:**\n");
     report.push_str("- 解析速度快，生态成熟\n");
@@ -796,7 +838,7 @@ fn generate_report(
     report.push_str("**劣势:**\n");
     report.push_str("- 功能相对有限，不支持表达式和高级特性\n");
     report.push_str("- 嵌套结构语法较繁琐\n\n");
-    
+
     report.push_str("### JSON\n\n");
     report.push_str("**优势:**\n");
     report.push_str("- 解析速度最快\n");
@@ -806,12 +848,12 @@ fn generate_report(
     report.push_str("- 不支持注释\n");
     report.push_str("- 语法严格（必须双引号、逗号等）\n");
     report.push_str("- 可读性较差，不适合人工编辑\n\n");
-    
+
     report.push_str("## 七、使用建议\n\n");
     report.push_str("- **小型项目/简单配置**: JSON（快速、通用）\n");
     report.push_str("- **中等项目/需要人工编辑**: TOML（平衡）\n");
     report.push_str("- **大型项目/复杂配置**: VCF（功能丰富、可维护性强）\n");
-    
+
     let report_path = "comparison_report.md";
     fs::write(report_path, &report).expect("Failed to write report");
     println!("📄 详细报告已保存到: {}", report_path);

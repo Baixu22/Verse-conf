@@ -1,21 +1,12 @@
 use crate::ast::Span;
 
 /// Parse configuration options
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ParseConfig {
     /// Enable tolerant parsing mode (auto-fix common issues)
     pub tolerant: bool,
     /// Collect warnings during parsing
     pub collect_warnings: bool,
-}
-
-impl Default for ParseConfig {
-    fn default() -> Self {
-        Self {
-            tolerant: false,
-            collect_warnings: false,
-        }
-    }
 }
 
 /// Warning during parsing

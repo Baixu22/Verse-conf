@@ -1,4 +1,6 @@
-use verseconf_core::{parse_template, render_template, RenderContext, Template, TemplateVariable, VariableType};
+use verseconf_core::{
+    parse_template, render_template, RenderContext, Template, TemplateVariable, VariableType,
+};
 
 fn create_test_template() -> Template {
     Template {
@@ -59,7 +61,7 @@ fn test_render_template_basic() {
         .with_value("host", "example.com")
         .with_value("port", "3000")
         .with_value("debug", "true");
-    
+
     let result = render_template(&template, &context).unwrap();
     assert!(result.contains("host = \"example.com\""));
     assert!(result.contains("port = 3000"));
@@ -69,9 +71,8 @@ fn test_render_template_basic() {
 #[test]
 fn test_render_template_with_defaults() {
     let template = create_test_template();
-    let context = RenderContext::new()
-        .with_value("port", "8080");
-    
+    let context = RenderContext::new().with_value("port", "8080");
+
     let result = render_template(&template, &context);
     assert!(result.is_err());
 }
@@ -80,7 +81,7 @@ fn test_render_template_with_defaults() {
 fn test_render_template_non_strict() {
     let template = create_test_template();
     let context = RenderContext::new().strict_mode(false);
-    
+
     let result = render_template(&template, &context).unwrap();
     assert!(result.contains("{{host}}"));
     assert!(result.contains("{{port}}"));
@@ -102,10 +103,10 @@ fn test_render_template_complex() {
         level = "{{LOG_LEVEL}}"
     }
 }"#;
-    
+
     let template = parse_template(content).unwrap();
     assert_eq!(template.variables.len(), 6);
-    
+
     let context = RenderContext::new()
         .with_value("HOST", "0.0.0.0")
         .with_value("PORT", "8080")
@@ -113,7 +114,7 @@ fn test_render_template_complex() {
         .with_value("DB_PORT", "5432")
         .with_value("DB_NAME", "mydb")
         .with_value("LOG_LEVEL", "info");
-    
+
     let result = render_template(&template, &context).unwrap();
     assert!(result.contains("host = \"0.0.0.0\""));
     assert!(result.contains("port = 8080"));
@@ -126,12 +127,12 @@ fn test_render_template_complex() {
 #[test]
 fn test_template_variable_validation() {
     let template = create_test_template();
-    
+
     let context = RenderContext::new()
         .with_value("host", "localhost")
         .with_value("port", "invalid")
         .with_value("debug", "false");
-    
+
     let result = render_template(&template, &context);
     assert!(result.is_ok());
     let rendered = result.unwrap();
@@ -144,7 +145,7 @@ fn test_parse_template_multiple_occurrences() {
     host = "{{host}}"
     backup_host = "{{host}}"
 }"#;
-    
+
     let template = parse_template(content).unwrap();
     assert_eq!(template.variables.len(), 1);
     assert_eq!(template.variables[0].name, "host");
@@ -157,7 +158,7 @@ fn test_render_template_empty_value() {
         .with_value("host", "")
         .with_value("port", "8080")
         .with_value("debug", "false");
-    
+
     let result = render_template(&template, &context).unwrap();
     assert!(result.contains("host = \"\""));
 }

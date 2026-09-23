@@ -52,16 +52,16 @@ impl VersionManager {
         file_path: &Path,
         description: Option<String>,
     ) -> Result<u64, String> {
-        let content = fs::read_to_string(file_path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
-        
+        let content =
+            fs::read_to_string(file_path).map_err(|e| format!("Failed to read file: {}", e))?;
+
         let ast = parse(&content).ok();
         let content_hash = compute_hash(content.as_bytes());
         let timestamp = current_timestamp();
-        
+
         let version_id = self.next_version_id;
         self.next_version_id += 1;
-        
+
         let key = file_path.to_string_lossy().to_string();
         let info = VersionInfo {
             version_id,
@@ -70,19 +70,15 @@ impl VersionManager {
             description,
             file_path: file_path.to_path_buf(),
         };
-        
+
         if let Some(ref _storage_dir) = self.storage_dir {
             self.save_to_disk(file_path, version_id, &content)?;
         }
-        
-        let record = VersionRecord {
-            info,
-            content,
-            ast,
-        };
-        
-        self.records.entry(key).or_insert_with(Vec::new).push(record);
-        
+
+        let record = VersionRecord { info, content, ast };
+
+        self.records.entry(key).or_default().push(record);
+
         Ok(version_id)
     }
 
@@ -111,10 +107,10 @@ impl VersionManager {
         let record = self
             .get_version(file_path, version_id)
             .ok_or_else(|| format!("Version {} not found", version_id))?;
-        
+
         fs::write(file_path, &record.content)
             .map_err(|e| format!("Failed to write file: {}", e))?;
-        
+
         Ok(format!("Rolled back to version {}", version_id))
     }
 
@@ -127,16 +123,16 @@ impl VersionManager {
         let record_a = self
             .get_version(file_path, version_a)
             .ok_or_else(|| format!("Version {} not found", version_a))?;
-        
+
         let record_b = self
             .get_version(file_path, version_b)
             .ok_or_else(|| format!("Version {} not found", version_b))?;
-        
+
         let diff = compute_diff(&record_a.content, &record_b.content);
-        
+
         Ok(VersionDiff {
-            version_a: version_a,
-            version_b: version_b,
+            version_a,
+            version_b,
             diff,
         })
     }
@@ -146,12 +142,7 @@ impl VersionManager {
         self.records.get(&key).map_or(0, |v| v.len())
     }
 
-    fn save_to_disk(
-        &self,
-        file_path: &Path,
-        version_id: u64,
-        content: &str,
-    ) -> Result<(), String> {
+    fn save_to_disk(&self, file_path: &Path, version_id: u64, content: &str) -> Result<(), String> {
         if let Some(ref storage_dir) = self.storage_dir {
             let version_dir = storage_dir.join(format!(
                 "{}_versions",
@@ -159,7 +150,7 @@ impl VersionManager {
             ));
             fs::create_dir_all(&version_dir)
                 .map_err(|e| format!("Failed to create version dir: {}", e))?;
-            
+
             let version_file = version_dir.join(format!("v{}.vcf", version_id));
             fs::write(version_file, content)
                 .map_err(|e| format!("Failed to save version: {}", e))?;
@@ -210,15 +201,15 @@ fn current_timestamp() -> u64 {
 fn compute_diff(content_a: &str, content_b: &str) -> String {
     let lines_a: Vec<&str> = content_a.lines().collect();
     let lines_b: Vec<&str> = content_b.lines().collect();
-    
+
     let mut diff = String::new();
-    
+
     let max_lines = lines_a.len().max(lines_b.len());
-    
+
     for i in 0..max_lines {
         let line_a = lines_a.get(i).copied().unwrap_or("");
         let line_b = lines_b.get(i).copied().unwrap_or("");
-        
+
         if line_a != line_b {
             if i < lines_a.len() {
                 diff.push_str(&format!("- {}\n", line_a));
@@ -228,7 +219,7 @@ fn compute_diff(content_a: &str, content_b: &str) -> String {
             }
         }
     }
-    
+
     if diff.is_empty() {
         "No differences".to_string()
     } else {
@@ -246,26 +237,30 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_version_test");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"name = \"test1\"").unwrap();
         drop(file);
-        
+
         let mut manager = VersionManager::new();
-        let version1 = manager.create_version(&test_file, Some("Initial version".to_string())).unwrap();
-        
+        let version1 = manager
+            .create_version(&test_file, Some("Initial version".to_string()))
+            .unwrap();
+
         assert_eq!(version1, 1);
         assert_eq!(manager.get_version_count(&test_file), 1);
-        
+
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"name = \"test2\"").unwrap();
         drop(file);
-        
-        let version2 = manager.create_version(&test_file, Some("Updated version".to_string())).unwrap();
+
+        let version2 = manager
+            .create_version(&test_file, Some("Updated version".to_string()))
+            .unwrap();
         assert_eq!(version2, 2);
         assert_eq!(manager.get_version_count(&test_file), 2);
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -274,22 +269,23 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_version_test2");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
-        
+
         let mut manager = VersionManager::new();
-        
+
         for i in 1..=3 {
             let mut file = fs::File::create(&test_file).unwrap();
-            file.write_all(format!("name = \"test{}\"", i).as_bytes()).unwrap();
+            file.write_all(format!("name = \"test{}\"", i).as_bytes())
+                .unwrap();
             drop(file);
-            
+
             manager.create_version(&test_file, None).unwrap();
         }
-        
+
         let history = manager.get_version_history(&test_file);
         assert_eq!(history.len(), 3);
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -298,26 +294,26 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_version_test3");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"name = \"version1\"").unwrap();
         drop(file);
-        
+
         let mut manager = VersionManager::new();
         let version1 = manager.create_version(&test_file, None).unwrap();
-        
+
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"name = \"version2\"").unwrap();
         drop(file);
-        
+
         manager.create_version(&test_file, None).unwrap();
-        
+
         manager.rollback(&test_file, version1).unwrap();
-        
+
         let content = fs::read_to_string(&test_file).unwrap();
         assert!(content.contains("version1"));
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -326,26 +322,28 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_version_test4");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"port = 8080").unwrap();
         drop(file);
-        
+
         let mut manager = VersionManager::new();
         let version1 = manager.create_version(&test_file, None).unwrap();
-        
+
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"port = 9090").unwrap();
         drop(file);
-        
+
         let version2 = manager.create_version(&test_file, None).unwrap();
-        
-        let diff = manager.compare_versions(&test_file, version1, version2).unwrap();
-        
+
+        let diff = manager
+            .compare_versions(&test_file, version1, version2)
+            .unwrap();
+
         assert!(diff.diff.contains("- port = 8080"));
         assert!(diff.diff.contains("+ port = 9090"));
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -354,23 +352,23 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_version_test5");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = fs::File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let storage_dir = test_dir.join("versions");
         let mut manager = VersionManager::new()
             .with_storage(storage_dir.clone())
             .unwrap();
-        
+
         manager.create_version(&test_file, None).unwrap();
-        
+
         let version_dir = storage_dir.join("test_versions");
         assert!(version_dir.exists());
         assert!(version_dir.join("v1.vcf").exists());
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -379,23 +377,24 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_version_test6");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
-        
+
         let mut manager = VersionManager::new();
-        
+
         for i in 1..=3 {
             let mut file = fs::File::create(&test_file).unwrap();
-            file.write_all(format!("name = \"test{}\"", i).as_bytes()).unwrap();
+            file.write_all(format!("name = \"test{}\"", i).as_bytes())
+                .unwrap();
             drop(file);
-            
+
             manager.create_version(&test_file, None).unwrap();
         }
-        
+
         let latest = manager.get_latest_version(&test_file).unwrap();
         assert_eq!(latest.info.version_id, 3);
         assert!(latest.content.contains("test3"));
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 }

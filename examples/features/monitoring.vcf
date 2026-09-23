@@ -1,0 +1,8 @@
+# Monitoring feature flags, included by with_include.vcf.
+
+monitoring {
+    enabled = true
+    metrics_endpoint = "/metrics"
+    health_endpoint = "/health"
+    interval = 30s
+}

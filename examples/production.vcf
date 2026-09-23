@@ -85,7 +85,7 @@ app {
         
         file {
             path = "/var/log/app/service.log"
-            max_size = 100MB
+            max_size = "100MB"
             rotation = "daily"
         }
     }

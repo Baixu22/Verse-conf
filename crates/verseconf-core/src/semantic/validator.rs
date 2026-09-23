@@ -124,11 +124,7 @@ impl Validator {
     }
 
     /// 校验元数据
-    fn validate_metadata(
-        &mut self,
-        value: &Value,
-        metadata: &MetadataList,
-    ) -> ValidationResult {
+    fn validate_metadata(&mut self, value: &Value, metadata: &MetadataList) -> ValidationResult {
         // 校验 range
         if let Some((min, max)) = metadata.get_range() {
             self.validate_range(value, min, max)?;
@@ -156,16 +152,14 @@ impl Validator {
     fn validate_range(&mut self, value: &Value, min: f64, max: f64) -> ValidationResult {
         let num_value = match value {
             Value::Scalar(ScalarValue::Number(num)) => num.as_f64(),
-            Value::Expression(expr) => {
-                match expr.evaluate() {
-                    Ok(ScalarValue::Number(num)) => num.as_f64(),
-                    Ok(_) => return Ok(()),
-                    Err(_) => return Ok(()),
-                }
-            }
+            Value::Expression(expr) => match expr.evaluate() {
+                Ok(ScalarValue::Number(num)) => num.as_f64(),
+                Ok(_) => return Ok(()),
+                Err(_) => return Ok(()),
+            },
             _ => return Ok(()),
         };
-        
+
         if num_value < min || num_value > max {
             return Err(ValidationError::new(
                 format!("value {} is out of range [{}..{}]", num_value, min, max),
@@ -183,7 +177,11 @@ impl Validator {
                     return Ok(());
                 }
                 Err(ValidationError::new(
-                    format!("expected integer, found {:?}", value),
+                    format!(
+                        "expected integer, found {} (type: {})",
+                        value,
+                        value.type_name()
+                    ),
                     Span::unknown(),
                 ))
             }
@@ -192,7 +190,11 @@ impl Validator {
                     return Ok(());
                 }
                 Err(ValidationError::new(
-                    format!("expected float, found {:?}", value),
+                    format!(
+                        "expected float, found {} (type: {})",
+                        value,
+                        value.type_name()
+                    ),
                     Span::unknown(),
                 ))
             }
@@ -201,7 +203,11 @@ impl Validator {
                     return Ok(());
                 }
                 Err(ValidationError::new(
-                    format!("expected string, found {:?}", value),
+                    format!(
+                        "expected string, found {} (type: {})",
+                        value,
+                        value.type_name()
+                    ),
                     Span::unknown(),
                 ))
             }
@@ -210,7 +216,11 @@ impl Validator {
                     return Ok(());
                 }
                 Err(ValidationError::new(
-                    format!("expected boolean, found {:?}", value),
+                    format!(
+                        "expected boolean, found {} (type: {})",
+                        value,
+                        value.type_name()
+                    ),
                     Span::unknown(),
                 ))
             }

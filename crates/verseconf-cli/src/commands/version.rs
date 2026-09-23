@@ -12,18 +12,20 @@ pub fn run_version(
     storage_dir: Option<&str>,
 ) -> anyhow::Result<()> {
     let file_path = Path::new(file);
-    
+
     let mut manager = VersionManager::new();
-    
+
     if let Some(dir) = storage_dir {
-        manager = manager.with_storage(Path::new(dir).to_path_buf())
+        manager = manager
+            .with_storage(Path::new(dir).to_path_buf())
             .map_err(|e| anyhow::anyhow!(e))?;
     }
-    
+
     match subcommand {
         "create" => {
             let desc = description.map(String::from);
-            let vid = manager.create_version(file_path, desc)
+            let vid = manager
+                .create_version(file_path, desc)
                 .map_err(|e| anyhow::anyhow!(e))?;
             println!("Created version {}", vid);
         }
@@ -43,15 +45,18 @@ pub fn run_version(
             }
         }
         "rollback" => {
-            let vid = version_id.ok_or_else(|| anyhow::anyhow!("Version ID required for rollback"))?;
-            let result = manager.rollback(file_path, vid)
+            let vid =
+                version_id.ok_or_else(|| anyhow::anyhow!("Version ID required for rollback"))?;
+            let result = manager
+                .rollback(file_path, vid)
                 .map_err(|e| anyhow::anyhow!(e))?;
             println!("{}", result);
         }
         "diff" => {
             let va = version_a.ok_or_else(|| anyhow::anyhow!("Version A required for diff"))?;
             let vb = version_b.ok_or_else(|| anyhow::anyhow!("Version B required for diff"))?;
-            let diff = manager.compare_versions(file_path, va, vb)
+            let diff = manager
+                .compare_versions(file_path, va, vb)
                 .map_err(|e| anyhow::anyhow!(e))?;
             println!("{}", diff);
         }
@@ -71,9 +76,12 @@ pub fn run_version(
             }
         }
         _ => {
-            return Err(anyhow::anyhow!("Unknown version subcommand: {}", subcommand));
+            return Err(anyhow::anyhow!(
+                "Unknown version subcommand: {}",
+                subcommand
+            ));
         }
     }
-    
+
     Ok(())
 }

@@ -1,5 +1,5 @@
 use crate::ast::metadata::MetadataList;
-use crate::ast::value::{Expression, ScalarValue};
+use crate::ast::value::{Expression, NumberValue, ScalarValue};
 use crate::Span;
 use std::fmt;
 
@@ -59,6 +59,49 @@ pub enum Value {
     Array(ArrayValue),
     TableBlock(TableBlock),
     Expression(Expression),
+}
+
+impl Value {
+    /// 面向用户的类型名，用于错误信息
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            Value::Scalar(ScalarValue::String(_)) => "string",
+            Value::Scalar(ScalarValue::Number(NumberValue::Integer(_))) => "integer",
+            Value::Scalar(ScalarValue::Number(NumberValue::Float(_))) => "float",
+            Value::Scalar(ScalarValue::Boolean(_)) => "boolean",
+            Value::Scalar(ScalarValue::DateTime(_)) => "datetime",
+            Value::Scalar(ScalarValue::Duration(_)) => "duration",
+            Value::InlineTable(_) => "inline table",
+            Value::Array(_) => "array",
+            Value::TableBlock(_) => "table",
+            Value::Expression(_) => "expression",
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Scalar(value) => write!(f, "{}", value),
+            Value::Expression(expr) => write!(f, "{}", expr),
+            Value::Array(array) => {
+                let rendered: Vec<String> = array.elements.iter().map(|e| e.to_string()).collect();
+                write!(f, "[{}]", rendered.join(", "))
+            }
+            Value::InlineTable(table) => {
+                let rendered: Vec<String> = table
+                    .entries
+                    .iter()
+                    .map(|kv| format!("{} = {}", kv.key, kv.value))
+                    .collect();
+                write!(f, "{{ {} }}", rendered.join(", "))
+            }
+            Value::TableBlock(table) => match &table.name {
+                Some(name) => write!(f, "{} {{ ... }}", name),
+                None => write!(f, "{{ ... }}"),
+            },
+        }
+    }
 }
 
 /// 内联表

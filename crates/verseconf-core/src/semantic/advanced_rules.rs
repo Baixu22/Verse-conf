@@ -71,54 +71,72 @@ impl AdvancedValidationRules {
     /// 验证 AST 是否符合高级规则
     pub fn validate(&self, ast: &Ast) -> Vec<ValidationError> {
         let mut errors = Vec::new();
-        
+
         for rule in &self.rules {
             if let Err(e) = self.validate_rule(rule, ast) {
                 errors.push(e);
             }
         }
-        
+
         errors
     }
 
     fn validate_rule(&self, rule: &AdvancedRule, ast: &Ast) -> Result<(), ValidationError> {
         match rule {
-            AdvancedRule::Regex { field, pattern, error_message } => {
-                self.validate_regex(field, pattern, error_message.as_deref(), ast)
-            }
-            AdvancedRule::Dependency { field, required_fields, error_message } => {
-                self.validate_dependency(field, required_fields, error_message.as_deref(), ast)
-            }
-            AdvancedRule::CrossField { field_a, field_b, relation, error_message } => {
+            AdvancedRule::Regex {
+                field,
+                pattern,
+                error_message,
+            } => self.validate_regex(field, pattern, error_message.as_deref(), ast),
+            AdvancedRule::Dependency {
+                field,
+                required_fields,
+                error_message,
+            } => self.validate_dependency(field, required_fields, error_message.as_deref(), ast),
+            AdvancedRule::CrossField {
+                field_a,
+                field_b,
+                relation,
+                error_message,
+            } => {
                 self.validate_cross_field(field_a, field_b, relation, error_message.as_deref(), ast)
             }
-            AdvancedRule::Conditional { condition_field, condition_value, target_field, rule } => {
+            AdvancedRule::Conditional {
+                condition_field,
+                condition_value,
+                target_field,
+                rule,
+            } => {
                 self.validate_conditional(condition_field, condition_value, target_field, rule, ast)
             }
         }
     }
 
-    fn validate_regex(&self, field: &str, pattern: &str, error_msg: Option<&str>, ast: &Ast) -> Result<(), ValidationError> {
+    fn validate_regex(
+        &self,
+        field: &str,
+        pattern: &str,
+        error_msg: Option<&str>,
+        ast: &Ast,
+    ) -> Result<(), ValidationError> {
         let value = self.extract_field_value(field, ast);
-        
+
         let str_value = match &value {
             Some(Value::Scalar(ScalarValue::String(s))) => s.clone(),
-            Some(Value::Expression(expr)) => {
-                match expr.evaluate() {
-                    Ok(ScalarValue::String(s)) => s,
-                    _ => return Ok(()),
-                }
-            }
+            Some(Value::Expression(expr)) => match expr.evaluate() {
+                Ok(ScalarValue::String(s)) => s,
+                _ => return Ok(()),
+            },
             _ => return Ok(()),
         };
-        
+
         let re = regex::Regex::new(pattern).map_err(|e| {
             ValidationError::new(
                 format!("invalid regex pattern for field '{}': {}", field, e),
                 Span::unknown(),
             )
         })?;
-        
+
         if !re.is_match(&str_value) {
             return Err(ValidationError::new(
                 error_msg.unwrap_or(&format!(
@@ -128,13 +146,19 @@ impl AdvancedValidationRules {
                 Span::unknown(),
             ));
         }
-        
+
         Ok(())
     }
 
-    fn validate_dependency(&self, field: &str, required_fields: &[String], error_msg: Option<&str>, ast: &Ast) -> Result<(), ValidationError> {
+    fn validate_dependency(
+        &self,
+        field: &str,
+        required_fields: &[String],
+        error_msg: Option<&str>,
+        ast: &Ast,
+    ) -> Result<(), ValidationError> {
         let field_value = self.extract_field_value(field, ast);
-        
+
         if field_value.is_some() {
             for required_field in required_fields {
                 if self.extract_field_value(required_field, ast).is_none() {
@@ -148,14 +172,21 @@ impl AdvancedValidationRules {
                 }
             }
         }
-        
+
         Ok(())
     }
 
-    fn validate_cross_field(&self, field_a: &str, field_b: &str, relation: &FieldRelation, error_msg: Option<&str>, ast: &Ast) -> Result<(), ValidationError> {
+    fn validate_cross_field(
+        &self,
+        field_a: &str,
+        field_b: &str,
+        relation: &FieldRelation,
+        error_msg: Option<&str>,
+        ast: &Ast,
+    ) -> Result<(), ValidationError> {
         let value_a = self.extract_field_value(field_a, ast);
         let value_b = self.extract_field_value(field_b, ast);
-        
+
         if let (Some(val_a), Some(val_b)) = (value_a, value_b) {
             match relation {
                 FieldRelation::GreaterThan => {
@@ -229,19 +260,26 @@ impl AdvancedValidationRules {
                 }
             }
         }
-        
+
         Ok(())
     }
 
-    fn validate_conditional(&self, condition_field: &str, condition_value: &str, _target_field: &str, rule: &AdvancedRule, ast: &Ast) -> Result<(), ValidationError> {
+    fn validate_conditional(
+        &self,
+        condition_field: &str,
+        condition_value: &str,
+        _target_field: &str,
+        rule: &AdvancedRule,
+        ast: &Ast,
+    ) -> Result<(), ValidationError> {
         let cond_val = self.extract_field_value(condition_field, ast);
-        
+
         if let Some(Value::Scalar(ScalarValue::String(s))) = cond_val {
             if s == condition_value {
                 return self.validate_rule(rule, ast);
             }
         }
-        
+
         Ok(())
     }
 
@@ -254,9 +292,9 @@ impl AdvancedValidationRules {
         if parts.is_empty() {
             return None;
         }
-        
+
         let key = parts[0];
-        
+
         for entry in &table.entries {
             match entry {
                 TableEntry::KeyValue(kv) if kv.key.as_str() == key => {
@@ -275,7 +313,7 @@ impl AdvancedValidationRules {
                 _ => {}
             }
         }
-        
+
         None
     }
 
@@ -285,7 +323,7 @@ impl AdvancedValidationRules {
     {
         let num_a = self.extract_number(val_a);
         let num_b = self.extract_number(val_b);
-        
+
         if let (Some(a), Some(b)) = (num_a, num_b) {
             cmp(a, b)
         } else {
@@ -297,13 +335,11 @@ impl AdvancedValidationRules {
         match value {
             Value::Scalar(ScalarValue::Number(NumberValue::Integer(n))) => Some(*n as f64),
             Value::Scalar(ScalarValue::Number(NumberValue::Float(n))) => Some(*n),
-            Value::Expression(expr) => {
-                match expr.evaluate() {
-                    Ok(ScalarValue::Number(NumberValue::Integer(n))) => Some(n as f64),
-                    Ok(ScalarValue::Number(NumberValue::Float(n))) => Some(n),
-                    _ => None,
-                }
-            }
+            Value::Expression(expr) => match expr.evaluate() {
+                Ok(ScalarValue::Number(NumberValue::Integer(n))) => Some(n as f64),
+                Ok(ScalarValue::Number(NumberValue::Float(n))) => Some(n),
+                _ => None,
+            },
             _ => None,
         }
     }
@@ -317,12 +353,11 @@ impl AdvancedValidationRules {
                     _ => false,
                 }
             }
-            (Value::Scalar(s), Value::Expression(expr)) | (Value::Expression(expr), Value::Scalar(s)) => {
-                match expr.evaluate() {
-                    Ok(evaluated) => *s == evaluated,
-                    _ => false,
-                }
-            }
+            (Value::Scalar(s), Value::Expression(expr))
+            | (Value::Expression(expr), Value::Scalar(s)) => match expr.evaluate() {
+                Ok(evaluated) => *s == evaluated,
+                _ => false,
+            },
             _ => false,
         }
     }

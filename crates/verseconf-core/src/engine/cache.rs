@@ -22,12 +22,12 @@ impl BinaryCache {
     /// Create a new binary cache in the specified directory
     pub fn new(cache_dir: PathBuf) -> Result<Self, String> {
         fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {}", e))?;
-        
+
         let mut cache = Self {
             cache_dir,
             entries: HashMap::new(),
         };
-        
+
         cache.load_index()?;
         Ok(cache)
     }
@@ -46,18 +46,19 @@ impl BinaryCache {
     /// Store AST in cache
     pub fn put(&mut self, file_path: &Path, ast_bytes: Vec<u8>) -> Result<(), String> {
         let key = self.file_key(file_path);
-        
-        let file_meta = fs::metadata(file_path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
+
+        let file_meta =
+            fs::metadata(file_path).map_err(|e| format!("Failed to get file metadata: {}", e))?;
         let last_modified = file_meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
         let file_hash = self.compute_file_hash(file_path)?;
-        
+
         let entry = CacheEntry {
             ast_bytes,
             file_hash,
             last_modified,
             created_at: SystemTime::now(),
         };
-        
+
         self.entries.insert(key.clone(), entry);
         self.save_entry(&key)?;
         Ok(())
@@ -74,10 +75,13 @@ impl BinaryCache {
     /// Clear all cached entries
     pub fn clear(&mut self) -> Result<(), String> {
         self.entries.clear();
-        for entry in fs::read_dir(&self.cache_dir).map_err(|e| format!("Failed to read cache dir: {}", e))? {
+        for entry in
+            fs::read_dir(&self.cache_dir).map_err(|e| format!("Failed to read cache dir: {}", e))?
+        {
             let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
-            if entry.path().extension().map_or(false, |ext| ext == "cache") {
-                fs::remove_file(entry.path()).map_err(|e| format!("Failed to remove cache file: {}", e))?;
+            if entry.path().extension().is_some_and(|ext| ext == "cache") {
+                fs::remove_file(entry.path())
+                    .map_err(|e| format!("Failed to remove cache file: {}", e))?;
             }
         }
         Ok(())
@@ -95,7 +99,8 @@ impl BinaryCache {
 
     fn file_key(&self, file_path: &Path) -> String {
         // Use absolute path as key, replace path separators
-        file_path.canonicalize()
+        file_path
+            .canonicalize()
             .unwrap_or_else(|_| file_path.to_path_buf())
             .to_string_lossy()
             .replace(['/', '\\', ':'], "_")
@@ -109,11 +114,11 @@ impl BinaryCache {
                 }
             }
         }
-        
+
         if let Ok(hash) = self.compute_file_hash(file_path) {
             return hash == entry.file_hash;
         }
-        
+
         false
     }
 
@@ -171,22 +176,22 @@ mod tests {
     fn test_cache_basic() {
         let cache_dir = std::env::temp_dir().join("verseconf_test_cache");
         let _ = fs::remove_dir_all(&cache_dir);
-        
+
         let mut cache = BinaryCache::new(cache_dir.clone()).unwrap();
-        
+
         // Create a test file
         let test_file = cache_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
-        
+
         // Store in cache
         cache.put(&test_file, vec![1, 2, 3, 4]).unwrap();
-        
+
         // Retrieve from cache
         let cached = cache.get(&test_file);
         assert!(cached.is_some());
         assert_eq!(cached.unwrap(), vec![1, 2, 3, 4]);
-        
+
         // Cleanup
         let _ = fs::remove_dir_all(&cache_dir);
     }
@@ -195,20 +200,20 @@ mod tests {
     fn test_cache_invalidation() {
         let cache_dir = std::env::temp_dir().join("verseconf_test_cache2");
         let _ = fs::remove_dir_all(&cache_dir);
-        
+
         let mut cache = BinaryCache::new(cache_dir.clone()).unwrap();
-        
+
         let test_file = cache_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
-        
+
         cache.put(&test_file, vec![1, 2, 3]).unwrap();
         assert!(cache.get(&test_file).is_some());
-        
+
         // Invalidate
         cache.invalidate(&test_file);
         assert!(cache.get(&test_file).is_none());
-        
+
         let _ = fs::remove_dir_all(&cache_dir);
     }
 }

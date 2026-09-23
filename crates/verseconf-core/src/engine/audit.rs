@@ -1,6 +1,6 @@
 use regex::Regex;
 
-use crate::ast::{Ast, Value, ScalarValue, TableEntry};
+use crate::ast::{Ast, ScalarValue, TableEntry, Value};
 
 #[derive(Debug, Clone)]
 pub enum AuditSeverity {
@@ -149,11 +149,26 @@ struct InsecureCheck {
 impl AuditEngine {
     pub fn new() -> Self {
         let sensitive_patterns = vec![
-            ("password".to_string(), Regex::new(r"(?i)password|passwd|pwd").unwrap()),
-            ("secret".to_string(), Regex::new(r"(?i)secret|secret_key").unwrap()),
-            ("token".to_string(), Regex::new(r"(?i)token|api_key|apikey|access_key").unwrap()),
-            ("private_key".to_string(), Regex::new(r"(?i)private_key|priv_key").unwrap()),
-            ("credential".to_string(), Regex::new(r"(?i)credential|auth_token").unwrap()),
+            (
+                "password".to_string(),
+                Regex::new(r"(?i)password|passwd|pwd").unwrap(),
+            ),
+            (
+                "secret".to_string(),
+                Regex::new(r"(?i)secret|secret_key").unwrap(),
+            ),
+            (
+                "token".to_string(),
+                Regex::new(r"(?i)token|api_key|apikey|access_key").unwrap(),
+            ),
+            (
+                "private_key".to_string(),
+                Regex::new(r"(?i)private_key|priv_key").unwrap(),
+            ),
+            (
+                "credential".to_string(),
+                Regex::new(r"(?i)credential|auth_token").unwrap(),
+            ),
         ];
 
         let insecure_checks = vec![
@@ -173,9 +188,7 @@ impl AuditEngine {
                 description: "Using well-known insecure ports (telnet:23, ftp:21)".to_string(),
                 recommendation: "Use secure alternatives (SSH:22, SFTP:22)".to_string(),
                 severity: AuditSeverity::Medium,
-                check: Box::new(|_key, value| {
-                    value == "23" || value == "21"
-                }),
+                check: Box::new(|_key, value| value == "23" || value == "21"),
             },
             InsecureCheck {
                 rule_id: "SEC-003".to_string(),
@@ -204,8 +217,8 @@ impl AuditEngine {
                 recommendation: "Enable SSL verification in production".to_string(),
                 severity: AuditSeverity::High,
                 check: Box::new(|key, value| {
-                    (key.to_lowercase().contains("ssl") || key.to_lowercase().contains("verify")) 
-                    && value.to_lowercase() == "false"
+                    (key.to_lowercase().contains("ssl") || key.to_lowercase().contains("verify"))
+                        && value.to_lowercase() == "false"
                 }),
             },
         ];
@@ -229,7 +242,12 @@ impl AuditEngine {
         }
     }
 
-    fn audit_table_entries(&self, entries: &[TableEntry], findings: &mut Vec<AuditFinding>, prefix: &str) {
+    fn audit_table_entries(
+        &self,
+        entries: &[TableEntry],
+        findings: &mut Vec<AuditFinding>,
+        prefix: &str,
+    ) {
         for entry in entries {
             match entry {
                 TableEntry::KeyValue(kv) => {
@@ -271,7 +289,11 @@ impl AuditEngine {
                                         }
                                     }
                                     Value::TableBlock(table) => {
-                                        self.audit_table_entries(&table.entries, findings, &item_key);
+                                        self.audit_table_entries(
+                                            &table.entries,
+                                            findings,
+                                            &item_key,
+                                        );
                                     }
                                     _ => {}
                                 }

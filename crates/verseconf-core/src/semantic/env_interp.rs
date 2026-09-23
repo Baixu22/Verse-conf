@@ -50,23 +50,41 @@ impl EnvInterpolator {
         Ok(result)
     }
 
-    /// 解析单个变量
+    /// 解析单个变量。
+    ///
+    /// 默认值分隔符以 `|` 为准（`${VAR|default}`）；为兼容历史示例同时接受
+    /// ` or ` 与 `:`，但文档只推荐一种写法。
     fn resolve_variable(&self, content: &str) -> Result<String, InterpError> {
-        // 检查是否有默认值
-        if let Some((var_name, default_value)) = content.split_once('|') {
-            // 如果有值则返回，否则返回默认值
-            if let Some(value) = self.env_vars.get(var_name.trim()) {
-                Ok(value.clone())
-            } else {
-                Ok(default_value.to_string())
+        if let Some((var_name, default_value)) = Self::split_default(content) {
+            match self.env_vars.get(var_name.trim()) {
+                Some(value) => Ok(value.clone()),
+                None => Ok(default_value.trim().to_string()),
             }
         } else {
-            // 没有默认值，必须存在
             self.env_vars
-                .get(content)
+                .get(content.trim())
                 .cloned()
-                .ok_or_else(|| InterpError::UndefinedVariable(content.to_string()))
+                .ok_or_else(|| InterpError::UndefinedVariable(content.trim().to_string()))
         }
+    }
+
+    /// 拆分 `变量|默认值`（并兼容 ` or ` 与 `:`）
+    fn split_default(content: &str) -> Option<(&str, &str)> {
+        if let Some(parts) = content.split_once('|') {
+            return Some(parts);
+        }
+        if let Some(parts) = content.split_once(" or ") {
+            return Some(parts);
+        }
+        if let Some(parts) = content.split_once(':') {
+            let name = parts.0;
+            let is_identifier =
+                !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+            if is_identifier {
+                return Some(parts);
+            }
+        }
+        None
     }
 }
 
@@ -101,6 +119,33 @@ mod tests {
         interp.set_var("TOKEN", "secret123");
         let result = interp.interpolate("${TOKEN}").unwrap();
         assert_eq!(result, "secret123");
+    }
+
+    #[test]
+    fn test_interpolate_legacy_separators() {
+        let interp = EnvInterpolator::new();
+        assert_eq!(
+            interp.interpolate("${DB_HOST:localhost}").unwrap(),
+            "localhost"
+        );
+        assert_eq!(
+            interp.interpolate("${DB_HOST or localhost}").unwrap(),
+            "localhost"
+        );
+        assert_eq!(
+            interp.interpolate("${DB_HOST|localhost}").unwrap(),
+            "localhost"
+        );
+    }
+
+    #[test]
+    fn test_interpolate_env_wins_over_default() {
+        let mut interp = EnvInterpolator::new();
+        interp.set_var("DB_HOST", "prod.db");
+        assert_eq!(
+            interp.interpolate("${DB_HOST:localhost}").unwrap(),
+            "prod.db"
+        );
     }
 
     #[test]

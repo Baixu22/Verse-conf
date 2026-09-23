@@ -1,4 +1,7 @@
-use verseconf_core::{parse, parse_and_validate, parse_with_config, format_with_config, ParseConfig, PrettyPrintConfig};
+use verseconf_core::{
+    format_with_config, parse, parse_and_validate, parse_with_config, ParseConfig,
+    PrettyPrintConfig,
+};
 
 #[test]
 fn test_parse_basic() {

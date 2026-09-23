@@ -61,6 +61,16 @@ pub enum MetadataValue {
     Range { min: f64, max: f64 },
 }
 
+impl fmt::Display for MetadataValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetadataValue::String(s) => write!(f, "\"{}\"", s),
+            MetadataValue::Number(n) => write!(f, "{}", n),
+            MetadataValue::Range { min, max } => write!(f, "({}..{})", min, max),
+        }
+    }
+}
+
 /// 元数据项
 #[derive(Debug, Clone)]
 pub enum MetadataItem {
@@ -81,16 +91,16 @@ pub struct MetadataList {
 impl MetadataList {
     /// 检查是否包含某个标准元数据
     pub fn has_sensitive(&self) -> bool {
-        self.items.iter().any(|item| {
-            matches!(item, MetadataItem::Standard(StandardMetadata::Sensitive))
-        })
+        self.items
+            .iter()
+            .any(|item| matches!(item, MetadataItem::Standard(StandardMetadata::Sensitive)))
     }
 
     /// 检查是否包含 required
     pub fn has_required(&self) -> bool {
-        self.items.iter().any(|item| {
-            matches!(item, MetadataItem::Standard(StandardMetadata::Required))
-        })
+        self.items
+            .iter()
+            .any(|item| matches!(item, MetadataItem::Standard(StandardMetadata::Required)))
     }
 
     /// 获取 range 元数据（如果存在）

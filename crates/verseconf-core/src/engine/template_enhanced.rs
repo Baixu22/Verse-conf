@@ -49,13 +49,13 @@ impl EnhancedTemplate {
             name: name.into(),
             content: content.into(),
         };
-        
+
         if let Some(ref mut inheritance) = self.inheritance {
             inheritance.blocks.insert(block.name.clone(), block);
         } else {
             self.blocks.insert(block.name.clone(), block);
         }
-        
+
         self
     }
 
@@ -93,19 +93,19 @@ impl TemplateRegistry {
     pub fn register_from_file(&mut self, path: &Path) -> Result<(), String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read template file: {}", e))?;
-        
+
         let file_name = path
             .file_stem()
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
-        
+
         let template_name = if file_name.ends_with(".vcf") {
             file_name.trim_end_matches(".vcf").to_string()
         } else {
             file_name
         };
-        
+
         let template = Template {
             name: template_name,
             description: None,
@@ -113,7 +113,7 @@ impl TemplateRegistry {
             variables: Vec::new(),
             content,
         };
-        
+
         self.template_paths
             .insert(template.name.clone(), path.to_path_buf());
         self.register(template);
@@ -160,19 +160,19 @@ impl TemplateRegistry {
                         inheritance.base_template
                     ))
                 })?;
-            
+
             let mut base_content = base.content.clone();
-            
+
             for (block_name, block) in &inheritance.blocks {
                 let placeholder = format!("{{% block {} %}}", block_name);
                 base_content = base_content.replace(&placeholder, &block.content);
             }
-            
+
             base_content
         } else {
             enhanced.template.content.clone()
         };
-        
+
         for include_path in &enhanced.includes {
             if let Some(include_template) = self.templates.get(include_path) {
                 let include_content =
@@ -181,7 +181,7 @@ impl TemplateRegistry {
                 result = result.replace(&placeholder, &include_content);
             }
         }
-        
+
         let re = regex::Regex::new(r"\{\{([^}]+)\}\}").unwrap();
         let replacements: Vec<_> = re
             .captures_iter(&result)
@@ -191,7 +191,7 @@ impl TemplateRegistry {
                 (full_match, var_name)
             })
             .collect();
-        
+
         for (full_match, var_name) in replacements {
             let replacement = if let Some(value) = context.values.get(&var_name) {
                 value.clone()
@@ -202,7 +202,7 @@ impl TemplateRegistry {
             };
             result = result.replace(&full_match, &replacement);
         }
-        
+
         Ok(result)
     }
 }
@@ -242,7 +242,7 @@ port = 8080
 db_host = "localhost"
 db_port = 5432
 {% endblock %}"#
-            .to_string(),
+                .to_string(),
         }
     }
 
@@ -264,8 +264,8 @@ db_port = 5432
     fn test_enhanced_template_inheritance() {
         let mut registry = TemplateRegistry::new();
         registry.register(create_base_template());
-        
-        let base = create_base_template();
+
+        let _base = create_base_template();
         let enhanced = EnhancedTemplate::new(Template {
             name: "production".to_string(),
             description: None,
@@ -284,12 +284,12 @@ port = 443"#,
             r#"db_host = "db.prod.example.com"
 db_port = 5432"#,
         );
-        
+
         registry.register_enhanced(enhanced);
-        
+
         let context = RenderContext::new().with_value("app_name", "ProductionApp");
         let result = registry.render_enhanced("production", &context).unwrap();
-        
+
         assert!(result.contains("app_name = \"ProductionApp\""));
         assert!(result.contains("host = \"prod.example.com\""));
         assert!(result.contains("port = 443"));
@@ -300,7 +300,7 @@ db_port = 5432"#,
     fn test_enhanced_template_include() {
         let mut registry = TemplateRegistry::new();
         registry.register(create_server_template());
-        
+
         let main_template = Template {
             name: "main".to_string(),
             description: None,
@@ -314,17 +314,17 @@ logging {
 }"#
             .to_string(),
         };
-        
+
         let enhanced = EnhancedTemplate::new(main_template).include("server_config");
         registry.register_enhanced(enhanced);
-        
+
         let context = RenderContext::new()
             .with_value("host", "example.com")
             .with_value("port", "8080")
             .with_value("log_level", "info");
-        
+
         let result = registry.render_enhanced("main", &context).unwrap();
-        
+
         assert!(result.contains("host = \"example.com\""));
         assert!(result.contains("port = 8080"));
         assert!(result.contains("level = \"info\""));
@@ -335,22 +335,26 @@ logging {
         let test_dir = std::env::temp_dir().join("verseconf_template_test");
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
-        
+
         let template_file = test_dir.join("test.vcf.tpl");
-        std::fs::write(&template_file, "name = \"{{name}}\"\nversion = \"{{version}}\"").unwrap();
-        
+        std::fs::write(
+            &template_file,
+            "name = \"{{name}}\"\nversion = \"{{version}}\"",
+        )
+        .unwrap();
+
         let mut registry = TemplateRegistry::new();
         registry.register_from_file(&template_file).unwrap();
-        
+
         assert!(registry.get("test").is_some());
-        
+
         let _ = std::fs::remove_dir_all(&test_dir);
     }
 
     #[test]
     fn test_enhanced_template_missing_base() {
         let registry = TemplateRegistry::new();
-        
+
         let enhanced = EnhancedTemplate::new(Template {
             name: "child".to_string(),
             description: None,
@@ -359,20 +363,20 @@ logging {
             content: String::new(),
         })
         .extends("nonexistent_base");
-        
+
         let mut registry = registry;
         registry.register_enhanced(enhanced);
-        
+
         let context = RenderContext::new();
         let result = registry.render_enhanced("child", &context);
-        
+
         assert!(result.is_err());
     }
 
     #[test]
     fn test_multiple_includes() {
         let mut registry = TemplateRegistry::new();
-        
+
         let db_template = Template {
             name: "database".to_string(),
             description: None,
@@ -384,7 +388,7 @@ logging {
 }"#
             .to_string(),
         };
-        
+
         let cache_template = Template {
             name: "cache".to_string(),
             description: None,
@@ -396,10 +400,10 @@ logging {
 }"#
             .to_string(),
         };
-        
+
         registry.register(db_template);
         registry.register(cache_template);
-        
+
         let main_template = Template {
             name: "full_config".to_string(),
             description: None,
@@ -409,21 +413,21 @@ logging {
 {% include cache %}"#
                 .to_string(),
         };
-        
+
         let enhanced = EnhancedTemplate::new(main_template)
             .include("database")
             .include("cache");
-        
+
         registry.register_enhanced(enhanced);
-        
+
         let context = RenderContext::new()
             .with_value("db_host", "db.example.com")
             .with_value("db_port", "5432")
             .with_value("cache_host", "cache.example.com")
             .with_value("cache_port", "6379");
-        
+
         let result = registry.render_enhanced("full_config", &context).unwrap();
-        
+
         assert!(result.contains("host = \"db.example.com\""));
         assert!(result.contains("port = 5432"));
         assert!(result.contains("host = \"cache.example.com\""));

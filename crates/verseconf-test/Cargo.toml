@@ -5,6 +5,8 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "Test suite for VerseConf configuration language"
+# 只在本仓库内使用，不发布。
+publish = false
 
 [dependencies]
 verseconf-core = { path = "../verseconf-core" }

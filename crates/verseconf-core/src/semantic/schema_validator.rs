@@ -16,10 +16,7 @@ impl SchemaValidator {
     }
 
     /// 根据 Schema 校验配置数据
-    pub fn validate_with_schema(
-        &mut self,
-        ast: &Ast,
-    ) -> Result<(), ValidationError> {
+    pub fn validate_with_schema(&mut self, ast: &Ast) -> Result<(), ValidationError> {
         if let Some(schema) = &ast.schema {
             self.validate_table_against_schema(&ast.root, &schema.fields, schema.strict)?;
         }
@@ -49,22 +46,25 @@ impl SchemaValidator {
             .collect();
 
         // 收集 schema 中声明的字段名
-        let schema_field_names: Vec<&str> = schema_fields
-            .iter()
-            .map(|f| f.name.as_str())
-            .collect();
+        let schema_field_names: Vec<&str> = schema_fields.iter().map(|f| f.name.as_str()).collect();
 
         // 严格模式：检查未声明字段
         if strict {
             for &key in &table_keys {
                 if !schema_field_names.contains(&key) {
                     // 找到该 key 的 span
-                    let span = table.entries.iter().find_map(|entry| match entry {
-                        TableEntry::KeyValue(kv) if kv.key.as_str() == key => Some(kv.span),
-                        TableEntry::TableBlock(tb) if tb.name.as_deref() == Some(key) => Some(tb.span),
-                        _ => None,
-                    }).unwrap_or(Span::unknown());
-                    
+                    let span = table
+                        .entries
+                        .iter()
+                        .find_map(|entry| match entry {
+                            TableEntry::KeyValue(kv) if kv.key.as_str() == key => Some(kv.span),
+                            TableEntry::TableBlock(tb) if tb.name.as_deref() == Some(key) => {
+                                Some(tb.span)
+                            }
+                            _ => None,
+                        })
+                        .unwrap_or(Span::unknown());
+
                     self.errors.push(ValidationError::new(
                         format!("undeclared field '{}' in strict mode", key),
                         span,
@@ -93,14 +93,18 @@ impl SchemaValidator {
                     TableEntry::KeyValue(kv) if kv.key.as_str() == field.name => Some(kv),
                     _ => None,
                 }) {
-                    self.validate_field_value(&kv.value, field)?;
+                    self.validate_field_value(&kv.value, field, strict)?;
                 } else if let Some(tb) = table.entries.iter().find_map(|entry| match entry {
-                    TableEntry::TableBlock(tb) if tb.name.as_deref() == Some(field.name.as_str()) => Some(tb),
+                    TableEntry::TableBlock(tb)
+                        if tb.name.as_deref() == Some(field.name.as_str()) =>
+                    {
+                        Some(tb)
+                    }
                     _ => None,
                 }) {
                     // Handle TableBlock entry
                     if !field.nested_fields.is_empty() {
-                        self.validate_table_against_schema(tb, &field.nested_fields, true)?;
+                        self.validate_table_against_schema(tb, &field.nested_fields, strict)?;
                     }
                 }
             }
@@ -114,6 +118,7 @@ impl SchemaValidator {
         &mut self,
         value: &Value,
         field: &SchemaField,
+        strict: bool,
     ) -> Result<(), ValidationError> {
         // 校验类型
         self.validate_type(value, &field.field_type, field)?;
@@ -136,7 +141,7 @@ impl SchemaValidator {
         // 递归校验嵌套字段
         if let Value::TableBlock(table) = value {
             if !field.nested_fields.is_empty() {
-                self.validate_table_against_schema(table, &field.nested_fields, true)?;
+                self.validate_table_against_schema(table, &field.nested_fields, strict)?;
             }
         }
 
@@ -152,7 +157,9 @@ impl SchemaValidator {
     ) -> Result<(), ValidationError> {
         let matches = match (value, expected_type) {
             (Value::Scalar(ScalarValue::String(_)), SchemaType::String) => true,
-            (Value::Scalar(ScalarValue::Number(NumberValue::Integer(_))), SchemaType::Integer) => true,
+            (Value::Scalar(ScalarValue::Number(NumberValue::Integer(_))), SchemaType::Integer) => {
+                true
+            }
             (Value::Scalar(ScalarValue::Number(NumberValue::Float(_))), SchemaType::Float) => true,
             (Value::Scalar(ScalarValue::Number(_)), SchemaType::Float) => true,
             (Value::Scalar(ScalarValue::Boolean(_)), SchemaType::Boolean) => true,
@@ -176,8 +183,11 @@ impl SchemaValidator {
         if !matches {
             self.errors.push(ValidationError::new(
                 format!(
-                    "type mismatch for field '{}': expected {:?}, found {:?}",
-                    field.name, expected_type, value
+                    "type mismatch for field '{}': expected {}, found {} (type: {})",
+                    field.name,
+                    expected_type,
+                    value,
+                    value.type_name()
                 ),
                 field.span,
             ));
@@ -196,13 +206,11 @@ impl SchemaValidator {
         let num_value = match value {
             Value::Scalar(ScalarValue::Number(NumberValue::Integer(n))) => *n as f64,
             Value::Scalar(ScalarValue::Number(NumberValue::Float(n))) => *n,
-            Value::Expression(expr) => {
-                match expr.evaluate() {
-                    Ok(ScalarValue::Number(NumberValue::Integer(n))) => n as f64,
-                    Ok(ScalarValue::Number(NumberValue::Float(n))) => n,
-                    _ => return Ok(()),
-                }
-            }
+            Value::Expression(expr) => match expr.evaluate() {
+                Ok(ScalarValue::Number(NumberValue::Integer(n))) => n as f64,
+                Ok(ScalarValue::Number(NumberValue::Float(n))) => n,
+                _ => return Ok(()),
+            },
             _ => return Ok(()),
         };
 
@@ -280,24 +288,28 @@ impl SchemaValidator {
     ) -> Result<(), ValidationError> {
         let scalar = match value {
             Value::Scalar(s) => s,
-            Value::Expression(expr) => {
-                match expr.evaluate() {
-                    Ok(evaluated) => {
-                        let matches = enum_values.iter().any(|ev| ev == &evaluated);
-                        if !matches {
-                            self.errors.push(ValidationError::new(
-                                format!(
-                                    "value {:?} for field '{}' is not in allowed values: {:?}",
-                                    evaluated, field.name, enum_values
-                                ),
-                                field.span,
-                            ));
-                        }
-                        return Ok(());
+            Value::Expression(expr) => match expr.evaluate() {
+                Ok(evaluated) => {
+                    let matches = enum_values.iter().any(|ev| ev == &evaluated);
+                    if !matches {
+                        self.errors.push(ValidationError::new(
+                            format!(
+                                "value {} for field '{}' is not in allowed values: [{}]",
+                                evaluated,
+                                field.name,
+                                enum_values
+                                    .iter()
+                                    .map(|v| v.to_string())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ),
+                            field.span,
+                        ));
                     }
-                    Err(_) => return Ok(()),
+                    return Ok(());
                 }
-            }
+                Err(_) => return Ok(()),
+            },
             _ => return Ok(()),
         };
 
@@ -306,8 +318,14 @@ impl SchemaValidator {
         if !matches {
             self.errors.push(ValidationError::new(
                 format!(
-                    "value {:?} for field '{}' is not in allowed values: {:?}",
-                    scalar, field.name, enum_values
+                    "value {} for field '{}' is not in allowed values: [{}]",
+                    scalar,
+                    field.name,
+                    enum_values
+                        .iter()
+                        .map(|v| v.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ),
                 field.span,
             ));
@@ -582,6 +600,89 @@ database {
 "#;
         let result = parse_and_validate(source);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_non_strict_mode_allows_extra_fields_in_nested_table() {
+        let source = r#"#@schema {
+    strict = false
+    database {
+        type = "table"
+        host {
+            type = "string"
+            required = true
+        }
+    }
+}
+
+database {
+    host = "localhost"
+    unknown = "should pass"
+}
+"#;
+        let result = parse_and_validate(source);
+        assert!(
+            result.is_ok(),
+            "non-strict schema must allow extra nested fields"
+        );
+    }
+
+    #[test]
+    fn test_strict_mode_propagates_to_deeply_nested_tables() {
+        let source = r#"#@schema {
+    strict = true
+    outer {
+        type = "table"
+        inner {
+            type = "table"
+            known {
+                type = "string"
+            }
+        }
+    }
+}
+
+outer {
+    inner {
+        known = "ok"
+        unknown = "should fail"
+    }
+}
+"#;
+        let result = parse_and_validate(source);
+        assert!(
+            result.is_err(),
+            "strict schema must reject extra fields at any depth"
+        );
+    }
+
+    #[test]
+    fn test_non_strict_mode_allows_extra_fields_at_any_depth() {
+        let source = r#"#@schema {
+    strict = false
+    outer {
+        type = "table"
+        inner {
+            type = "table"
+            known {
+                type = "string"
+            }
+        }
+    }
+}
+
+outer {
+    inner {
+        known = "ok"
+        unknown = "should pass"
+    }
+}
+"#;
+        let result = parse_and_validate(source);
+        assert!(
+            result.is_ok(),
+            "non-strict schema must allow extra fields at any depth"
+        );
     }
 
     #[test]

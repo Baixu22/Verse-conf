@@ -46,27 +46,28 @@ impl HotReloader {
             let mut state = self.state.lock().unwrap();
             state.parser.parse_file(path)?.clone()
         };
-        
+
         {
             let mut state = self.state.lock().unwrap();
             state.watched_files.insert(path.to_path_buf(), ast);
         }
-        
+
         if self._watcher.is_none() {
             self.setup_watcher()?;
         }
-        
+
         if let Some(watcher) = &mut self._watcher {
             let path_to_watch = if path.is_dir() {
                 path.to_path_buf()
             } else {
                 path.parent().unwrap_or(path).to_path_buf()
             };
-            
-            watcher.watch(&path_to_watch, RecursiveMode::NonRecursive)
+
+            watcher
+                .watch(&path_to_watch, RecursiveMode::NonRecursive)
                 .map_err(|e| format!("Failed to watch path: {}", e))?;
         }
-        
+
         Ok(())
     }
 
@@ -85,7 +86,7 @@ impl HotReloader {
             let state = self.state.lock().unwrap();
             state.parser.needs_reparse(path)
         };
-        
+
         if needs_reparse {
             let ast = {
                 let mut state = self.state.lock().unwrap();
@@ -102,13 +103,13 @@ impl HotReloader {
             let state = self.state.lock().unwrap();
             state.watched_files.keys().cloned().collect()
         };
-        
+
         let mut reloaded = 0;
         for path in paths {
             self.reload(&path)?;
             reloaded += 1;
         }
-        
+
         Ok(reloaded)
     }
 
@@ -123,26 +124,24 @@ impl HotReloader {
     fn setup_watcher(&mut self) -> Result<(), String> {
         let state = Arc::clone(&self.state);
         let (tx, rx) = channel();
-        
+
         let watcher = RecommendedWatcher::new(tx, notify::Config::default())
             .map_err(|e| format!("Failed to create watcher: {}", e))?;
-        
-        std::thread::spawn(move || {
-            loop {
-                match rx.recv_timeout(Duration::from_secs(1)) {
-                    Ok(Ok(event)) => {
-                        handle_event(&event, &state);
-                    }
-                    Ok(Err(e)) => {
-                        eprintln!("Watch error: {}", e);
-                    }
-                    Err(_) => {
-                        continue;
-                    }
+
+        std::thread::spawn(move || loop {
+            match rx.recv_timeout(Duration::from_secs(1)) {
+                Ok(Ok(event)) => {
+                    handle_event(&event, &state);
+                }
+                Ok(Err(e)) => {
+                    eprintln!("Watch error: {}", e);
+                }
+                Err(_) => {
+                    continue;
                 }
             }
         });
-        
+
         self._watcher = Some(watcher);
         Ok(())
     }
@@ -190,17 +189,17 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_hotreload_test");
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let mut reloader = HotReloader::new(10);
         reloader.watch(&test_file).unwrap();
-        
+
         assert!(reloader.get_ast(&test_file).is_some());
-        
+
         let _ = std::fs::remove_dir_all(&test_dir);
     }
 
@@ -209,18 +208,18 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_hotreload_test2");
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let mut reloader = HotReloader::new(10);
         reloader.watch(&test_file).unwrap();
-        
+
         let stats = reloader.stats();
         assert_eq!(stats.watched_files, 1);
-        
+
         let _ = std::fs::remove_dir_all(&test_dir);
     }
 
@@ -229,25 +228,25 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_hotreload_test3");
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
-        
+
         let file1 = test_dir.join("test1.vcf");
         let file2 = test_dir.join("test2.vcf");
-        
+
         let mut f1 = File::create(&file1).unwrap();
         f1.write_all(b"name = \"test1\"").unwrap();
         drop(f1);
-        
+
         let mut f2 = File::create(&file2).unwrap();
         f2.write_all(b"name = \"test2\"").unwrap();
         drop(f2);
-        
+
         let mut reloader = HotReloader::new(10);
         reloader.watch(&file1).unwrap();
         reloader.watch(&file2).unwrap();
-        
+
         let stats = reloader.stats();
         assert_eq!(stats.watched_files, 2);
-        
+
         let _ = std::fs::remove_dir_all(&test_dir);
     }
 }

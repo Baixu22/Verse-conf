@@ -151,6 +151,29 @@ fn apply_operator(
     }
 }
 
+fn unit_suffix(unit: &TimeUnit) -> &'static str {
+    match unit {
+        TimeUnit::Seconds => "s",
+        TimeUnit::Minutes => "m",
+        TimeUnit::Hours => "h",
+        TimeUnit::Days => "d",
+    }
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Expression::Literal(value) => write!(f, "{}", value),
+            Expression::UnitValue { value, unit } => write!(f, "{}{}", value, unit_suffix(unit)),
+            Expression::BinaryOp {
+                left,
+                operator,
+                right,
+            } => write!(f, "{} {} {}", left, operator, right),
+        }
+    }
+}
+
 /// 表达式错误
 #[derive(Debug, thiserror::Error)]
 pub enum ExpressionError {
@@ -176,9 +199,13 @@ mod tests {
     #[test]
     fn test_expression_evaluate_binary() {
         let expr = Expression::BinaryOp {
-            left: Box::new(Expression::Literal(ScalarValue::Number(NumberValue::Integer(10)))),
+            left: Box::new(Expression::Literal(ScalarValue::Number(
+                NumberValue::Integer(10),
+            ))),
             operator: BinaryOperator::Add,
-            right: Box::new(Expression::Literal(ScalarValue::Number(NumberValue::Integer(5)))),
+            right: Box::new(Expression::Literal(ScalarValue::Number(
+                NumberValue::Integer(5),
+            ))),
         };
         assert_eq!(
             expr.evaluate().unwrap(),

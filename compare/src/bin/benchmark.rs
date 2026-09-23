@@ -1,19 +1,19 @@
 use std::fs;
-use std::time::Instant;
 use std::hint::black_box;
+use std::time::Instant;
 
 /// 简化的性能基准测试
 fn main() {
     println!("=== VerseConf vs TOML vs JSON 性能比较 ===\n");
 
     let sizes = ["small", "medium", "large", "xlarge"];
-    
+
     // 收集性能数据
     let mut results = Vec::new();
 
     for size in &sizes {
         println!("Testing {} dataset...", size);
-        
+
         // VCF 解析
         let vcf_path = format!("compare/test_data/{}/config.vcf", size);
         let vcf_result = if let Ok(content) = fs::read_to_string(&vcf_path) {
@@ -24,10 +24,10 @@ fn main() {
                 "medium" => 50,
                 _ => 100,
             };
-            
+
             // Warmup
             let _ = verseconf_core::parse(&content);
-            
+
             let start = Instant::now();
             let mut parse_count = 0;
             for _ in 0..iterations {
@@ -37,7 +37,7 @@ fn main() {
             }
             let duration = start.elapsed();
             let avg_time = duration.as_micros() as f64 / parse_count as f64;
-            
+
             println!("  VCF: {} iterations, {:.2}μs avg", parse_count, avg_time);
             Some((file_size, duration, avg_time))
         } else {
@@ -54,10 +54,10 @@ fn main() {
                 "medium" => 50,
                 _ => 100,
             };
-            
+
             // Warmup
             let _: Result<toml::Value, _> = toml::from_str(&content);
-            
+
             let start = Instant::now();
             let mut parse_count = 0;
             for _ in 0..iterations {
@@ -67,7 +67,7 @@ fn main() {
             }
             let duration = start.elapsed();
             let avg_time = duration.as_micros() as f64 / parse_count as f64;
-            
+
             println!("  TOML: {} iterations, {:.2}μs avg", parse_count, avg_time);
             Some((file_size, duration, avg_time))
         } else {
@@ -84,16 +84,16 @@ fn main() {
                 "medium" => 50,
                 _ => 100,
             };
-            
+
             // Warmup
             match serde_json::from_str::<serde_json::Value>(&content) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(e) => {
                     println!("  JSON warmup error: {}", e);
                     println!("  First 200 chars: {}", &content[..200.min(content.len())]);
                 }
             }
-            
+
             let start = Instant::now();
             let mut parse_count = 0;
             let mut last_error = String::new();
@@ -110,7 +110,7 @@ fn main() {
                 println!("  JSON parse error: {}", last_error);
                 f64::MAX
             };
-            
+
             println!("  JSON: {} iterations, {:.2}μs avg", parse_count, avg_time);
             Some((file_size, duration, avg_time))
         } else {
@@ -123,29 +123,39 @@ fn main() {
 
     // 输出结果
     println!("\n=== 解析性能对比 ===\n");
-    println!("{:<10} {:<15} {:<15} {:<15}", "Size", "VerseConf (μs)", "TOML (μs)", "JSON (μs)");
+    println!(
+        "{:<10} {:<15} {:<15} {:<15}",
+        "Size", "VerseConf (μs)", "TOML (μs)", "JSON (μs)"
+    );
     println!("{}", "-".repeat(60));
 
     for (size, vcf, toml, json) in &results {
         let vcf_time = vcf.as_ref().map(|(_, _, t)| *t).unwrap_or(0.0);
         let toml_time = toml.as_ref().map(|(_, _, t)| *t).unwrap_or(0.0);
         let json_time = json.as_ref().map(|(_, _, t)| *t).unwrap_or(0.0);
-        
-        println!("{:<10} {:<15.2} {:<15.2} {:<15.2}", 
-            size, vcf_time, toml_time, json_time);
+
+        println!(
+            "{:<10} {:<15.2} {:<15.2} {:<15.2}",
+            size, vcf_time, toml_time, json_time
+        );
     }
 
     println!("\n=== 文件大小对比 ===\n");
-    println!("{:<10} {:<15} {:<15} {:<15}", "Size", "VCF (bytes)", "TOML (bytes)", "JSON (bytes)");
+    println!(
+        "{:<10} {:<15} {:<15} {:<15}",
+        "Size", "VCF (bytes)", "TOML (bytes)", "JSON (bytes)"
+    );
     println!("{}", "-".repeat(60));
 
     for (size, vcf, toml, json) in &results {
         let vcf_size = vcf.as_ref().map(|(s, _, _)| *s).unwrap_or(0);
         let toml_size = toml.as_ref().map(|(s, _, _)| *s).unwrap_or(0);
         let json_size = json.as_ref().map(|(s, _, _)| *s).unwrap_or(0);
-        
-        println!("{:<10} {:<15} {:<15} {:<15}", 
-            size, vcf_size, toml_size, json_size);
+
+        println!(
+            "{:<10} {:<15} {:<15} {:<15}",
+            size, vcf_size, toml_size, json_size
+        );
     }
 
     println!("\n=== 相对性能 (VerseConf = 1.0x) ===\n");
@@ -156,7 +166,7 @@ fn main() {
         let vcf_time = vcf.as_ref().map(|(_, _, t)| *t).unwrap_or(0.0);
         let toml_time = toml.as_ref().map(|(_, _, t)| *t).unwrap_or(0.0);
         let json_time = json.as_ref().map(|(_, _, t)| *t).unwrap_or(0.0);
-        
+
         if vcf_time > 0.0 {
             let toml_ratio = toml_time / vcf_time;
             let json_ratio = json_time / vcf_time;

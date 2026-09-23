@@ -21,10 +21,10 @@ impl AstBuilder {
     /// 从 tokens 构建 AST
     pub fn build(&mut self, tokens: &[(Token, Span)]) -> Result<Ast, ParseError> {
         let mut pos = 0;
-        
+
         // Check for schema block at the beginning
         let schema = self.try_parse_schema(tokens, &mut pos)?;
-        
+
         let root = self.parse_table_block(tokens, &mut pos)?;
 
         Ok(Ast {
@@ -43,11 +43,19 @@ impl AstBuilder {
         tokens: &[(Token, Span)],
         pos: &mut usize,
     ) -> Result<Option<SchemaDefinition>, ParseError> {
-        // Skip newlines and comments at the beginning
+        // 只跳过空行。注释必须留在 AST 里（否则格式化会静默丢注释），
+        // 除非它后面紧跟着 schema 头。
         while *pos < tokens.len() {
             match &tokens[*pos].0 {
-                Token::Newline | Token::LineComment(_) | Token::BlockComment(_) => {
+                Token::Newline => {
                     *pos += 1;
+                }
+                Token::LineComment(_) | Token::BlockComment(_) => {
+                    if self.schema_header_ahead(tokens, *pos) {
+                        *pos += 1;
+                    } else {
+                        break;
+                    }
                 }
                 Token::MetadataPrefix => {
                     // Check if followed by 'schema' and '{'
@@ -69,6 +77,23 @@ impl AstBuilder {
         Ok(None)
     }
 
+    /// 从 pos 起（跳过注释与空行）判断是否紧跟 schema 头 `#@schema {`
+    fn schema_header_ahead(&self, tokens: &[(Token, Span)], pos: usize) -> bool {
+        let mut i = pos;
+        while i < tokens.len() {
+            match &tokens[i].0 {
+                Token::Newline | Token::LineComment(_) | Token::BlockComment(_) => i += 1,
+                Token::MetadataPrefix => {
+                    return i + 2 < tokens.len()
+                        && matches!(&tokens[i + 1].0, Token::BareKey(k) if k == "schema")
+                        && matches!(tokens[i + 2].0, Token::LBrace);
+                }
+                _ => return false,
+            }
+        }
+        false
+    }
+
     /// Parse schema block content
     fn parse_schema_block(
         &mut self,
@@ -87,7 +112,10 @@ impl AstBuilder {
                 break;
             }
 
-            if matches!(tokens[*pos].0, Token::Newline | Token::LineComment(_) | Token::BlockComment(_)) {
+            if matches!(
+                tokens[*pos].0,
+                Token::Newline | Token::LineComment(_) | Token::BlockComment(_)
+            ) {
                 *pos += 1;
                 continue;
             }
@@ -167,7 +195,7 @@ impl AstBuilder {
         pos: &mut usize,
     ) -> Result<SchemaField, ParseError> {
         let start = tokens[*pos].1;
-        
+
         // Get field name
         let name = if let Token::BareKey(key) = &tokens[*pos].0 {
             let name = key.clone();
@@ -202,7 +230,10 @@ impl AstBuilder {
                     break;
                 }
 
-                if matches!(tokens[*pos].0, Token::Newline | Token::LineComment(_) | Token::BlockComment(_)) {
+                if matches!(
+                    tokens[*pos].0,
+                    Token::Newline | Token::LineComment(_) | Token::BlockComment(_)
+                ) {
                     *pos += 1;
                     continue;
                 }
@@ -372,7 +403,10 @@ impl AstBuilder {
                     break;
                 }
 
-                if matches!(tokens[*pos].0, Token::LineComment(_) | Token::BlockComment(_)) {
+                if matches!(
+                    tokens[*pos].0,
+                    Token::LineComment(_) | Token::BlockComment(_)
+                ) {
                     *pos += 1;
                     continue;
                 }
@@ -538,7 +572,7 @@ impl AstBuilder {
             _ => {
                 // Check for array<type> syntax
                 if s.starts_with("array<") && s.ends_with(">") {
-                    let inner = &s[6..s.len()-1];
+                    let inner = &s[6..s.len() - 1];
                     let inner_type = self.parse_schema_type(inner)?;
                     Ok(SchemaType::Array(Box::new(inner_type)))
                 } else {
@@ -646,6 +680,8 @@ impl AstBuilder {
         };
 
         let mut entries = Vec::new();
+        // 独立前置元数据行（`#@sensitive` 单独一行）挂到下一个条目上
+        let mut pending_metadata: Option<MetadataList> = None;
 
         while *pos < tokens.len() {
             let (token, span) = &tokens[*pos];
@@ -671,18 +707,35 @@ impl AstBuilder {
                             *pos += 2; // skip the key name and '{'
                             let mut table = self.parse_table_block(tokens, pos)?;
                             table.name = table_name;
+                            if let Some(metadata) = pending_metadata.take() {
+                                if let Some(TableEntry::KeyValue(first)) = table.entries.first_mut()
+                                {
+                                    if first.metadata.is_none() {
+                                        first.metadata = Some(metadata);
+                                    }
+                                }
+                            }
                             entries.push(TableEntry::TableBlock(table));
                             continue;
                         }
                         // Check if this is an array table definition (key followed by '[[')
                         if matches!(tokens[*pos + 1].0, Token::LDoubleBracket) {
-                            *pos += 1; // skip the key name
-                            let at = self.parse_array_table(tokens, pos)?;
+                            let table_key = match &tokens[*pos].0 {
+                                Token::BareKey(k) => Key::BareKey(k.clone()),
+                                Token::QuotedKey(k) => Key::QuotedKey(k.clone()),
+                                _ => unreachable!(),
+                            };
+                            let start = tokens[*pos].1;
+                            *pos += 2; // skip the key name and '[['
+                            let at = self.parse_array_table_body(tokens, pos, table_key, start)?;
                             entries.push(TableEntry::ArrayTable(at));
                             continue;
                         }
                     }
-                    let kv = self.parse_key_value(tokens, pos)?;
+                    let mut kv = self.parse_key_value(tokens, pos)?;
+                    if kv.metadata.is_none() {
+                        kv.metadata = pending_metadata.take();
+                    }
                     entries.push(TableEntry::KeyValue(kv));
                 }
                 Token::LDoubleBracket => {
@@ -699,6 +752,9 @@ impl AstBuilder {
                 }
                 Token::Newline => {
                     *pos += 1;
+                }
+                Token::MetadataPrefix => {
+                    pending_metadata = Some(self.parse_metadata(tokens, pos)?);
                 }
                 _ => {
                     return Err(ParseError::new(
@@ -755,8 +811,10 @@ impl AstBuilder {
         };
 
         let comment = if *pos < tokens.len()
-            && matches!(tokens[*pos].0, Token::LineComment(_) | Token::BlockComment(_))
-        {
+            && matches!(
+                tokens[*pos].0,
+                Token::LineComment(_) | Token::BlockComment(_)
+            ) {
             Some(self.parse_comment(tokens, pos)?)
         } else {
             None
@@ -842,7 +900,10 @@ impl AstBuilder {
         pos: &mut usize,
     ) -> Result<Expression, ParseError> {
         if *pos >= tokens.len() {
-            return Err(ParseError::new("expected expression value", Span::unknown()));
+            return Err(ParseError::new(
+                "expected expression value",
+                Span::unknown(),
+            ));
         }
 
         let (token, span) = &tokens[*pos];
@@ -863,10 +924,7 @@ impl AstBuilder {
                         if let Some(tu) = time_unit {
                             *pos += 1;
                             let value = n.parse::<f64>().unwrap_or(0.0);
-                            return Ok(Expression::UnitValue {
-                                value,
-                                unit: tu,
-                            });
+                            return Ok(Expression::UnitValue { value, unit: tu });
                         }
                     }
                 }
@@ -885,10 +943,7 @@ impl AstBuilder {
             Token::DurationLiteral(d) => {
                 *pos += 1;
                 let (num, unit) = self.parse_duration_literal(d)?;
-                Ok(Expression::UnitValue {
-                    value: num,
-                    unit,
-                })
+                Ok(Expression::UnitValue { value: num, unit })
             }
             Token::DateTimeLiteral(dt) => {
                 *pos += 1;
@@ -990,7 +1045,9 @@ impl AstBuilder {
                 // Parse duration like "60s", "5m", "1h", "1d"
                 let (num, unit) = self.parse_duration_literal(d)?;
                 let seconds = (num as u64) * unit.to_seconds();
-                Ok(ScalarValue::Duration(std::time::Duration::from_secs(seconds)))
+                Ok(ScalarValue::Duration(std::time::Duration::from_secs(
+                    seconds,
+                )))
             }
             Token::DateTimeLiteral(dt) => Ok(ScalarValue::DateTime(dt.clone())),
             _ => Err(ParseError::new(
@@ -1108,11 +1165,29 @@ impl AstBuilder {
         }
         *pos += 1;
 
+        self.parse_array_table_body(tokens, pos, key, start)
+    }
+
+    /// 解析数组表主体。同时支持两种写法：
+    /// `[[key]] ... ` 与 `key [[ ... ]]`（后者以 `]]` 结束）
+    fn parse_array_table_body(
+        &mut self,
+        tokens: &[(Token, Span)],
+        pos: &mut usize,
+        key: Key,
+        start: Span,
+    ) -> Result<ArrayTable, ParseError> {
         let mut entries = Vec::new();
 
         while *pos < tokens.len() {
             match &tokens[*pos].0 {
                 Token::BareKey(_) | Token::QuotedKey(_) => {
+                    // `key {` / `key [[` 属于外层的新块，不是本数组表的条目
+                    if *pos + 1 < tokens.len()
+                        && matches!(tokens[*pos + 1].0, Token::LBrace | Token::LDoubleBracket)
+                    {
+                        break;
+                    }
                     let kv = self.parse_key_value(tokens, pos)?;
                     entries.push(kv);
                 }
@@ -1131,6 +1206,11 @@ impl AstBuilder {
                 }
                 _ => break,
             }
+        }
+
+        // `key [[ ... ]]` 写法以 `]]` 结束；`[[key]]` 写法没有
+        if *pos < tokens.len() && matches!(tokens[*pos].0, Token::RDoubleBracket) {
+            *pos += 1;
         }
 
         let end = tokens[*pos - 1].1;
@@ -1192,12 +1272,7 @@ impl AstBuilder {
                             ))
                         }
                     },
-                    _ => {
-                        return Err(ParseError::new(
-                            "expected merge strategy",
-                            tokens[*pos].1,
-                        ))
-                    }
+                    _ => return Err(ParseError::new("expected merge strategy", tokens[*pos].1)),
                 };
                 *pos += 1;
             }
@@ -1236,11 +1311,7 @@ impl AstBuilder {
             items.push(item);
         }
 
-        let end = if *pos > 0 {
-            tokens[*pos - 1].1
-        } else {
-            start
-        };
+        let end = if *pos > 0 { tokens[*pos - 1].1 } else { start };
 
         Ok(MetadataList {
             items,
@@ -1274,20 +1345,18 @@ impl AstBuilder {
                     *pos += 1;
 
                     if *pos >= tokens.len() {
-                        return Err(ParseError::new(
-                            "expected value after '='",
-                            Span::unknown(),
-                        ));
+                        return Err(ParseError::new("expected value after '='", Span::unknown()));
                     }
 
                     let value = match &tokens[*pos].0 {
                         Token::StringLiteral(s) => MetadataValue::String(s.clone()),
-                        Token::NumberLiteral(n) => {
-                            MetadataValue::Number(n.parse().unwrap_or(0.0))
-                        }
+                        Token::NumberLiteral(n) => MetadataValue::Number(n.parse().unwrap_or(0.0)),
+                        // 裸词值：`#@ my_team=backend`（等价于字符串）
+                        Token::BareKey(k) => MetadataValue::String(k.clone()),
+                        Token::BooleanLiteral(b) => MetadataValue::String(b.to_string()),
                         _ => {
                             return Err(ParseError::new(
-                                "expected string or number in metadata",
+                                "expected string, number or bare word in metadata",
                                 tokens[*pos].1,
                             ))
                         }
@@ -1321,47 +1390,31 @@ impl AstBuilder {
             "range" => {
                 // Parse min..max
                 let min = match &tokens[*pos].0 {
-                    Token::NumberLiteral(n) => n.parse::<f64>().map_err(|_| {
-                        ParseError::new("invalid range min value", tokens[*pos].1)
-                    })?,
-                    _ => {
-                        return Err(ParseError::new(
-                            "expected number in range",
-                            tokens[*pos].1,
-                        ))
-                    }
+                    Token::NumberLiteral(n) => n
+                        .parse::<f64>()
+                        .map_err(|_| ParseError::new("invalid range min value", tokens[*pos].1))?,
+                    _ => return Err(ParseError::new("expected number in range", tokens[*pos].1)),
                 };
                 *pos += 1;
 
                 // Expect '..'
                 if !matches!(tokens[*pos].0, Token::RangeOp | Token::Dot) {
-                    return Err(ParseError::new(
-                        "expected '..' in range",
-                        tokens[*pos].1,
-                    ));
+                    return Err(ParseError::new("expected '..' in range", tokens[*pos].1));
                 }
                 *pos += 1;
                 // If it was a single dot, check for another
                 if matches!(tokens[*pos - 1].0, Token::Dot) {
                     if !matches!(tokens[*pos].0, Token::Dot) {
-                        return Err(ParseError::new(
-                            "expected '..' in range",
-                            tokens[*pos].1,
-                        ));
+                        return Err(ParseError::new("expected '..' in range", tokens[*pos].1));
                     }
                     *pos += 1;
                 }
 
                 let max = match &tokens[*pos].0 {
-                    Token::NumberLiteral(n) => n.parse::<f64>().map_err(|_| {
-                        ParseError::new("invalid range max value", tokens[*pos].1)
-                    })?,
-                    _ => {
-                        return Err(ParseError::new(
-                            "expected number in range",
-                            tokens[*pos].1,
-                        ))
-                    }
+                    Token::NumberLiteral(n) => n
+                        .parse::<f64>()
+                        .map_err(|_| ParseError::new("invalid range max value", tokens[*pos].1))?,
+                    _ => return Err(ParseError::new("expected number in range", tokens[*pos].1)),
                 };
                 *pos += 1;
 

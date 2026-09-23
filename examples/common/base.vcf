@@ -1,0 +1,16 @@
+# Shared base configuration, included by other examples.
+# Kept intentionally small so merge behaviour stays easy to inspect.
+
+app_name = "BaseApp"
+version = "1.0.0"
+debug = false
+
+logging {
+    level = "info"
+    format = "text"
+}
+
+server {
+    host = "127.0.0.1"
+    port = 8080
+}

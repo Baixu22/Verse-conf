@@ -9,6 +9,61 @@ pub use error::*;
 use crate::ast::*;
 use crate::lexer::*;
 use crate::parser::AstBuilder;
+use crate::Span;
+use std::fmt;
+
+/// 解析阶段错误：词法错误或语法错误，二者都携带源码位置
+#[derive(Debug, Clone)]
+pub enum ParseStageError {
+    Lex(LexError),
+    Parse(ParseError),
+}
+
+impl ParseStageError {
+    /// 错误消息（不含位置前缀）
+    pub fn message(&self) -> &str {
+        match self {
+            ParseStageError::Lex(e) => &e.message,
+            ParseStageError::Parse(e) => &e.message,
+        }
+    }
+
+    /// 错误位置
+    pub fn span(&self) -> Span {
+        match self {
+            ParseStageError::Lex(e) => e.span,
+            ParseStageError::Parse(e) => e.span,
+        }
+    }
+
+    /// 是否为词法错误
+    pub fn is_lexical(&self) -> bool {
+        matches!(self, ParseStageError::Lex(_))
+    }
+}
+
+impl fmt::Display for ParseStageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseStageError::Lex(e) => write!(f, "{}", e),
+            ParseStageError::Parse(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for ParseStageError {}
+
+impl From<LexError> for ParseStageError {
+    fn from(e: LexError) -> Self {
+        ParseStageError::Lex(e)
+    }
+}
+
+impl From<ParseError> for ParseStageError {
+    fn from(e: ParseError) -> Self {
+        ParseStageError::Parse(e)
+    }
+}
 
 /// 解析器
 pub struct Parser {
@@ -31,30 +86,30 @@ impl Parser {
     }
 
     /// 解析源码返回 AST
-    pub fn parse(&self) -> Result<Ast, Box<dyn std::error::Error>> {
+    pub fn parse(&self) -> Result<Ast, ParseStageError> {
         let mut lexer = Lexer::new(&self.source);
         let tokens = lexer.tokenize_all()?;
-        
+
         let mut builder = AstBuilder::new(self.source.clone());
         let ast = builder.build(&tokens)?;
-        
+
         Ok(ast)
     }
 
     /// 解析源码返回 AST 和 warnings（tolerant 模式）
-    pub fn parse_with_warnings(&self) -> Result<ParseResult<Ast>, Box<dyn std::error::Error>> {
+    pub fn parse_with_warnings(&self) -> Result<ParseResult<Ast>, ParseStageError> {
         let mut lexer = Lexer::new(&self.source);
         let tokens = lexer.tokenize_all()?;
-        
+
         let mut builder = AstBuilder::new(self.source.clone());
         let ast = builder.build(&tokens)?;
-        
+
         let mut result = ParseResult::new(ast);
-        
+
         if self.config.tolerant {
             result = Self::apply_tolerant_fixes(result, &self.source);
         }
-        
+
         Ok(result)
     }
 

@@ -34,6 +34,25 @@ impl Span {
         }
     }
 
+    /// 从字节偏移和已知的行列号创建 Span
+    pub fn at(start: usize, end: usize, line: u32, column: u32) -> Self {
+        Self {
+            start,
+            end,
+            line,
+            column,
+        }
+    }
+
+    /// 已知行列号时返回自身，否则返回未知位置
+    pub fn or_unknown(self) -> Self {
+        if self.is_unknown() {
+            Self::unknown()
+        } else {
+            self
+        }
+    }
+
     /// 合并两个 Span
     pub fn merge(&self, other: &Span) -> Self {
         Self {

@@ -4,10 +4,18 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "CLI tool for VerseConf configuration language"
 
+# 可执行文件叫 `verseconf`，与文档里的 `verseconf parse ...` 一致。
+# 包名保持 verseconf-cli，所以安装命令仍是 `cargo install verseconf-cli`。
+[[bin]]
+name = "verseconf"
+path = "src/main.rs"
+
 [dependencies]
-verseconf-core = { path = "../verseconf-core" }
+# 带 version 才能发布到 registry（只有 path 的依赖无法打包）。
+verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
 clap.workspace = true
 anyhow.workspace = true
 chrono = "0.4"

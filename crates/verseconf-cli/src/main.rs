@@ -5,6 +5,7 @@ use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "verseconf")]
+#[command(version)]
 #[command(about = "VerseConf configuration language CLI tool", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -20,6 +21,12 @@ enum Commands {
         /// Enable tolerant parsing mode
         #[arg(short, long)]
         tolerant: bool,
+        /// Do not resolve @include directives (resolve them by default)
+        #[arg(long)]
+        no_include: bool,
+        /// Interpolate ${VAR|default} from the process environment
+        #[arg(long)]
+        env: bool,
     },
     /// Validate a configuration file
     Validate {
@@ -37,6 +44,12 @@ enum Commands {
         /// Write fixes to file
         #[arg(long)]
         write: bool,
+        /// Do not resolve @include directives (resolve them by default)
+        #[arg(long)]
+        no_include: bool,
+        /// Interpolate ${VAR|default} from the process environment
+        #[arg(long)]
+        env: bool,
     },
     /// Format a configuration file
     Format {
@@ -48,6 +61,12 @@ enum Commands {
         /// Use AI canonical format (sorted keys, consistent formatting)
         #[arg(long)]
         ai_canonical: bool,
+        /// Merge @include directives into the output (off by default: formatting stays lossless)
+        #[arg(long)]
+        include: bool,
+        /// Interpolate ${VAR|default} from the process environment
+        #[arg(long)]
+        env: bool,
     },
     /// Generate documentation from a configuration file
     Doc {
@@ -240,72 +259,186 @@ fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Parse { file, tolerant } => {
-            commands::parse::execute(&file, tolerant)?;
+        Commands::Parse {
+            file,
+            tolerant,
+            no_include,
+            env,
+        } => {
+            commands::parse::execute(&file, tolerant, no_include, env)?;
         }
-        Commands::Validate { file, strict, fix, dry_run, write } => {
-            commands::validate::execute(&file, strict, fix || write, dry_run && !write)?;
+        Commands::Validate {
+            file,
+            strict,
+            fix,
+            dry_run,
+            write,
+            no_include,
+            env,
+        } => {
+            commands::validate::execute(
+                &file,
+                strict,
+                fix || write,
+                dry_run && !write,
+                no_include,
+                env,
+            )?;
         }
-        Commands::Format { file, output, ai_canonical } => {
-            commands::format::execute(&file, output.as_deref(), ai_canonical)?;
+        Commands::Format {
+            file,
+            output,
+            ai_canonical,
+            include,
+            env,
+        } => {
+            commands::format::execute(&file, output.as_deref(), ai_canonical, include, env)?;
         }
         Commands::Doc { file, output } => {
             commands::doc::execute(&file, output.as_deref())?;
         }
-        Commands::Template(template_cmd) => {
-            match template_cmd {
-                TemplateCommands::Render { template, output, variable, strict } => {
-                    commands::template::run_render(&template, output.as_deref(), variable, strict)?;
-                }
-                TemplateCommands::List { template } => {
-                    commands::template::run_list(&template)?;
-                }
-                TemplateCommands::Validate { template } => {
-                    commands::template::run_validate(&template)?;
-                }
-                TemplateCommands::Generate { template, output } => {
-                    commands::template::run_generate(&template, &output)?;
-                }
+        Commands::Template(template_cmd) => match template_cmd {
+            TemplateCommands::Render {
+                template,
+                output,
+                variable,
+                strict,
+            } => {
+                commands::template::run_render(&template, output.as_deref(), variable, strict)?;
             }
-        }
-        Commands::Diff { old, new, format, output } => {
+            TemplateCommands::List { template } => {
+                commands::template::run_list(&template)?;
+            }
+            TemplateCommands::Validate { template } => {
+                commands::template::run_validate(&template)?;
+            }
+            TemplateCommands::Generate { template, output } => {
+                commands::template::run_generate(&template, &output)?;
+            }
+        },
+        Commands::Diff {
+            old,
+            new,
+            format,
+            output,
+        } => {
             commands::diff::run_diff(&old, &new, &format, output.as_deref())?;
         }
-        Commands::Version(version_cmd) => {
-            match version_cmd {
-                VersionCommands::Create { file, description, storage } => {
-                    commands::version::run_version(&file, "create", None, None, None, description.as_deref(), storage.as_deref())?;
-                }
-                VersionCommands::History { file, storage } => {
-                    commands::version::run_version(&file, "history", None, None, None, None, storage.as_deref())?;
-                }
-                VersionCommands::Rollback { file, version, storage } => {
-                    commands::version::run_version(&file, "rollback", Some(version), None, None, None, storage.as_deref())?;
-                }
-                VersionCommands::Diff { file, version_a, version_b, storage } => {
-                    commands::version::run_version(&file, "diff", None, Some(version_a), Some(version_b), None, storage.as_deref())?;
-                }
-                VersionCommands::Latest { file, storage } => {
-                    commands::version::run_version(&file, "latest", None, None, None, None, storage.as_deref())?;
-                }
+        Commands::Version(version_cmd) => match version_cmd {
+            VersionCommands::Create {
+                file,
+                description,
+                storage,
+            } => {
+                commands::version::run_version(
+                    &file,
+                    "create",
+                    None,
+                    None,
+                    None,
+                    description.as_deref(),
+                    storage.as_deref(),
+                )?;
             }
-        }
-        Commands::Env(env_cmd) => {
-            match env_cmd {
-                EnvCommands::List { base_dir, format } => {
-                    commands::env::run_env("list", Some(&base_dir), None, None, None, &format)?;
-                }
-                EnvCommands::Create { name, content, extends, base_dir } => {
-                    commands::env::run_env("create", Some(&base_dir), Some(&name), content.as_deref(), extends.as_deref(), "text")?;
-                }
-                EnvCommands::Resolve { name, base_dir } => {
-                    commands::env::run_env("resolve", Some(&base_dir), Some(&name), None, None, "text")?;
-                }
-                EnvCommands::Diff { env_a, env_b, base_dir, format } => {
-                    commands::env::run_env("diff", Some(&base_dir), Some(&env_a), None, Some(&env_b), &format)?;
-                }
+            VersionCommands::History { file, storage } => {
+                commands::version::run_version(
+                    &file,
+                    "history",
+                    None,
+                    None,
+                    None,
+                    None,
+                    storage.as_deref(),
+                )?;
             }
-        }
+            VersionCommands::Rollback {
+                file,
+                version,
+                storage,
+            } => {
+                commands::version::run_version(
+                    &file,
+                    "rollback",
+                    Some(version),
+                    None,
+                    None,
+                    None,
+                    storage.as_deref(),
+                )?;
+            }
+            VersionCommands::Diff {
+                file,
+                version_a,
+                version_b,
+                storage,
+            } => {
+                commands::version::run_version(
+                    &file,
+                    "diff",
+                    None,
+                    Some(version_a),
+                    Some(version_b),
+                    None,
+                    storage.as_deref(),
+                )?;
+            }
+            VersionCommands::Latest { file, storage } => {
+                commands::version::run_version(
+                    &file,
+                    "latest",
+                    None,
+                    None,
+                    None,
+                    None,
+                    storage.as_deref(),
+                )?;
+            }
+        },
+        Commands::Env(env_cmd) => match env_cmd {
+            EnvCommands::List { base_dir, format } => {
+                commands::env::run_env("list", Some(&base_dir), None, None, None, &format)?;
+            }
+            EnvCommands::Create {
+                name,
+                content,
+                extends,
+                base_dir,
+            } => {
+                commands::env::run_env(
+                    "create",
+                    Some(&base_dir),
+                    Some(&name),
+                    content.as_deref(),
+                    extends.as_deref(),
+                    "text",
+                )?;
+            }
+            EnvCommands::Resolve { name, base_dir } => {
+                commands::env::run_env(
+                    "resolve",
+                    Some(&base_dir),
+                    Some(&name),
+                    None,
+                    None,
+                    "text",
+                )?;
+            }
+            EnvCommands::Diff {
+                env_a,
+                env_b,
+                base_dir,
+                format,
+            } => {
+                commands::env::run_env(
+                    "diff",
+                    Some(&base_dir),
+                    Some(&env_a),
+                    None,
+                    Some(&env_b),
+                    &format,
+                )?;
+            }
+        },
         Commands::Audit { file, format } => {
             commands::audit::run_audit(&file, &format)?;
         }

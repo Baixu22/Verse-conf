@@ -4,12 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
 description = "Core library for VerseConf configuration language"
 
 [dependencies]
 pest.workspace = true
 pest_derive.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 chrono.workspace = true
 regex.workspace = true

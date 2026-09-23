@@ -25,28 +25,28 @@ impl DiffFormatter {
 /// 文本格式输出
 fn format_text(diff: &DiffResult) -> String {
     let mut output = String::new();
-    
+
     if let (Some(old), Some(new)) = (&diff.old_source, &diff.new_source) {
         output.push_str(&format!("--- {}\n+++ {}\n\n", old, new));
     }
-    
+
     for entry in &diff.entries {
         let line = format_entry(entry);
         output.push_str(&line);
         output.push('\n');
     }
-    
+
     let stats = diff.stats();
     output.push_str(&format!("\n{}", stats));
     output.push('\n');
-    
+
     output
 }
 
 /// JSON 格式输出
 fn format_json(diff: &DiffResult) -> String {
     let mut entries_json = Vec::new();
-    
+
     for entry in &diff.entries {
         let entry_obj = format!(
             r#"{{"type":"{}","path":"{}","old_value":{},"new_value":{}}}"#,
@@ -57,7 +57,7 @@ fn format_json(diff: &DiffResult) -> String {
         );
         entries_json.push(entry_obj);
     }
-    
+
     let stats = diff.stats();
     format!(
         r#"{{"entries":[{}],"stats":{{"added":{},"removed":{},"modified":{},"unchanged":{},"total":{}}}}}"#,
@@ -73,17 +73,17 @@ fn format_json(diff: &DiffResult) -> String {
 /// Markdown 格式输出
 fn format_markdown(diff: &DiffResult) -> String {
     let mut output = String::new();
-    
+
     output.push_str("# Configuration Diff\n\n");
-    
+
     if let (Some(old), Some(new)) = (&diff.old_source, &diff.new_source) {
         output.push_str(&format!("**Old**: {}\n", old));
         output.push_str(&format!("**New**: {}\n\n", new));
     }
-    
+
     output.push_str("| Type | Path | Old Value | New Value |\n");
     output.push_str("|------|------|-----------|-----------|\n");
-    
+
     for entry in &diff.entries {
         let type_str = match entry.diff_type {
             DiffType::Added => "➕ Added",
@@ -91,29 +91,37 @@ fn format_markdown(diff: &DiffResult) -> String {
             DiffType::Modified => "✏️ Modified",
             DiffType::Unchanged => "➡️ Unchanged",
         };
-        
+
         let old_val = entry.old_value.as_deref().unwrap_or("-");
         let new_val = entry.new_value.as_deref().unwrap_or("-");
-        
+
         output.push_str(&format!(
             "| {} | `{}` | `{}` | `{}` |\n",
             type_str, entry.path, old_val, new_val
         ));
     }
-    
+
     let stats = diff.stats();
     output.push_str(&format!("\n**Summary**: {}\n", stats));
-    
+
     output
 }
 
 fn format_entry(entry: &DiffEntry) -> String {
     match entry.diff_type {
         DiffType::Added => {
-            format!("+ {}: {}", entry.path, entry.new_value.as_deref().unwrap_or(""))
+            format!(
+                "+ {}: {}",
+                entry.path,
+                entry.new_value.as_deref().unwrap_or("")
+            )
         }
         DiffType::Removed => {
-            format!("- {}: {}", entry.path, entry.old_value.as_deref().unwrap_or(""))
+            format!(
+                "- {}: {}",
+                entry.path,
+                entry.old_value.as_deref().unwrap_or("")
+            )
         }
         DiffType::Modified => {
             format!(
@@ -124,7 +132,11 @@ fn format_entry(entry: &DiffEntry) -> String {
             )
         }
         DiffType::Unchanged => {
-            format!("  {}: {}", entry.path, entry.old_value.as_deref().unwrap_or(""))
+            format!(
+                "  {}: {}",
+                entry.path,
+                entry.old_value.as_deref().unwrap_or("")
+            )
         }
     }
 }
@@ -156,8 +168,8 @@ fn option_to_json(value: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parse;
     use crate::engine::diff_comparator::AstDiffer;
+    use crate::parse;
 
     fn create_test_diff() -> DiffResult {
         let old = r#"name = "test"
@@ -165,7 +177,7 @@ port = 8080"#;
         let new = r#"name = "test"
 port = 9090
 host = "localhost""#;
-        
+
         let old_ast = parse(old).unwrap();
         let new_ast = parse(new).unwrap();
         AstDiffer::diff(&old_ast, &new_ast)
@@ -175,7 +187,7 @@ host = "localhost""#;
     fn test_format_text() {
         let diff = create_test_diff();
         let output = DiffFormatter::format(&diff, DiffFormat::Text);
-        
+
         assert!(output.contains("+ host:"));
         assert!(output.contains("~ port:"));
         assert!(output.contains("added"));
@@ -186,7 +198,7 @@ host = "localhost""#;
     fn test_format_json() {
         let diff = create_test_diff();
         let output = DiffFormatter::format(&diff, DiffFormat::Json);
-        
+
         assert!(output.contains("\"type\":\"added\""));
         assert!(output.contains("\"type\":\"modified\""));
         assert!(output.contains("\"path\":\"host\""));
@@ -196,7 +208,7 @@ host = "localhost""#;
     fn test_format_markdown() {
         let diff = create_test_diff();
         let output = DiffFormatter::format(&diff, DiffFormat::Markdown);
-        
+
         assert!(output.contains("# Configuration Diff"));
         assert!(output.contains("| Type | Path |"));
         assert!(output.contains("➕ Added"));

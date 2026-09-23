@@ -102,11 +102,27 @@ impl DiffResult {
     }
 
     pub fn stats(&self) -> DiffStats {
-        let added = self.entries.iter().filter(|e| e.diff_type == DiffType::Added).count();
-        let removed = self.entries.iter().filter(|e| e.diff_type == DiffType::Removed).count();
-        let modified = self.entries.iter().filter(|e| e.diff_type == DiffType::Modified).count();
-        let unchanged = self.entries.iter().filter(|e| e.diff_type == DiffType::Unchanged).count();
-        
+        let added = self
+            .entries
+            .iter()
+            .filter(|e| e.diff_type == DiffType::Added)
+            .count();
+        let removed = self
+            .entries
+            .iter()
+            .filter(|e| e.diff_type == DiffType::Removed)
+            .count();
+        let modified = self
+            .entries
+            .iter()
+            .filter(|e| e.diff_type == DiffType::Modified)
+            .count();
+        let unchanged = self
+            .entries
+            .iter()
+            .filter(|e| e.diff_type == DiffType::Unchanged)
+            .count();
+
         DiffStats {
             added,
             removed,

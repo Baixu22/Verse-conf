@@ -20,7 +20,8 @@ impl FileLoader for DefaultFileLoader {
         } else {
             self.base_path.join(path)
         };
-        std::fs::read_to_string(&full_path).map_err(|e| format!("Failed to read file {}: {}", full_path.display(), e))
+        std::fs::read_to_string(&full_path)
+            .map_err(|e| format!("Failed to read file {}: {}", full_path.display(), e))
     }
 }
 
@@ -68,10 +69,14 @@ impl AstMerger {
         Ok(())
     }
 
-    fn merge_table_block(&mut self, table: &mut TableBlock, base_path: &Path) -> Result<(), String> {
+    fn merge_table_block(
+        &mut self,
+        table: &mut TableBlock,
+        base_path: &Path,
+    ) -> Result<(), String> {
         let entries = std::mem::take(&mut table.entries);
         let mut new_entries = Vec::new();
-        
+
         for entry in entries {
             match entry {
                 TableEntry::IncludeDirective(inc) => {
@@ -92,32 +97,37 @@ impl AstMerger {
                 other => new_entries.push(other),
             }
         }
-        
+
         table.entries = new_entries;
         Ok(())
     }
 
     fn load_and_parse(&mut self, path: &str, base_path: &Path) -> Result<TableBlock, String> {
         let include_path = Path::new(path);
-        
+
         // Check for circular includes
         if self.include_stack.contains(&include_path.to_path_buf()) {
             return Err(format!("Circular include detected: {:?}", include_path));
         }
-        
+
         if self.include_stack.len() >= self.config.max_include_depth {
-            return Err(format!("Maximum include depth exceeded: {}", self.config.max_include_depth));
+            return Err(format!(
+                "Maximum include depth exceeded: {}",
+                self.config.max_include_depth
+            ));
         }
-        
+
         self.include_stack.push(include_path.to_path_buf());
-        
+
         let source = self.loader.load_file(include_path)?;
         let parser = Parser::new(source);
-        let ast = parser.parse().map_err(|e| format!("Parse error in {}: {:?}", path, e))?;
-        
+        let ast = parser
+            .parse()
+            .map_err(|e| format!("Parse error in {}: {:?}", path, e))?;
+
         let mut root = ast.root;
         self.merge_table_block(&mut root, include_path.parent().unwrap_or(base_path))?;
-        
+
         self.include_stack.pop();
         Ok(root)
     }
@@ -135,51 +145,57 @@ impl AstMerger {
                 result.extend(source.entries);
                 Ok(result)
             }
-            crate::ast::MergeStrategy::Merge => {
-                self.shallow_merge(target, source)
-            }
-            crate::ast::MergeStrategy::DeepMerge => {
-                self.deep_merge(target, source)
-            }
+            crate::ast::MergeStrategy::Merge => self.shallow_merge(target, source),
+            crate::ast::MergeStrategy::DeepMerge => self.deep_merge(target, source),
         }
     }
 
-    fn shallow_merge(&self, target: &TableBlock, source: TableBlock) -> Result<Vec<TableEntry>, String> {
+    fn shallow_merge(
+        &self,
+        target: &TableBlock,
+        source: TableBlock,
+    ) -> Result<Vec<TableEntry>, String> {
         let mut result: HashMap<String, TableEntry> = HashMap::new();
-        
+
         // Add target entries first
         for entry in &target.entries {
             if let Some(key) = self.get_entry_key(entry) {
                 result.insert(key.clone(), entry.clone());
             }
         }
-        
+
         // Override with source entries
         for entry in source.entries {
             if let Some(key) = self.get_entry_key(&entry) {
                 result.insert(key.clone(), entry);
             }
         }
-        
+
         Ok(result.into_values().collect())
     }
 
-    fn deep_merge(&self, target: &TableBlock, source: TableBlock) -> Result<Vec<TableEntry>, String> {
+    fn deep_merge(
+        &self,
+        target: &TableBlock,
+        source: TableBlock,
+    ) -> Result<Vec<TableEntry>, String> {
         let mut result: HashMap<String, TableEntry> = HashMap::new();
-        
+
         // Add target entries first
         for entry in &target.entries {
             if let Some(key) = self.get_entry_key(entry) {
                 result.insert(key.clone(), entry.clone());
             }
         }
-        
+
         // Deep merge source entries
         for source_entry in source.entries {
             if let Some(source_key) = self.get_entry_key(&source_entry) {
                 if let Some(target_entry) = result.get(&source_key) {
                     // Both exist, try to deep merge
-                    if let (TableEntry::TableBlock(t_tb), TableEntry::TableBlock(s_tb)) = (target_entry, &source_entry) {
+                    if let (TableEntry::TableBlock(t_tb), TableEntry::TableBlock(s_tb)) =
+                        (target_entry, &source_entry)
+                    {
                         let mut merged_tb = t_tb.clone();
                         merged_tb.entries.extend(s_tb.entries.clone());
                         result.insert(source_key.clone(), TableEntry::TableBlock(merged_tb));
@@ -189,7 +205,7 @@ impl AstMerger {
                 result.insert(source_key.clone(), source_entry);
             }
         }
-        
+
         Ok(result.into_values().collect())
     }
 
@@ -214,7 +230,8 @@ mod tests {
     impl FileLoader for MockFileLoader {
         fn load_file(&self, path: &Path) -> Result<String, String> {
             let path_str = path.to_string_lossy().to_string();
-            self.files.get(&path_str)
+            self.files
+                .get(&path_str)
                 .cloned()
                 .ok_or_else(|| format!("File not found: {}", path_str))
         }
@@ -222,34 +239,34 @@ mod tests {
 
     #[test]
     fn test_merge_strategy_override() {
-        let merger = AstMerger::new(Box::new(MockFileLoader { files: HashMap::new() }));
+        let merger = AstMerger::new(Box::new(MockFileLoader {
+            files: HashMap::new(),
+        }));
         let target = TableBlock {
             name: None,
-            entries: vec![
-                TableEntry::KeyValue(KeyValue {
-                    key: Key::BareKey("a".to_string()),
-                    value: Value::Scalar(ScalarValue::Number(NumberValue::Integer(1))),
-                    metadata: None,
-                    comment: None,
-                    span: Span::unknown(),
-                }),
-            ],
+            entries: vec![TableEntry::KeyValue(KeyValue {
+                key: Key::BareKey("a".to_string()),
+                value: Value::Scalar(ScalarValue::Number(NumberValue::Integer(1))),
+                metadata: None,
+                comment: None,
+                span: Span::unknown(),
+            })],
             span: Span::unknown(),
         };
         let source = TableBlock {
             name: None,
-            entries: vec![
-                TableEntry::KeyValue(KeyValue {
-                    key: Key::BareKey("a".to_string()),
-                    value: Value::Scalar(ScalarValue::Number(NumberValue::Integer(2))),
-                    metadata: None,
-                    comment: None,
-                    span: Span::unknown(),
-                }),
-            ],
+            entries: vec![TableEntry::KeyValue(KeyValue {
+                key: Key::BareKey("a".to_string()),
+                value: Value::Scalar(ScalarValue::Number(NumberValue::Integer(2))),
+                metadata: None,
+                comment: None,
+                span: Span::unknown(),
+            })],
             span: Span::unknown(),
         };
-        let result = merger.apply_merge_strategy(&crate::ast::MergeStrategy::Override, &target, source).unwrap();
+        let result = merger
+            .apply_merge_strategy(&crate::ast::MergeStrategy::Override, &target, source)
+            .unwrap();
         assert_eq!(result.len(), 1);
     }
 }

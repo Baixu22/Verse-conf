@@ -1,0 +1,23 @@
+# Defaults applied to every environment.
+# production.vcf includes this file with merge=deep_merge.
+
+app {
+    name = "DefaultService"
+    environment = "development"
+
+    server {
+        host = "127.0.0.1"
+        port = 8080
+        workers = 2
+    }
+
+    logging {
+        level = "info"
+        format = "text"
+    }
+}
+
+cache {
+    enabled = false
+    ttl = 60s
+}

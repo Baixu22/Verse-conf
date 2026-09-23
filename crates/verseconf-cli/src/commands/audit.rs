@@ -2,10 +2,7 @@ use std::fs;
 use verseconf_core::{parse, AuditEngine};
 
 /// Run audit command
-pub fn run_audit(
-    file_path: &str,
-    output_format: &str,
-) -> anyhow::Result<()> {
+pub fn run_audit(file_path: &str, output_format: &str) -> anyhow::Result<()> {
     let source = fs::read_to_string(file_path)
         .map_err(|e| anyhow::anyhow!("Failed to read file '{}': {}", file_path, e))?;
 
@@ -23,7 +20,7 @@ pub fn run_audit(
                     f.category, f.severity, f.rule_id, f.title, f.location, f.description, f.recommendation
                 )
             }).collect();
-            
+
             println!(
                 r#"{{"summary":{{"total":{},"critical":{},"high":{},"medium":{},"low":{},"info":{}}},"findings":[{}]}}"#,
                 report.summary.total_findings,
@@ -35,7 +32,7 @@ pub fn run_audit(
                 json_findings.join(",")
             );
         }
-        "text" | _ => {
+        _ => {
             print!("{}", report);
         }
     }

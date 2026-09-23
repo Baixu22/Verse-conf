@@ -12,14 +12,14 @@ pub fn run_render(
     let template_path = Path::new(template_file);
     let content = fs::read_to_string(template_path)?;
     let template = parse_template(&content)?;
-    
+
     let mut context = RenderContext::new().strict_mode(strict);
     for (key, value) in variables {
         context = context.with_value(key, value);
     }
-    
+
     let rendered = render_template(&template, &context)?;
-    
+
     match output_file {
         Some(output) => {
             fs::write(output, &rendered)?;
@@ -29,7 +29,7 @@ pub fn run_render(
             println!("{}", rendered);
         }
     }
-    
+
     Ok(())
 }
 
@@ -37,25 +37,28 @@ pub fn run_render(
 pub fn run_list(template_file: &str) -> anyhow::Result<()> {
     let content = fs::read_to_string(template_file)?;
     let template = parse_template(&content)?;
-    
+
     println!("Template: {}", template.name);
     if let Some(desc) = &template.description {
         println!("Description: {}", desc);
     }
     println!("Version: {}", template.version);
     println!("\nVariables ({}):", template.variables.len());
-    
+
     for var in &template.variables {
         let _required = if var.required { "required" } else { "optional" };
         let default = var.default.as_deref().unwrap_or("none");
         let desc = var.description.as_deref().unwrap_or("no description");
-        
-        println!("  {} ({}): {} [default: {}]", var.name, var.var_type, desc, default);
+
+        println!(
+            "  {} ({}): {} [default: {}]",
+            var.name, var.var_type, desc, default
+        );
         if let Some(choices) = &var.choices {
             println!("    choices: {:?}", choices);
         }
     }
-    
+
     Ok(())
 }
 
@@ -63,10 +66,10 @@ pub fn run_list(template_file: &str) -> anyhow::Result<()> {
 pub fn run_validate(template_file: &str) -> anyhow::Result<()> {
     let content = fs::read_to_string(template_file)?;
     let template = parse_template(&content)?;
-    
+
     println!("Template '{}' is valid", template.name);
     println!("Found {} variables", template.variables.len());
-    
+
     Ok(())
 }
 
@@ -74,15 +77,15 @@ pub fn run_validate(template_file: &str) -> anyhow::Result<()> {
 pub fn run_generate(template_file: &str, output_file: &str) -> anyhow::Result<()> {
     let content = fs::read_to_string(template_file)?;
     let template = parse_template(&content)?;
-    
+
     println!("Template: {}", template.name);
     if let Some(desc) = &template.description {
         println!("Description: {}", desc);
     }
     println!("\nPlease provide values for variables:\n");
-    
+
     let mut context = RenderContext::new();
-    
+
     for var in &template.variables {
         let prompt = if var.required {
             format!("{} ({}) [required]: ", var.name, var.var_type)
@@ -90,26 +93,26 @@ pub fn run_generate(template_file: &str, output_file: &str) -> anyhow::Result<()
             let default = var.default.as_deref().unwrap_or("");
             format!("{} ({}) [default: {}]: ", var.name, var.var_type, default)
         };
-        
+
         print!("{}", prompt);
         std::io::Write::flush(&mut std::io::stdout())?;
-        
+
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
         let input = input.trim();
-        
+
         let value = if input.is_empty() {
             var.default.clone().unwrap_or_default()
         } else {
             input.to_string()
         };
-        
+
         context = context.with_value(&var.name, value);
     }
-    
+
     let rendered = render_template(&template, &context)?;
     fs::write(output_file, &rendered)?;
     println!("\nConfiguration generated: {}", output_file);
-    
+
     Ok(())
 }

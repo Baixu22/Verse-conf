@@ -18,13 +18,14 @@ pub struct FileMetadata {
 impl FileMetadata {
     pub fn from_path(path: &Path) -> Result<Self, String> {
         let metadata = fs::metadata(path).map_err(|e| format!("Failed to read metadata: {}", e))?;
-        let modified = metadata.modified()
+        let modified = metadata
+            .modified()
             .map(|t| t.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs())
             .unwrap_or(0);
         let size = metadata.len();
         let content = fs::read(path).map_err(|e| format!("Failed to read file: {}", e))?;
         let hash = compute_hash(&content);
-        
+
         Ok(Self {
             path: path.to_path_buf(),
             modified_time: modified,
@@ -68,11 +69,11 @@ impl ParseCache {
     pub fn insert(&mut self, path: &Path, ast: Ast) -> Result<(), String> {
         let metadata = FileMetadata::from_path(path)?;
         let key = self.path_key(path);
-        
+
         if self.cache.len() >= self.max_size {
             self.evict_oldest();
         }
-        
+
         self.cache.insert(key, (metadata, ast));
         Ok(())
     }
@@ -101,7 +102,9 @@ impl ParseCache {
     }
 
     fn evict_oldest(&mut self) {
-        if let Some((oldest_key, _)) = self.cache.iter()
+        if let Some((oldest_key, _)) = self
+            .cache
+            .iter()
             .min_by_key(|(_, (metadata, _))| metadata.modified_time)
         {
             let key = oldest_key.clone();
@@ -136,27 +139,31 @@ impl IncrementalParser {
         if let Some(ast) = self.cache.get(path) {
             return Ok(ast.clone());
         }
-        
+
         let ast = parse_file_to_ast(path)?;
-        self.cache.insert(path, ast.clone()).map_err(|e| e.to_string())?;
+        self.cache
+            .insert(path, ast.clone())
+            .map_err(|e| e.to_string())?;
         self.last_parse_time = current_timestamp();
-        
+
         Ok(ast)
     }
 
     pub fn parse_files(&mut self, paths: &[PathBuf]) -> Result<HashMap<String, Ast>, String> {
         let mut results = HashMap::new();
-        
+
         for path in paths {
             if let Some(ast) = self.cache.get(path) {
                 results.insert(path.to_string_lossy().to_string(), ast.clone());
             } else {
                 let ast = parse_file_to_ast(path)?;
-                self.cache.insert(path, ast.clone()).map_err(|e| e.to_string())?;
+                self.cache
+                    .insert(path, ast.clone())
+                    .map_err(|e| e.to_string())?;
                 results.insert(path.to_string_lossy().to_string(), ast);
             }
         }
-        
+
         self.last_parse_time = current_timestamp();
         Ok(results)
     }
@@ -201,24 +208,24 @@ fn current_timestamp() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use std::fs::File;
+    use std::io::Write;
 
     #[test]
     fn test_file_metadata() {
         let test_dir = std::env::temp_dir().join("verseconf_perf_test");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let metadata = FileMetadata::from_path(&test_file).unwrap();
         assert!(metadata.size > 0);
         assert!(metadata.hash > 0);
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -227,19 +234,19 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_perf_test2");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let mut cache = ParseCache::new(10);
         let ast = parse_file_to_ast(&test_file).unwrap();
         cache.insert(&test_file, ast).unwrap();
-        
+
         let cached_ast = cache.get(&test_file);
         assert!(cached_ast.is_some());
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -248,19 +255,19 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_perf_test3");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let mut cache = ParseCache::new(10);
         let ast = parse_file_to_ast(&test_file).unwrap();
         cache.insert(&test_file, ast).unwrap();
-        
+
         cache.invalidate(&test_file);
         assert!(cache.get(&test_file).is_none());
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -269,19 +276,19 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_perf_test4");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let test_file = test_dir.join("test.vcf");
         let mut file = File::create(&test_file).unwrap();
         file.write_all(b"name = \"test\"").unwrap();
         drop(file);
-        
+
         let mut parser = IncrementalParser::new(10);
         let ast1 = parser.parse_file(&test_file).unwrap();
-        assert!(ast1.root.entries.len() > 0);
-        
+        assert!(!ast1.root.entries.is_empty());
+
         let ast2 = parser.parse_file(&test_file).unwrap();
         assert_eq!(ast1.root.entries.len(), ast2.root.entries.len());
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 
@@ -290,21 +297,22 @@ mod tests {
         let test_dir = std::env::temp_dir().join("verseconf_perf_test5");
         let _ = fs::remove_dir_all(&test_dir);
         fs::create_dir_all(&test_dir).unwrap();
-        
+
         let mut cache = ParseCache::new(2);
-        
+
         for i in 0..5 {
             let test_file = test_dir.join(format!("test{}.vcf", i));
             let mut file = File::create(&test_file).unwrap();
-            file.write_all(format!("name = \"test{}\"", i).as_bytes()).unwrap();
+            file.write_all(format!("name = \"test{}\"", i).as_bytes())
+                .unwrap();
             drop(file);
-            
+
             let ast = parse_file_to_ast(&test_file).unwrap();
             cache.insert(&test_file, ast).unwrap();
         }
-        
+
         assert!(cache.cache.len() <= 2);
-        
+
         let _ = fs::remove_dir_all(&test_dir);
     }
 }

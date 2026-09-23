@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://verseconf.dev/schemas/edit-plan.schema.json",
+  "title": "VerseConf Edit Plan",
+  "description": "Agent 提交给工具的编辑意图契约：只描述改哪个字段、改成什么、为什么改，不描述如何重写文件。列表元素按名称定位，绝不按下标定位。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "edits"],
+  "properties": {
+    "version": {
+      "description": "契约版本，当前只接受 1.0",
+      "const": "1.0"
+    },
+    "file": {
+      "description": "可选的目标文件路径，仅作为上下文，工具以实际传入的文件为准",
+      "type": "string",
+      "minLength": 1
+    },
+    "edits": {
+      "description": "按顺序执行的编辑意图；同一目标路径不允许出现两次",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/edit" }
+    }
+  },
+  "$defs": {
+    "edit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "path"],
+      "properties": {
+        "op": {
+          "description": "set 覆盖已有字段；insert 新增字段；delete 删除字段",
+          "enum": ["set", "insert", "delete"]
+        },
+        "path": {
+          "description": "从根表到目标字段的路径，每段是字段名或按名称定位的列表元素",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/segment" }
+        },
+        "value": {
+          "description": "op 为 set 或 insert 时必填；delete 时必须省略",
+          "$ref": "#/$defs/value"
+        },
+        "reason": {
+          "description": "改动原因，写入审计记录",
+          "type": "string",
+          "minLength": 1
+        },
+        "expect": {
+          "description": "前置条件：当前值不符合预期时拒绝改动而不是猜测",
+          "$ref": "#/$defs/expect"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["op"],
+            "properties": { "op": { "enum": ["set", "insert"] } }
+          },
+          "then": { "required": ["value"] }
+        },
+        {
+          "if": {
+            "required": ["op"],
+            "properties": { "op": { "const": "delete" } }
+          },
+          "then": { "not": { "required": ["value"] } }
+        }
+      ]
+    },
+    "segment": {
+      "description": "字符串表示普通字段名；对象表示在命名列表中按字段取值定位唯一元素",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "match"],
+          "properties": {
+            "key": {
+              "description": "列表（[[key]] 数组表）的键名",
+              "type": "string",
+              "minLength": 1
+            },
+            "match": {
+              "description": "匹配条件；必须且只能命中一个元素，否则拒绝",
+              "$ref": "#/$defs/fieldMap"
+            }
+          }
+        }
+      ]
+    },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "value": {
+          "description": "期望的当前值",
+          "$ref": "#/$defs/value"
+        }
+      }
+    },
+    "fieldMap": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/value" }
+    },
+    "value": {
+      "description": "与 JSON 一一对应的值：布尔、整数、浮点、字符串、数组或表",
+      "oneOf": [
+        { "type": "boolean" },
+        { "type": "integer" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/value" } },
+        { "$ref": "#/$defs/fieldMap" }
+      ]
+    }
+  }
+}

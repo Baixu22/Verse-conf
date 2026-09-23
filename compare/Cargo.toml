@@ -2,6 +2,8 @@
 name = "verseconf-compare"
 version = "0.1.0"
 edition = "2021"
+# 只用于本仓库的格式对比与基准，不发布。
+publish = false
 
 [[bin]]
 name = "generate_test_data"

@@ -3,24 +3,28 @@ use regex::Regex;
 use super::template::{RenderContext, Template, TemplateError};
 
 /// 渲染模板
-pub fn render_template(template: &Template, context: &RenderContext) -> Result<String, TemplateError> {
+pub fn render_template(
+    template: &Template,
+    context: &RenderContext,
+) -> Result<String, TemplateError> {
     let mut result = template.content.clone();
-    
+
     let re = Regex::new(r"\{\{([^}]+)\}\}").unwrap();
-    
-    let replacements: Vec<_> = re.captures_iter(&result)
+
+    let replacements: Vec<_> = re
+        .captures_iter(&result)
         .map(|cap| {
             let full_match = cap.get(0).unwrap().as_str().to_string();
             let var_name = cap.get(1).unwrap().as_str().trim().to_string();
             (full_match, var_name)
         })
         .collect();
-    
+
     for (full_match, var_name) in replacements {
         let replacement = resolve_variable(&var_name, context)?;
         result = result.replace(&full_match, &replacement);
     }
-    
+
     Ok(result)
 }
 
@@ -108,7 +112,7 @@ mod tests {
         let context = RenderContext::new()
             .with_value("host", "example.com")
             .with_value("port", "3000");
-        
+
         let result = render_template(&template, &context).unwrap();
         assert!(result.contains("host = \"example.com\""));
         assert!(result.contains("port = 3000"));
@@ -118,7 +122,7 @@ mod tests {
     fn test_render_template_undefined_strict() {
         let template = create_test_template();
         let context = RenderContext::new();
-        
+
         let result = render_template(&template, &context);
         assert!(result.is_err());
     }
@@ -127,7 +131,7 @@ mod tests {
     fn test_render_template_non_strict() {
         let template = create_test_template();
         let context = RenderContext::new().strict_mode(false);
-        
+
         let result = render_template(&template, &context).unwrap();
         assert!(result.contains("{{host}}"));
         assert!(result.contains("{{port}}"));
@@ -138,7 +142,7 @@ mod tests {
         let content = r#"host = "{{host}}"
 port = {{port}}
 name = "{{name}}""#;
-        
+
         let vars = extract_variables(content);
         assert_eq!(vars.len(), 3);
         assert!(vars.contains(&"host".to_string()));
@@ -150,7 +154,7 @@ name = "{{name}}""#;
     fn test_merge_contexts() {
         let ctx1 = RenderContext::new().with_value("a", "1");
         let ctx2 = RenderContext::new().with_value("b", "2");
-        
+
         let merged = merge_contexts(&[ctx1, ctx2]);
         assert_eq!(merged.values.get("a").unwrap(), "1");
         assert_eq!(merged.values.get("b").unwrap(), "2");

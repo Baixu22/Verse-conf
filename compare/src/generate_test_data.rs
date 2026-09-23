@@ -103,7 +103,11 @@ impl TestDataGenerator {
             lines.push("# Feature flags".to_string());
             lines.push("features {".to_string());
             for i in 0..(count.saturating_sub(fixed_items - 2)) {
-                lines.push(format!("  feature_{} = {}", i, if i % 2 == 0 { "true" } else { "false" }));
+                lines.push(format!(
+                    "  feature_{} = {}",
+                    i,
+                    if i % 2 == 0 { "true" } else { "false" }
+                ));
             }
             lines.push("}".to_string());
             return lines.join("\n");
@@ -148,8 +152,11 @@ impl TestDataGenerator {
         current += 0;
 
         for i in 0..(count - current - 10) {
-            lines.push(format!("  feature_{} = {}", i, if i % 2 == 0 { "true" } else { "false" }));
-            current += 1;
+            lines.push(format!(
+                "  feature_{} = {}",
+                i,
+                if i % 2 == 0 { "true" } else { "false" }
+            ));
         }
         lines.push("}".to_string());
 
@@ -195,7 +202,11 @@ impl TestDataGenerator {
         if count <= fixed_items {
             lines.push("[features]".to_string());
             for i in 0..(count.saturating_sub(fixed_items - 2)) {
-                lines.push(format!("feature_{} = {}", i, if i % 2 == 0 { "true" } else { "false" }));
+                lines.push(format!(
+                    "feature_{} = {}",
+                    i,
+                    if i % 2 == 0 { "true" } else { "false" }
+                ));
             }
             return lines.join("\n");
         }
@@ -237,8 +248,11 @@ impl TestDataGenerator {
         current += 0;
 
         for i in 0..(count - current - 10) {
-            lines.push(format!("feature_{} = {}", i, if i % 2 == 0 { "true" } else { "false" }));
-            current += 1;
+            lines.push(format!(
+                "feature_{} = {}",
+                i,
+                if i % 2 == 0 { "true" } else { "false" }
+            ));
         }
 
         lines.join("\n")
@@ -255,7 +269,7 @@ impl TestDataGenerator {
             json.push_str("  \"port\": 8080,\n");
             json.push_str("  \"host\": \"0.0.0.0\",\n");
             json.push_str("  \"features\": {\n");
-            
+
             let feature_count = count.saturating_sub(fixed_items - 2);
             for i in 0..feature_count {
                 let value = if i % 2 == 0 { "true" } else { "false" };
@@ -266,7 +280,7 @@ impl TestDataGenerator {
                 }
             }
             json.push_str("  }\n");
-            json.push_str("}");
+            json.push('}');
             return json;
         }
 
@@ -281,7 +295,7 @@ impl TestDataGenerator {
         json.push_str("  \"debug\": false,\n");
         json.push_str("  \"port\": 8080,\n");
         json.push_str("  \"host\": \"0.0.0.0\",\n");
-        json.push_str("\n");
+        json.push('\n');
 
         // 服务器配置
         json.push_str("  \"server\": {\n");
@@ -291,7 +305,7 @@ impl TestDataGenerator {
         json.push_str("    \"ssl_cert\": \"/etc/ssl/cert.pem\",\n");
         json.push_str("    \"ssl_key\": \"/etc/ssl/key.pem\"\n");
         json.push_str("  },\n");
-        json.push_str("\n");
+        json.push('\n');
 
         // 数据库配置
         json.push_str("  \"database\": {\n");
@@ -301,7 +315,7 @@ impl TestDataGenerator {
         json.push_str("    \"pool_size\": 10,\n");
         json.push_str("    \"timeout\": 5000\n");
         json.push_str("  },\n");
-        json.push_str("\n");
+        json.push('\n');
 
         // 日志配置
         json.push_str("  \"logging\": {\n");
@@ -319,7 +333,7 @@ impl TestDataGenerator {
             json.pop();
         }
         json.push_str("\n  },\n");
-        json.push_str("\n");
+        json.push('\n');
 
         // 缓存配置
         json.push_str("  \"cache\": {\n");
@@ -337,7 +351,7 @@ impl TestDataGenerator {
             json.pop();
         }
         json.push_str("\n  },\n");
-        json.push_str("\n");
+        json.push('\n');
 
         // 特性开关
         json.push_str("  \"features\": {\n");
@@ -351,23 +365,10 @@ impl TestDataGenerator {
             } else {
                 json.push_str(&format!("    \"feature_{}\": {}\n", i, value));
             }
-            current += 1;
         }
         json.push_str("  }\n");
 
-        json.push_str("}");
+        json.push('}');
         json
-    }
-}
-
-fn main() {
-    let output_dir = "compare/test_data";
-    let generator = TestDataGenerator::new(output_dir);
-
-    println!("Generating test datasets...\n");
-
-    match generator.generate_all() {
-        Ok(_) => println!("All test datasets generated successfully!"),
-        Err(e) => eprintln!("Error generating test datasets: {}", e),
     }
 }

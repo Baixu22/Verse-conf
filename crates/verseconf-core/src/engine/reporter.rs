@@ -151,47 +151,55 @@ impl Reporter {
     /// Format a single diagnostic message
     pub fn format_diagnostic(&self, diag: &Diagnostic) -> String {
         let mut output = String::new();
-        
+
         // Severity and message
         let (color, icon) = match diag.severity {
             Severity::Error => (self.colors.red, "✖"),
             Severity::Warning => (self.colors.yellow, "⚠"),
             Severity::Info => (self.colors.blue, "ℹ"),
         };
-        
-        output.push_str(&format!("{}{}{}{}{} ", 
-            self.colors.bold, color, icon, self.colors.reset, self.colors.bold));
+
+        output.push_str(&format!(
+            "{}{}{}{}{} ",
+            self.colors.bold, color, icon, self.colors.reset, self.colors.bold
+        ));
         output.push_str(&format!("{}{}:", diag.severity, self.colors.reset));
-        
+
         if let Some(ref code) = diag.code {
             output.push_str(&format!(" [{}]", code));
         }
-        
+
         output.push_str(&format!(" {}\n", diag.message));
-        
+
         // Location
         if let (Some(ref file), Some(line), Some(col)) = (&diag.file, diag.line, diag.column) {
-            output.push_str(&format!("  {}-->{} {}:{}:{}\n", 
-                self.colors.cyan, self.colors.reset, file, line, col));
+            output.push_str(&format!(
+                "  {}-->{} {}:{}:{}\n",
+                self.colors.cyan, self.colors.reset, file, line, col
+            ));
         }
-        
+
         // Source line with highlight
         if let Some(ref source) = diag.source_line {
             output.push_str(&format!("   {}|{}\n", self.colors.cyan, self.colors.reset));
-            output.push_str(&format!(" {}{}{} {}\n", 
-                self.colors.cyan, 
-                diag.line.map(|l| l.to_string()).unwrap_or_default(), 
-                self.colors.reset, 
-                source));
+            output.push_str(&format!(
+                " {}{}{} {}\n",
+                self.colors.cyan,
+                diag.line.map(|l| l.to_string()).unwrap_or_default(),
+                self.colors.reset,
+                source
+            ));
             output.push_str(&format!("   {}|{}\n", self.colors.cyan, self.colors.reset));
         }
-        
+
         // Suggestions
         for suggestion in &diag.suggestions {
-            output.push_str(&format!("  {}help:{} {}\n", 
-                self.colors.green, self.colors.reset, suggestion));
+            output.push_str(&format!(
+                "  {}help:{} {}\n",
+                self.colors.green, self.colors.reset, suggestion
+            ));
         }
-        
+
         output
     }
 
@@ -231,7 +239,7 @@ mod tests {
             .with_code("E001")
             .with_location("test.vcf", 10, 5)
             .with_suggestion("Did you mean to use a quoted key?");
-        
+
         assert_eq!(diag.severity, Severity::Error);
         assert_eq!(diag.code, Some("E001".to_string()));
         assert_eq!(diag.file, Some("test.vcf".to_string()));

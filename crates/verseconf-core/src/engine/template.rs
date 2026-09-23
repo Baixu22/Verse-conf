@@ -131,10 +131,8 @@ pub fn validate_variables(
     values: &HashMap<String, String>,
 ) -> Result<(), TemplateError> {
     for var in &template.variables {
-        if var.required && !values.contains_key(&var.name) {
-            if var.default.is_none() {
-                return Err(TemplateError::MissingRequired(var.name.clone()));
-            }
+        if var.required && !values.contains_key(&var.name) && var.default.is_none() {
+            return Err(TemplateError::MissingRequired(var.name.clone()));
         }
 
         if let Some(value) = values.get(&var.name) {

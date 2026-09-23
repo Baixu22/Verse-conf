@@ -18,8 +18,11 @@ Learn VerseConf from basics to advanced features in 15 minutes.
 ## Installation
 
 ```bash
-# Install from crates.io
-cargo install verseconf-cli
+# 从克隆的仓库安装（可执行文件叫 verseconf）
+cargo install --path crates/verseconf-cli
+
+# 或：crates 发布到 crates.io 之后
+# cargo install verseconf-cli
 
 # Verify installation
 verseconf --version
