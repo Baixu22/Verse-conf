@@ -1,45 +1,62 @@
 {
   "name": "verseconf",
-  "version": "0.1.0",
-  "description": "VerseConf - Modern configuration format for the AI era",
-  "main": "dist/index.js",
+  "version": "0.2.0",
+  "description": "VerseConf 的 JavaScript/WebAssembly 分发：宿主零安装即可获得配置校验、安全审计与确定性最小改动编辑",
+  "license": "MIT OR Apache-2.0",
+  "author": "VerseConf Contributors",
+  "homepage": "https://github.com/Baixu22/Verse-conf",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Baixu22/Verse-conf",
+    "directory": "integrations/verseconf-wasm/js-api"
+  },
+  "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     },
-    "./wasm": "./pkg/verseconf_wasm_bg.wasm"
+    "./web": "./pkg-web/verseconf_wasm.js",
+    "./wasm": "./pkg/verseconf_wasm_bg.wasm",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "verseconf-mcp-wasm": "bin/verseconf-mcp-wasm.mjs"
   },
   "files": [
     "dist",
-    "pkg"
+    "pkg",
+    "pkg-web",
+    "bin",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
+    "build": "node scripts/build.mjs",
     "prepublishOnly": "npm run build",
-    "build": "npm run build:wasm && npm run build:ts && npm run copy:wasm",
-    "build:wasm": "cd .. && wasm-pack build --target nodejs --out-dir js-api/pkg",
-    "build:ts": "tsc",
-    "copy:wasm": "node -e \"require('fs').copyFileSync('pkg/verseconf_wasm_bg.wasm', 'dist/verseconf.wasm')\"",
-    "test": "jest",
-    "lint": "eslint src --ext .ts"
+    "pretest": "npm run build",
+    "test": "node test/load.test.mjs && node test/package.test.mjs",
+    "test:parity": "node test/parity.mjs"
   },
   "keywords": [
     "config",
     "configuration",
     "parser",
     "wasm",
+    "webassembly",
+    "mcp",
+    "agent",
     "verseconf"
   ],
-  "author": "VerseConf Team",
-  "license": "MIT OR Apache-2.0",
   "devDependencies": {
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.2",
-    "jest": "^29.7.0",
-    "@types/jest": "^29.5.10",
-    "ts-jest": "^29.1.1"
+    "typescript": "^5.3.2"
   }
 }

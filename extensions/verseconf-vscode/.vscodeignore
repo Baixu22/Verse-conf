@@ -1,8 +1,12 @@
 .vscode/
+.github/
 src/
+scripts/
+test/
 tsconfig.json
 package-lock.json
 *.ts
-*.map
+**/*.map
 *.vsix
 node_modules/.cache/
+**/*.pdb

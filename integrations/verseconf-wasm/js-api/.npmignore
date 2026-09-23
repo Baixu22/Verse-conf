@@ -1,40 +1,13 @@
-# Source files
-src/
+# 发布清单以 package.json 的 "files" 为准，这里只兜底排除开发文件。
+#
+# 注意：不要在这里（也不要在 pkg/、pkg-web/ 里）排除 dist/ 或 pkg*/。
+# npm 在同一目录找不到 `.npmignore` 时会回退到 `.gitignore`，而 wasm-pack
+# 会在输出目录里写一个内容为 `*` 的 `.gitignore`——那正是 0.1.0 发布包里
+# 只有 dist、没有 pkg 的原因。构建脚本会删掉它并补一个空的 `.npmignore`。
 
-# Configuration
+scripts/
+test/
 tsconfig.json
-.eslintrc.*
-*.config.js
-jest.config.*
-
-# Development files
-*.log
-npm-debug.log*
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Test files
-**/*.test.ts
-**/*.test.js
-**/*.spec.ts
-**/*.spec.js
-__tests__/
-
-# Build intermediates
+tsconfig.base.json
+tsconfig.cjs.json
 *.tsbuildinfo
-
-# Documentation
-*.md
-!README.md
-
-# Cargo (Rust build - shouldn't be in npm anyway)
-Cargo.toml
-Cargo.lock

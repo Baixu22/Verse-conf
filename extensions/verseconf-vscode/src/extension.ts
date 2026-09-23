@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
-import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { LanguageClient, ServerOptions, TransportKind } from 'vscode-languageclient/node';
+
+import { ensureExecutable, findServerBinary, serverBinaryRelativePath } from './serverPath';
 
 let client: LanguageClient | undefined;
 
@@ -14,19 +16,38 @@ export function activate(context: vscode.ExtensionContext) {
     registerCommands(context);
 }
 
-function startLSP(context: vscode.ExtensionContext) {
-    const config = vscode.workspace.getConfiguration('verseconf');
-    const lspPath = config.get<string>('lsp.serverPath', '');
-
-    let serverPath: string;
-
-    if (lspPath && lspPath.trim() !== '') {
-        serverPath = lspPath;
-    } else {
-        serverPath = context.asAbsolutePath('server/bin/verseconf-lsp.exe');
+/**
+ * 解析语言服务器路径，按优先级：
+ *   1. 用户在设置里显式指定的 `verseconf.lsp.serverPath`
+ *   2. 扩展包内与当前平台/架构匹配的二进制
+ *   3. 扩展包内不带平台前缀的二进制（手工放置的兜底）
+ */
+export function resolveServerPath(context: vscode.ExtensionContext): string | undefined {
+    const configured = vscode.workspace
+        .getConfiguration('verseconf')
+        .get<string>('lsp.serverPath', '')
+        .trim();
+    if (configured !== '') {
+        return configured;
     }
 
-    const serverOptions = {
+    return findServerBinary(context.extensionPath);
+}
+
+function startLSP(context: vscode.ExtensionContext) {
+    const serverPath = resolveServerPath(context);
+
+    if (serverPath === undefined) {
+        vscode.window.showWarningMessage(
+            `VerseConf: 找不到当前平台的语言服务器（期望 ${serverBinaryRelativePath()}）。` +
+                '可设置 verseconf.lsp.serverPath 指向自建二进制，或安装带该平台二进制的扩展包。'
+        );
+        return;
+    }
+
+    ensureExecutable(serverPath);
+
+    const serverOptions: ServerOptions = {
         run: {
             command: serverPath,
             transport: TransportKind.stdio
@@ -47,15 +68,11 @@ function startLSP(context: vscode.ExtensionContext) {
         }
     };
 
-    try {
-        client = new LanguageClient('verseconf-lsp', 'VerseConf Language Server', serverOptions, clientOptions);
+    client = new LanguageClient('verseconf-lsp', 'VerseConf Language Server', serverOptions, clientOptions);
 
-        client.start();
-
-        vscode.window.showInformationMessage('VerseConf Language Server started.');
-    } catch (err: any) {
-        vscode.window.showWarningMessage(`VerseConf LSP error: ${err.message}`);
-    }
+    client.start().catch((err: Error) => {
+        vscode.window.showWarningMessage(`VerseConf LSP 启动失败（${serverPath}）：${err.message}`);
+    });
 }
 
 function registerCommands(context: vscode.ExtensionContext) {

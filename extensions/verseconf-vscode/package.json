@@ -10,7 +10,7 @@
     "url": "https://github.com/Baixu22/Verse-conf"
   },
   "engines": {
-    "vscode": "^1.115.0"
+    "vscode": "^1.75.0"
   },
   "categories": [
     "Programming Languages",
@@ -24,8 +24,7 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onLanguage:verseconf",
-    "onPattern:*.vcf"
+    "onLanguage:verseconf"
   ],
   "contributes": {
     "languages": [
@@ -97,13 +96,18 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "lint": "eslint src --ext ts"
+    "lint": "eslint src --ext ts",
+    "pretest": "npm run compile",
+    "test": "node test/server-path.test.mjs",
+    "package": "vsce package",
+    "verify": "node scripts/verify-package.mjs"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.75.0",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
+    "@vscode/vsce": "^3.0.0",
     "eslint": "^8.0.0",
     "typescript": "^5.0.0"
   },

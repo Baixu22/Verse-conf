@@ -6,6 +6,8 @@ authors = ["VerseConf Team"]
 description = "WebAssembly bindings for VerseConf"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Baixu22/Verse-conf"
+# 这个 crate 发布到 npm（integrations/verseconf-wasm/js-api），不发布到 crates.io。
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -20,6 +22,9 @@ wasm-opt = false
 wasm-bindgen = "0.2.92"
 web-sys = { version = "0.3", features = ["console"] }
 verseconf-core = { path = "../../crates/verseconf-core" }
+# wasm 分发与原生 stdio 服务端共用同一套工具实现，避免两条分发路径行为漂移。
+verseconf-mcp = { path = "../../crates/verseconf-mcp" }
+serde_json.workspace = true
 
 [dependencies.console_error_panic_hook]
 version = "0.1.7"
@@ -27,7 +32,3 @@ optional = true
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.42"
-
-[profile.release]
-opt-level = "s"
-lto = true

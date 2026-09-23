@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VerseConf WASM Test</title>
+    <title>VerseConf WASM 浏览器冒烟测试</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 50px auto;
+            max-width: 900px;
+            margin: 40px auto;
             padding: 20px;
             background: #f5f5f5;
         }
@@ -20,8 +20,8 @@
         }
         h1 { color: #333; }
         .test-case {
-            margin: 20px 0;
-            padding: 15px;
+            margin: 16px 0;
+            padding: 12px 15px;
             border-radius: 4px;
             background: #f9f9f9;
         }
@@ -41,88 +41,136 @@
             padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
-            margin: 5px;
         }
         button:hover { background: #45a049; }
-        #log { margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧪 VerseConf WASM Test</h1>
-        <p>Testing WebAssembly bindings for VerseConf configuration format</p>
-
-        <div class="test-case">
-            <h3>Parse Configuration</h3>
-            <button onclick="runTest()">Run Test</button>
-            <div id="log"></div>
-        </div>
+        <h1>🧪 VerseConf WASM 浏览器冒烟测试</h1>
+        <p>
+            加载 <code>js-api/pkg-web/</code>（wasm-bindgen 的 web 目标），验证四个能力
+            在浏览器里同样可用。需要用 HTTP 打开（ES 模块不允许 file:// 加载）：
+        </p>
+        <pre>cd integrations/verseconf-wasm &amp;&amp; python -m http.server 8000
+# 然后打开 http://localhost:8000/test.html</pre>
+        <button onclick="runTests()">运行测试</button>
+        <div id="log"></div>
     </div>
 
     <script type="module">
-        import init, * as wasm from './pkg/verseconf_wasm.js';
+        import init, { call_tool_json, server_info_json, tools_json } from './js-api/pkg-web/verseconf_wasm.js';
 
-        async function runTest() {
-            const log = document.getElementById('log');
-            log.innerHTML = '<p>Initializing WASM...</p>';
+        const SOURCE = `#@schema {
+  server {
+    type = "table"
+    port {
+      type = "integer"
+    }
+  }
+}
+
+server {
+  port = 8080 #@ range(1..65535)
+}
+`;
+
+        const log = document.getElementById('log');
+        let failures = 0;
+
+        function report(name, ok, detail) {
+            if (!ok) { failures += 1; }
+            const div = document.createElement('div');
+            div.className = `test-case ${ok ? 'success' : 'error'}`;
+            div.innerHTML = `${ok ? '✅' : '❌'} ${name}${detail ? `<pre>${detail}</pre>` : ''}`;
+            log.appendChild(div);
+        }
+
+        function callTool(name, args) {
+            return JSON.parse(call_tool_json(name, JSON.stringify(args)));
+        }
+
+        async function runTests() {
+            log.innerHTML = '';
+            failures = 0;
 
             try {
                 await init();
-                log.innerHTML += '<p class="success">✅ WASM module loaded successfully!</p>';
-
-                const source = `app {
-    name = "MyApp"
-    version = "1.0.0"
-}
-
-database {
-    host = "localhost"
-    port = 5432
-    enabled = true
-}`;
-
-                log.innerHTML += `<h4>Input VCF:</h4><pre>${source}</pre>`;
-
-                const conf = new wasm.VerseConf(source);
-                log.innerHTML += '<p class="success">✅ Parsed successfully!</p>';
-
-                const appName = conf.get_string("app.name");
-                const version = conf.get_string("app.version");
-                const host = conf.get_string("database.host");
-                const port = conf.get_number("database.port");
-                const enabled = conf.get_boolean("database.enabled");
-
-                log.innerHTML += `
-<h4>Query Results:</h4>
-<ul>
-    <li>app.name = "${appName}"</li>
-    <li>app.version = "${version}"</li>
-    <li>database.host = "${host}"</li>
-    <li>database.port = ${port}</li>
-    <li>database.enabled = ${enabled}</li>
-</ul>`;
-
-                const json = conf.to_json();
-                log.innerHTML += `<h4>JSON Output:</h4><pre>${json}</pre>`;
-
-                const hasApp = conf.has_key("app");
-                const hasMissing = conf.has_key("nonexistent");
-                log.innerHTML += `
-<h4>has_key checks:</h4>
-<ul>
-    <li>has_key("app") = ${hasApp}</li>
-    <li>has_key("nonexistent") = ${hasMissing}</li>
-</ul>`;
-
-                log.innerHTML += '<p class="success">🎉 All tests passed!</p>';
-
+                report('wasm 模块加载成功', true);
             } catch (error) {
-                log.innerHTML += `<p class="error">❌ Error: ${error.message}</p>`;
-                console.error(error);
+                report('wasm 模块加载失败', false, String(error));
+                return;
             }
+
+            try {
+                const info = JSON.parse(server_info_json());
+                report('server_info 可用', info.name === 'verseconf', JSON.stringify(info));
+
+                const tools = JSON.parse(tools_json()).tools;
+                report('暴露四个工具', tools.length === 4, tools.map((t) => t.name).join(', '));
+            } catch (error) {
+                report('工具清单读取失败', false, String(error));
+            }
+
+            try {
+                const valid = callTool('verseconf_validate', { source: SOURCE });
+                report('validate 合法配置', valid.structuredContent.valid === true, JSON.stringify(valid.structuredContent));
+
+                const broken = callTool('verseconf_validate', { source: 'port = \n' });
+                report(
+                    'validate 报告解析错误',
+                    broken.structuredContent.valid === false &&
+                        broken.structuredContent.diagnostics[0].code === 'parse_error',
+                    JSON.stringify(broken.structuredContent)
+                );
+            } catch (error) {
+                report('validate 调用失败', false, String(error));
+            }
+
+            try {
+                const audit = callTool('verseconf_audit', { source: 'db_password = "secret"\nhost = "0.0.0.0"\n' });
+                const rules = audit.structuredContent.findings.map((f) => f.rule_id);
+                report(
+                    'audit 检出敏感数据与通配绑定',
+                    rules.includes('SEC-SENS-001') && rules.includes('SEC-004'),
+                    rules.join(', ')
+                );
+            } catch (error) {
+                report('audit 调用失败', false, String(error));
+            }
+
+            try {
+                const applied = callTool('verseconf_apply_edit', {
+                    source: SOURCE,
+                    plan: { version: '1.0', edits: [{ op: 'set', path: ['server', 'port'], value: 9090 }] },
+                });
+                const text = applied.structuredContent.source;
+                report(
+                    'apply_edit 只改目标行且保留元数据',
+                    text.includes('port = 9090') && text.includes('#@ range(1..65535)'),
+                    text
+                );
+
+                const refused = callTool('verseconf_apply_edit', {
+                    source: 'port = 8080\n',
+                    plan: { version: '1.0', edits: [{ op: 'set', path: ['missing'], value: 1 }] },
+                });
+                report('apply_edit 目标不存在时拒绝', refused.isError === true && refused.structuredContent.code === 'target_not_found');
+            } catch (error) {
+                report('apply_edit 调用失败', false, String(error));
+            }
+
+            try {
+                const ranged = callTool('verseconf_edit_range', { source: 'port = 8080\n', start: 7, end: 11, replacement: '9090' });
+                report('edit_range 精确替换字节区间', ranged.structuredContent.source === 'port = 9090\n', ranged.structuredContent.source);
+            } catch (error) {
+                report('edit_range 调用失败', false, String(error));
+            }
+
+            report(failures === 0 ? '全部通过' : `${failures} 项失败`, failures === 0);
         }
 
-        window.runTest = runTest;
+        window.runTests = runTests;
     </script>
 </body>
 </html>

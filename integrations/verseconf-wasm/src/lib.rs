@@ -1,7 +1,9 @@
-use wasm_bindgen::prelude::*;
-use verseconf_core::{parse, Ast, Value, TableBlock};
-use verseconf_core::ast::value::{Expression, ScalarValue, NumberValue};
 use std::collections::HashMap;
+use verseconf_core::ast::value::{NumberValue, ScalarValue};
+use verseconf_core::{parse, Ast, TableBlock, Value};
+use wasm_bindgen::prelude::*;
+
+pub mod mcp;
 
 #[wasm_bindgen(start)]
 pub fn start() {
@@ -26,7 +28,11 @@ impl VerseConf {
                 let mut flat_keys = HashMap::new();
                 tables.insert(String::new(), ast.root.clone());
                 Self::build_table_map(&ast.root, String::new(), &mut tables, &mut flat_keys);
-                VerseConf { ast, tables, flat_keys }
+                VerseConf {
+                    ast,
+                    tables,
+                    flat_keys,
+                }
             })
             .map_err(|e| JsValue::from_str(&e.to_string()))
     }
@@ -58,11 +64,14 @@ impl VerseConf {
                         } else {
                             format!("{}.{}", prefix, name)
                         };
-                        tables.insert(path.clone(), TableBlock {
-                            name: tbl_entry.name.clone(),
-                            entries: tbl_entry.entries.clone(),
-                            span: tbl_entry.span.clone(),
-                        });
+                        tables.insert(
+                            path.clone(),
+                            TableBlock {
+                                name: tbl_entry.name.clone(),
+                                entries: tbl_entry.entries.clone(),
+                                span: tbl_entry.span,
+                            },
+                        );
                         Self::build_table_map(tbl_entry, path, tables, flat_keys);
                     }
                 }
@@ -82,12 +91,10 @@ impl VerseConf {
     }
 
     pub fn get_number(&self, path: &str) -> Option<f64> {
-        self.flat_keys.get(path).and_then(|s| {
-            match s {
-                ScalarValue::Number(NumberValue::Integer(i)) => Some(*i as f64),
-                ScalarValue::Number(NumberValue::Float(f)) => Some(*f),
-                _ => None,
-            }
+        self.flat_keys.get(path).and_then(|s| match s {
+            ScalarValue::Number(NumberValue::Integer(i)) => Some(*i as f64),
+            ScalarValue::Number(NumberValue::Float(f)) => Some(*f),
+            _ => None,
         })
     }
 
@@ -113,33 +120,29 @@ impl VerseConf {
         let items: Vec<String> = table
             .entries
             .iter()
-            .filter_map(|entry| {
-                match entry {
-                    verseconf_core::TableEntry::KeyValue(kv) => {
-                        if let Value::Expression(expr) = &kv.value {
-                            if let Ok(scalar) = expr.evaluate() {
-                                return Some(format!(
-                                    "\"{}\": {}",
-                                    escape_json(kv.key.as_str()),
-                                    self.scalar_to_json(&scalar)
-                                ));
-                            }
-                        }
-                        None
-                    }
-                    verseconf_core::TableEntry::TableBlock(tbl_entry) => {
-                        if let Some(name) = &tbl_entry.name {
-                            Some(format!(
+            .filter_map(|entry| match entry {
+                verseconf_core::TableEntry::KeyValue(kv) => {
+                    if let Value::Expression(expr) = &kv.value {
+                        if let Ok(scalar) = expr.evaluate() {
+                            return Some(format!(
                                 "\"{}\": {}",
-                                escape_json(name),
-                                self.table_to_json(tbl_entry)
-                            ))
-                        } else {
-                            None
+                                escape_json(kv.key.as_str()),
+                                self.scalar_to_json(&scalar)
+                            ));
                         }
                     }
-                    _ => None,
+                    None
                 }
+                verseconf_core::TableEntry::TableBlock(tbl_entry) => {
+                    tbl_entry.name.as_ref().map(|name| {
+                        format!(
+                            "\"{}\": {}",
+                            escape_json(name),
+                            self.table_to_json(tbl_entry)
+                        )
+                    })
+                }
+                _ => None,
             })
             .collect();
         format!("{{{}}}", items.join(", "))
@@ -173,12 +176,10 @@ fn escape_json(s: &str) -> String {
 pub fn parse_config(source: &str) -> Result<JsValue, JsValue> {
     match parse(source) {
         Ok(ast) => {
-            let conf = VerseConf::new(source).unwrap_or_else(|_| {
-                VerseConf {
-                    ast,
-                    tables: HashMap::new(),
-                    flat_keys: HashMap::new(),
-                }
+            let conf = VerseConf::new(source).unwrap_or_else(|_| VerseConf {
+                ast,
+                tables: HashMap::new(),
+                flat_keys: HashMap::new(),
             });
             Ok(JsValue::from_str(&conf.to_json()))
         }

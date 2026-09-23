@@ -1,67 +1,91 @@
 # VerseConf VSCode Extension
 
-VSCode extension for VerseConf language support.
+VerseConf 语言的编辑器支持：语法高亮、实时诊断、格式化，以及通过语言服务器协议
+接入的完整语言能力。
 
 ## Features
 
-- **Syntax Highlighting**: Full syntax highlighting for .vcf files
-- **Auto-completion**: Context-aware completion for keys and values
-- **Hover Information**: Hover docs for keys and types
-- **Validation**: Real-time error detection and diagnostics
-- **Formatting**: Document formatting support
-- **LSP Integration**: Full Language Server Protocol support
+- **Syntax Highlighting**：`.vcf` 文件语法高亮
+- **Validation**：实时语法与 schema 诊断（语言服务器提供）
+- **Formatting**：文档格式化（保注释、保 `#@` 元数据）
+- **Hover / Completion**：键与类型的悬停说明与补全
+- **LSP Integration**：完整的语言服务器协议支持
 
 ## Requirements
 
-- VSCode 1.75.0 or later
-- VerseConf LSP server (built from `crates/verseconf-lsp`)
+- VSCode 1.75.0 或更高版本
+- 语言服务器二进制。扩展包按平台自带，无需自行构建（见下）
 
-## Building the LSP Server
+## 安装
 
-Before using the extension, you need to build the LSP server:
+### 从扩展包安装
+
+扩展包由流水线产出（`.github/workflows/extension.yml`），下载 `verseconf-<版本>.vsix` 后：
 
 ```bash
-cd crates/verseconf-lsp
-cargo build --release
+code --install-extension verseconf-0.1.0.vsix
 ```
 
-The LSP binary will be at `crates/verseconf-lsp/target/release/verseconf-lsp.exe`
+或在 VSCode 中 `Extensions: Install from VSIX...`。
 
-## Installation
+### 语言服务器在包内的位置
 
-1. Clone the repository
-2. Install Node.js dependencies:
-   ```bash
-   cd extensions/verseconf-vscode
-   npm install
-   ```
-3. Compile TypeScript:
-   ```bash
-   npm run compile
-   ```
-4. Open the project in VSCode and press `F5` to debug
-
-## Extension Structure
+扩展包按 `<platform>-<arch>` 同时携带多个平台的语言服务器：
 
 ```
 extensions/verseconf-vscode/
-├── package.json              # Extension manifest
-├── language-configuration.json  # Language settings
-├── syntaxes/
-│   └── verseconf.tmLanguage.json  # TextMate grammar
-├── src/
-│   └── extension.ts          # Extension entry point
-└── tsconfig.json             # TypeScript config
+└── server/bin/
+    ├── win32-x64/verseconf-lsp.exe
+    ├── linux-x64/verseconf-lsp
+    ├── darwin-x64/verseconf-lsp
+    └── darwin-arm64/verseconf-lsp
 ```
 
-## Configuration
+扩展启动时按 `process.platform` 与 `process.arch` 解析到对应目录；找不到时给出
+可操作的提示（而不是静默失败）。也可以用设置 `verseconf.lsp.serverPath` 指向
+自己构建的二进制。
 
-The extension provides the following settings:
+## 本地开发
+
+```bash
+cd extensions/verseconf-vscode
+npm install
+npm run compile        # tsc -> out/
+npm test               # 语言服务器路径解析的单元测试
+```
+
+在本机跑语言服务器需要先构建并把二进制放到对应平台目录：
+
+```bash
+cd ../..               # 仓库根目录
+cargo build -p verseconf-lsp --release
+mkdir -p extensions/verseconf-vscode/server/bin/linux-x64
+cp target/release/verseconf-lsp extensions/verseconf-vscode/server/bin/linux-x64/
+```
+
+（Windows 上对应 `server/bin/win32-x64/verseconf-lsp.exe`。）
+
+按 `F5` 启动扩展开发宿主。
+
+## 打包与验收
+
+```bash
+npm run verify                    # vsce ls 清单 + 真正打出 .vsix 并核对内容
+npm run verify -- --require-server  # 额外要求包内带当前平台的语言服务器
+npm run package                   # 只打包，产出 verseconf-<版本>.vsix
+```
+
+`verify` 会检查 `.vsix` 里包含 `out/extension.js`、语言配置、TextMate 语法、
+`README`/`CHANGELOG`/`LICENSE`、`vscode-languageclient` 运行时依赖，以及每个
+`server/bin/<平台>/` 下的语言服务器二进制；同时确认 sourcemap 已被排除。
+
+## Configuration
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `verseconf.format.aiCanonical` | boolean | false | AI-friendly formatting |
 | `verseconf.lsp.enabled` | boolean | true | Enable LSP features |
+| `verseconf.lsp.serverPath` | string | `""` | 自定义语言服务器路径（留空则用包内二进制） |
 | `verseconf.validation.strict` | boolean | false | Strict validation mode |
 
 ## Commands
@@ -71,29 +95,6 @@ The extension provides the following settings:
 | `verseconf.format` | Format the current document |
 | `verseconf.validate` | Validate the current document |
 | `verseconf.schema.generate` | Generate schema from document |
-
-## Keyboard Shortcuts
-
-The extension integrates with VSCode's standard formatting command:
-
-- `Shift+Alt+F` (Windows/Linux) or `Shift+Option+F` (macOS) - Format document
-
-## Development
-
-### Debugging
-
-1. Open `extensions/verseconf-vscode` in VSCode
-2. Run `npm install`
-3. Press `F5` to start debugging
-4. The extension will be loaded in a new Extension Development Host window
-
-### Building for Production
-
-```bash
-npm run vscode:prepublish
-```
-
-This compiles TypeScript to JavaScript in the `out` folder.
 
 ## License
 
