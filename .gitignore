@@ -59,9 +59,13 @@ coverage/
 extensions/verseconf-vscode/out/
 extensions/verseconf-vscode/node_modules/
 extensions/verseconf-vscode/*.vsix
+# 语言服务器二进制由流水线按平台构建后放入，不入库
+extensions/verseconf-vscode/server/bin/
 
 # JavaScript/TypeScript WASM 包构建产物
 integrations/verseconf-wasm/js-api/node_modules/
 integrations/verseconf-wasm/js-api/pkg/
+integrations/verseconf-wasm/js-api/pkg-web/
 integrations/verseconf-wasm/js-api/dist/
 integrations/verseconf-wasm/js-api/*.wasm
+integrations/verseconf-wasm/js-api/*.tgz

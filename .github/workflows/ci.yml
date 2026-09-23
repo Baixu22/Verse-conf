@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: build + test (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build workspace
+        run: cargo build --workspace --all-targets
+      - name: Test workspace
+        run: cargo test --workspace
+
+  format:
+    name: rustfmt (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: clippy (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  examples:
+    name: repository examples parse (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build CLI
+        run: cargo build -p verseconf-cli
+      - name: Parse every example
+        run: |
+          set -e
+          for f in examples/*.vcf; do
+            echo "== $f"
+            ./target/debug/verseconf parse "$f"
+          done
+      - name: Formatting must be idempotent
+        run: |
+          set -e
+          for f in examples/*.vcf; do
+            ./target/debug/verseconf format "$f" -o /tmp/fmt1.vcf
+            ./target/debug/verseconf format /tmp/fmt1.vcf -o /tmp/fmt2.vcf
+            diff -u /tmp/fmt1.vcf /tmp/fmt2.vcf
+          done
+      - name: --fix must not touch a valid file
+        run: |
+          set -e
+          cp examples/basic.vcf /tmp/clean.vcf
+          ./target/debug/verseconf validate /tmp/clean.vcf --fix --write
+          diff -u examples/basic.vcf /tmp/clean.vcf
+
+  # 文档里的第一条安装命令必须真的成立：可执行文件叫 `verseconf`，
+  # 核心库打出来的 tarball 必须能独立编译。
+  distribution:
+    name: CLI install + crate packaging (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Package the core crate and compile it from the tarball
+        run: cargo package -p verseconf-core
+      - name: Install the CLI the way the docs say
+        run: cargo install --path crates/verseconf-cli
+      - name: Installed executable is named verseconf and runs
+        run: |
+          set -e
+          verseconf --version
+          verseconf parse examples/basic.vcf
+          verseconf validate examples/basic.vcf
+
+  # 公开基准：语料与判定固定，被测实现必须全对，且任何策略都不许出现不确定结果。
+  fidelity-benchmark:
+    name: edit fidelity benchmark (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run the benchmark with the gate on
+        run: cargo run -p verseconf-bench --release -- --check
+      - name: Rerun must produce byte-identical results
+        run: |
+          set -e
+          cp benchmark/results/latest.json /tmp/bench-first.json
+          cargo run -q -p verseconf-bench --release > /dev/null
+          diff -u /tmp/bench-first.json benchmark/results/latest.json
+
+  # 宿主零安装分发：wasm 产物必须在真实消费者环境里可加载，并且与命令行结果一致。
+  wasm-distribution:
+    name: wasm distribution (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install wasm-pack
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Build npm package (wasm + tsc)
+        working-directory: integrations/verseconf-wasm/js-api
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+      - name: Load smoke tests (CJS / ESM / nodejs / web / stdio server)
+        working-directory: integrations/verseconf-wasm/js-api
+        run: node test/load.test.mjs
+      - name: Package and clean-install tests
+        working-directory: integrations/verseconf-wasm/js-api
+        run: node test/package.test.mjs
+      - name: Build native binaries for the parity check
+        run: cargo build -p verseconf-cli -p verseconf-mcp
+      - name: wasm vs CLI / native binary parity
+        working-directory: integrations/verseconf-wasm/js-api
+        run: node test/parity.mjs
+

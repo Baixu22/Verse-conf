@@ -1,0 +1,117 @@
+name: VSCode Extension
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'extensions/verseconf-vscode/**'
+      - 'crates/verseconf-lsp/**'
+      - 'crates/verseconf-core/**'
+      - '.github/workflows/extension.yml'
+  pull_request:
+    paths:
+      - 'extensions/verseconf-vscode/**'
+      - 'crates/verseconf-lsp/**'
+      - 'crates/verseconf-core/**'
+      - '.github/workflows/extension.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  EXTENSION_DIR: extensions/verseconf-vscode
+
+jobs:
+  # 语言服务器必须按平台构建：扩展包要能在四个主流平台上开箱可用，
+  # 而不是像以前那样只塞一个 Windows 的 .exe。
+  build-language-server:
+    name: language server (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            binary: verseconf-lsp
+          - os: windows-latest
+            target: win32-x64
+            binary: verseconf-lsp.exe
+          - os: macos-13
+            target: darwin-x64
+            binary: verseconf-lsp
+          - os: macos-14
+            target: darwin-arm64
+            binary: verseconf-lsp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build verseconf-lsp
+        run: cargo build -p verseconf-lsp --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: target/release/${{ matrix.binary }}
+          if-no-files-found: error
+
+  package-extension:
+    name: package + verify (.vsix)
+    needs: build-language-server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download language server (linux-x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-x64
+          path: ${{ env.EXTENSION_DIR }}/server/bin/linux-x64
+      - name: Download language server (win32-x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: win32-x64
+          path: ${{ env.EXTENSION_DIR }}/server/bin/win32-x64
+      - name: Download language server (darwin-x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: darwin-x64
+          path: ${{ env.EXTENSION_DIR }}/server/bin/darwin-x64
+      - name: Download language server (darwin-arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: darwin-arm64
+          path: ${{ env.EXTENSION_DIR }}/server/bin/darwin-arm64
+
+      - name: Restore executable bits lost by artifact upload
+        run: find "$EXTENSION_DIR/server/bin" -type f -name 'verseconf-lsp' -exec chmod +x {} \;
+
+      - name: Install extension dependencies
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm install --no-audit --no-fund
+
+      - name: Compile TypeScript and run unit tests
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm test
+
+      - name: Verify package contents and produce .vsix
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: node scripts/verify-package.mjs --require-server
+
+      - name: Produce versioned .vsix
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          npx vsce package --out "verseconf-${VERSION}.vsix"
+          ls -l "verseconf-${VERSION}.vsix"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verseconf-vsix
+          path: ${{ env.EXTENSION_DIR }}/*.vsix
+          if-no-files-found: error

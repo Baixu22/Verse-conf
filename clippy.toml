@@ -1,0 +1,5 @@
+# Clippy 基线配置。当前仓库仍有历史告警，
+# 详见 .agent-workbench/task-forest 中「一次性 cargo fmt 与 clippy 清理」节点。
+msrv = "1.75"
+too-many-arguments-threshold = 8
+type-complexity-threshold = 300
