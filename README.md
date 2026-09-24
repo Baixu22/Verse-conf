@@ -47,14 +47,31 @@ VerseConf addresses these with innovative features:
 
 ## ⚡ Performance
 
-```
-VerseConf vs TOML vs JSON (parsing time)
+解析耗时由 `compare/` 下的基准真实产出。下面这张表来自本机一次 release 运行
+（Windows 10 / AMD64 / AMD64 Family 25 Model 97 Stepping 2 / rustc 1.98.1，
+每个格式 5 轮取中位数）：
 
-small:   VCF 103μs  |  TOML 421μs (4.1x slower)  |  JSON 10μs
-large:   VCF 6.7ms  |  TOML 18.9ms (2.8x slower) |  JSON 3.0ms
+| 数据集 | VerseConf | TOML | JSON | TOML/VCF | JSON/VCF |
+|---------|-----------|------|------|----------|----------|
+| small (426B)  | 9.55μs   | 13.51μs  | 1.96μs   | 1.42x | 0.20x |
+| medium (2.5KB) | 78.51μs | 96.99μs  | 13.89μs  | 1.24x | 0.18x |
+| large (24.8KB) | 756.34μs | 950.42μs | 197.13μs | 1.26x | 0.26x |
+| xlarge (263KB) | 6.82ms  | 8.49ms   | 2.46ms   | 1.25x | 0.36x |
+
+**VerseConf 的解析速度约为 TOML 的 1.24–1.42 倍。** `serde_json` 比三者都快，
+VerseConf 比它慢约 2.8–5.0 倍。三种格式的语料是同一份配置的等价写法。
+
+复现（数字会随硬件变化）：
+
+```bash
+cargo run -p verseconf-compare --bin generate_test_data
+cargo run --release -p verseconf-compare --bin benchmark -- --json compare/benchmark_results.json
+python3 compare/generate_charts.py
 ```
 
-**🚀 2.8-4.1x faster than TOML** with significantly more features.
+`compare/benchmark_results.json` 是上面这张表的数据来源，
+`compare/performance_charts.md` 由它生成。基准在数据缺失或解析失败时直接报错
+退出，不会退化成 0。
 
 ---
 
@@ -82,7 +99,7 @@ verseconf doc config.vcf
 
 ## 🔧 从源码构建
 
-克隆之后一条命令完成构建与测试（工作区全部 crate，253 个用例）：
+克隆之后一条命令完成构建与测试（工作区全部 crate，263 个用例）：
 
 ```bash
 cargo test --workspace
@@ -214,11 +231,13 @@ cargo test --workspace
 # Run benchmarks
 cargo bench
 
-# Performance comparison
-cd compare && cargo run --bin benchmark
+# Performance comparison（数字由基准真实产出，见 compare/performance_charts.md）
+cargo run -p verseconf-compare --bin generate_test_data
+cargo run --release -p verseconf-compare --bin benchmark -- --json compare/benchmark_results.json
+python3 compare/generate_charts.py
 ```
 
-> **📊 Current Status**: 253/253 tests passing ✅
+> **📊 Current Status**: `cargo test --workspace` 263/263 通过 ✅
 
 ---
 
