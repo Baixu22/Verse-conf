@@ -39,7 +39,10 @@ jobs:
           - os: windows-latest
             target: win32-x64
             binary: verseconf-lsp.exe
-          - os: macos-13
+          # macos-13 已于 2025-12-04 被 GitHub 退役，用它排队的作业永远不会启动
+          # （本仓库第一次推送后，这个 job 在队列里挂了 14 小时，另外三个平台早就跑完）。
+          # x86_64 macOS 现在的标签是 macos-15-intel。
+          - os: macos-15-intel
             target: darwin-x64
             binary: verseconf-lsp
           - os: macos-14
