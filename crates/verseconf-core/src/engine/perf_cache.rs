@@ -44,6 +44,8 @@ impl FileMetadata {
 pub struct ParseCache {
     cache: HashMap<String, (FileMetadata, Ast)>,
     max_size: usize,
+    hits: u64,
+    misses: u64,
 }
 
 impl ParseCache {
@@ -51,18 +53,32 @@ impl ParseCache {
         Self {
             cache: HashMap::new(),
             max_size,
+            hits: 0,
+            misses: 0,
         }
     }
 
-    pub fn get(&self, path: &Path) -> Option<&Ast> {
+    /// 命中则返回缓存的 AST，并把这次查询计入命中数。
+    ///
+    /// 注意「命中」不是零成本：判定命中要读整个文件并比对内容哈希，返回前还要
+    /// 克隆一次 AST，省掉的只是重新解析。所以命中不一定比首次解析快——调用方
+    /// 不应该拿它做性能断言，要判断缓存是否生效请看 [`ParseCacheStats::hits`]。
+    pub fn get(&mut self, path: &Path) -> Option<&Ast> {
         let key = self.path_key(path);
-        if let Some((metadata, ast)) = self.cache.get(&key) {
-            if let Ok(current_metadata) = FileMetadata::from_path(path) {
-                if current_metadata.hash == metadata.hash {
-                    return Some(ast);
-                }
+
+        let fresh = match self.cache.get(&key) {
+            Some((metadata, _)) => {
+                FileMetadata::from_path(path).is_ok_and(|current| current.hash == metadata.hash)
             }
+            None => false,
+        };
+
+        if fresh {
+            self.hits += 1;
+            return self.cache.get(&key).map(|(_, ast)| ast);
         }
+
+        self.misses += 1;
         None
     }
 
@@ -85,12 +101,16 @@ impl ParseCache {
 
     pub fn clear(&mut self) {
         self.cache.clear();
+        self.hits = 0;
+        self.misses = 0;
     }
 
     pub fn stats(&self) -> ParseCacheStats {
         ParseCacheStats {
             entry_count: self.cache.len(),
             max_size: self.max_size,
+            hits: self.hits,
+            misses: self.misses,
         }
     }
 
@@ -114,10 +134,14 @@ impl ParseCache {
 }
 
 /// 缓存统计
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseCacheStats {
     pub entry_count: usize,
     pub max_size: usize,
+    /// 命中次数。命中判定包含一次文件读取与内容哈希比对。
+    pub hits: u64,
+    /// 未命中次数：没有条目，或文件内容已经变化。
+    pub misses: u64,
 }
 
 /// 增量解析器
@@ -312,6 +336,66 @@ mod tests {
         }
 
         assert!(cache.cache.len() <= 2);
+
+        let _ = fs::remove_dir_all(&test_dir);
+    }
+
+    #[test]
+    fn test_cache_counts_hits_and_misses() {
+        let test_dir = std::env::temp_dir().join("verseconf_perf_test6");
+        let _ = fs::remove_dir_all(&test_dir);
+        fs::create_dir_all(&test_dir).unwrap();
+
+        let test_file = test_dir.join("test.vcf");
+        fs::write(&test_file, "name = \"test\"").unwrap();
+
+        let mut cache = ParseCache::new(10);
+
+        // 空缓存：一次未命中
+        assert!(cache.get(&test_file).is_none());
+        assert_eq!(cache.stats().hits, 0);
+        assert_eq!(cache.stats().misses, 1);
+
+        let ast = parse_file_to_ast(&test_file).unwrap();
+        cache.insert(&test_file, ast).unwrap();
+
+        // 内容未变：连续两次命中
+        assert!(cache.get(&test_file).is_some());
+        assert!(cache.get(&test_file).is_some());
+        let stats = cache.stats();
+        assert_eq!(stats.hits, 2);
+        assert_eq!(stats.misses, 1);
+        assert_eq!(stats.entry_count, 1);
+
+        // clear 会把计数一并归零
+        cache.clear();
+        assert_eq!(cache.stats().hits, 0);
+        assert_eq!(cache.stats().misses, 0);
+
+        let _ = fs::remove_dir_all(&test_dir);
+    }
+
+    #[test]
+    fn test_cache_misses_when_file_content_changes() {
+        let test_dir = std::env::temp_dir().join("verseconf_perf_test7");
+        let _ = fs::remove_dir_all(&test_dir);
+        fs::create_dir_all(&test_dir).unwrap();
+
+        let test_file = test_dir.join("test.vcf");
+        fs::write(&test_file, "name = \"before\"").unwrap();
+
+        let mut parser = IncrementalParser::new(10);
+        parser.parse_file(&test_file).unwrap();
+        parser.parse_file(&test_file).unwrap();
+        assert_eq!(parser.cache_stats().hits, 1, "内容未变时应当命中");
+
+        // 改内容后必须未命中——判定依据是内容哈希，不是 mtime 的秒级精度
+        fs::write(&test_file, "name = \"after\"").unwrap();
+        parser.parse_file(&test_file).unwrap();
+
+        let stats = parser.cache_stats();
+        assert_eq!(stats.hits, 1, "内容变了就不该再算命中");
+        assert_eq!(stats.misses, 2);
 
         let _ = fs::remove_dir_all(&test_dir);
     }
