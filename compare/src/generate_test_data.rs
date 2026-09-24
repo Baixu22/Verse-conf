@@ -1,16 +1,16 @@
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 
 /// 测试配置数据集生成器
 /// 生成等价的 VCF/TOML/JSON 配置文件用于性能比较
 pub struct TestDataGenerator {
-    output_dir: String,
+    output_dir: PathBuf,
 }
 
 impl TestDataGenerator {
-    pub fn new(output_dir: &str) -> Self {
+    pub fn new(output_dir: impl Into<PathBuf>) -> Self {
         Self {
-            output_dir: output_dir.to_string(),
+            output_dir: output_dir.into(),
         }
     }
 
@@ -34,7 +34,7 @@ impl TestDataGenerator {
     /// 生成单个数据集
     fn generate_dataset(&self, name: &str, count: usize) -> Result<(), Box<dyn std::error::Error>> {
         // 创建输出目录
-        let dir = Path::new(&self.output_dir).join(name);
+        let dir = self.output_dir.join(name);
         fs::create_dir_all(&dir)?;
 
         // 生成三种格式的配置
@@ -268,6 +268,29 @@ impl TestDataGenerator {
             json.push_str("  \"debug\": false,\n");
             json.push_str("  \"port\": 8080,\n");
             json.push_str("  \"host\": \"0.0.0.0\",\n");
+            json.push('\n');
+
+            // 小数据集也必须与 VCF/TOML 分支含同样的表。此前这里少了
+            // server 与 database，于是「small」比较的其实是两份不同的文档
+            // （VCF/TOML 426B vs JSON 126B），README 里的倍数就是这么来的。
+            json.push_str("  \"server\": {\n");
+            json.push_str("    \"timeout\": 30,\n");
+            json.push_str("    \"max_connections\": 1000,\n");
+            json.push_str("    \"ssl_enabled\": true,\n");
+            json.push_str("    \"ssl_cert\": \"/etc/ssl/cert.pem\",\n");
+            json.push_str("    \"ssl_key\": \"/etc/ssl/key.pem\"\n");
+            json.push_str("  },\n");
+            json.push('\n');
+
+            json.push_str("  \"database\": {\n");
+            json.push_str("    \"host\": \"localhost\",\n");
+            json.push_str("    \"port\": 5432,\n");
+            json.push_str("    \"name\": \"test_db\",\n");
+            json.push_str("    \"pool_size\": 10,\n");
+            json.push_str("    \"timeout\": 5000\n");
+            json.push_str("  },\n");
+            json.push('\n');
+
             json.push_str("  \"features\": {\n");
 
             let feature_count = count.saturating_sub(fixed_items - 2);

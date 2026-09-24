@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use std::fs;
     use std::time::Instant;
     use verseconf_compare::TestDataGenerator;
 
@@ -120,60 +119,81 @@ mod tests {
         }
     }
 
+    /// 三种格式的「small」数据集必须含同样的表。
+    ///
+    /// 此前 JSON 的小数据集分支少了 server 与 database，于是 small 比较的
+    /// 其实是两份不同的文档（VCF/TOML 426B vs JSON 126B），README 里那个
+    /// 「JSON 快 10 倍」的结论就是从这种不等价比出来的。
+    #[test]
+    fn test_small_datasets_are_cross_format_equivalent() {
+        let generator = TestDataGenerator::new("test_output");
+
+        let vcf = generator.generate_vcf(10);
+        let toml_value: toml::Value =
+            toml::from_str(&generator.generate_toml(10)).expect("small TOML 应当合法");
+        let json_value: serde_json::Value =
+            serde_json::from_str(&generator.generate_json(10)).expect("small JSON 应当合法");
+
+        for table in ["server", "database", "features"] {
+            assert!(vcf.contains(&format!("{table} {{")), "small VCF 缺 {table}");
+            assert!(toml_value.get(table).is_some(), "small TOML 缺 {table}");
+            assert!(json_value.get(table).is_some(), "small JSON 缺 {table}");
+        }
+
+        // 同一组基础键也必须在三种格式里都在
+        for key in ["app_name", "version", "debug", "port", "host"] {
+            assert!(vcf.contains(key), "small VCF 缺 {key}");
+            assert!(toml_value.get(key).is_some(), "small TOML 缺 {key}");
+            assert!(json_value.get(key).is_some(), "small JSON 缺 {key}");
+        }
+    }
+
     #[test]
     fn test_parsing_performance() {
-        let sizes = ["small", "medium", "large"];
-        let iterations = [100, 50, 20];
+        // 在内存里生成内容，不依赖 test_data/。
+        //
+        // 之前这里用的是 CWD 相对的 `compare/test_data/...`；cargo 把测试进程的
+        // 工作目录设成包根 `compare/`，于是路径变成 `compare/compare/test_data/`，
+        // 三个 read_to_string 全部失败，`if let` 整个跳过——测试永远通过且什么
+        // 都没测。现在改为直接解析生成的内容，并断言解析成功。
+        let generator = TestDataGenerator::new("test_output");
+        let cases = [(10usize, 100usize), (100, 50), (1000, 20)];
 
-        for (size, iters) in sizes.iter().zip(iterations.iter()) {
-            let vcf_path = format!("compare/test_data/{}/config.vcf", size);
-            let toml_path = format!("compare/test_data/{}/config.toml", size);
-            let json_path = format!("compare/test_data/{}/config.json", size);
+        for (count, iterations) in cases {
+            let vcf = generator.generate_vcf(count);
+            let toml_text = generator.generate_toml(count);
+            let json = generator.generate_json(count);
 
-            if let (Ok(vcf_content), Ok(toml_content), Ok(json_content)) = (
-                fs::read_to_string(&vcf_path),
-                fs::read_to_string(&toml_path),
-                fs::read_to_string(&json_path),
-            ) {
-                let start = Instant::now();
-                for _ in 0..*iters {
-                    let _ = verseconf_core::parse(&vcf_content);
-                }
-                let vcf_duration = start.elapsed();
-
-                let start = Instant::now();
-                for _ in 0..*iters {
-                    let _: Result<toml::Value, _> = toml::from_str(&toml_content);
-                }
-                let toml_duration = start.elapsed();
-
-                let start = Instant::now();
-                for _ in 0..*iters {
-                    let _: Result<serde_json::Value, _> = serde_json::from_str(&json_content);
-                }
-                let json_duration = start.elapsed();
-
+            let start = Instant::now();
+            for _ in 0..iterations {
                 assert!(
-                    vcf_duration.as_micros() > 0,
-                    "VCF parsing should complete for {}",
-                    size
-                );
-                assert!(
-                    toml_duration.as_micros() > 0,
-                    "TOML parsing should complete for {}",
-                    size
-                );
-                assert!(
-                    json_duration.as_micros() > 0,
-                    "JSON parsing should complete for {}",
-                    size
-                );
-
-                println!(
-                    "{}: VCF={:?}, TOML={:?}, JSON={:?}",
-                    size, vcf_duration, toml_duration, json_duration
+                    verseconf_core::parse(&vcf).is_ok(),
+                    "VCF 应当解析成功 (count={count})"
                 );
             }
+            let vcf_duration = start.elapsed();
+
+            let start = Instant::now();
+            for _ in 0..iterations {
+                assert!(
+                    toml::from_str::<toml::Value>(&toml_text).is_ok(),
+                    "TOML 应当解析成功 (count={count})"
+                );
+            }
+            let toml_duration = start.elapsed();
+
+            let start = Instant::now();
+            for _ in 0..iterations {
+                assert!(
+                    serde_json::from_str::<serde_json::Value>(&json).is_ok(),
+                    "JSON 应当解析成功 (count={count})"
+                );
+            }
+            let json_duration = start.elapsed();
+
+            println!(
+                "count={count}: VCF={vcf_duration:?}, TOML={toml_duration:?}, JSON={json_duration:?}"
+            );
         }
     }
 }

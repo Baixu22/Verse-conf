@@ -112,6 +112,42 @@ jobs:
           cargo run -q -p verseconf-bench --release > /dev/null
           diff -u /tmp/bench-first.json benchmark/results/latest.json
 
+  # 性能数字必须来自真实运行。
+  #
+  # 此前 README 的「比 TOML 快 2.8-4.1 倍」来自 generate_charts.py 里手写的
+  # dict，而基准的数据路径是 CWD 相对的（从 compare/ 里执行会去找
+  # compare/compare/test_data/），读不到数据时输出全 0 并仍然 exit 0。这个作业
+  # 把「数字必须来自真实运行」和「缺数据必须失败」两条都钉住。
+  performance-benchmark:
+    name: performance benchmark (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Generate the comparison datasets
+        run: cargo run -q -p verseconf-compare --bin generate_test_data
+      - name: Run the benchmark and write machine-readable results
+        run: cargo run -q --release -p verseconf-compare --bin benchmark -- --json compare/benchmark_results.json
+      - name: Chart report must regenerate from that file
+        run: python3 compare/generate_charts.py
+      - name: Missing data must fail loudly, not report zeros
+        run: |
+          set -e
+          mv compare/test_data compare/test_data.bak
+          if cargo run -q --release -p verseconf-compare --bin benchmark -- --json /tmp/nope.json; then
+            echo "::error::benchmark succeeded with no data — silent-zero regression" >&2
+            exit 1
+          fi
+          mv compare/test_data.bak compare/test_data
+      - name: Chart script must refuse to invent numbers
+        run: |
+          set -e
+          if python3 compare/generate_charts.py /tmp/definitely-missing.json; then
+            echo "::error::generate_charts.py succeeded without benchmark results" >&2
+            exit 1
+          fi
+
   # 宿主零安装分发：wasm 产物必须在真实消费者环境里可加载，并且与命令行结果一致。
   wasm-distribution:
     name: wasm distribution (blocking)

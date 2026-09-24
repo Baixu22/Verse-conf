@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "generated_at_unix": 1790232016,
+  "target_os": "windows",
+  "target_arch": "x86_64",
+  "rounds": 5,
+  "datasets": [
+    {
+      "name": "small",
+      "iterations": 100,
+      "vcf": {
+        "bytes": 426,
+        "avg_us": 9.549
+      },
+      "toml": {
+        "bytes": 379,
+        "avg_us": 13.512
+      },
+      "json": {
+        "bytes": 420,
+        "avg_us": 1.9560000000000002
+      }
+    },
+    {
+      "name": "medium",
+      "iterations": 50,
+      "vcf": {
+        "bytes": 2517,
+        "avg_us": 78.506
+      },
+      "toml": {
+        "bytes": 2302,
+        "avg_us": 96.98800000000001
+      },
+      "json": {
+        "bytes": 2837,
+        "avg_us": 13.886000000000001
+      }
+    },
+    {
+      "name": "large",
+      "iterations": 20,
+      "vcf": {
+        "bytes": 24804,
+        "avg_us": 756.335
+      },
+      "toml": {
+        "bytes": 22789,
+        "avg_us": 950.425
+      },
+      "json": {
+        "bytes": 28723,
+        "avg_us": 197.13
+      }
+    },
+    {
+      "name": "xlarge",
+      "iterations": 10,
+      "vcf": {
+        "bytes": 262941,
+        "avg_us": 6820.26
+      },
+      "toml": {
+        "bytes": 242926,
+        "avg_us": 8494.56
+      },
+      "json": {
+        "bytes": 302859,
+        "avg_us": 2463.34
+      }
+    }
+  ]
+}
