@@ -1,5 +1,7 @@
 # verseconf-mcp
 
+**简体中文** | [English](README.en.md)
+
 把 VerseConf 的校验、审计与确定性编辑能力，以**工具协议**（Model Context Protocol 风格）
 暴露给 Agent 宿主。
 
@@ -48,8 +50,12 @@ verseconf-mcp --call verseconf_validate '{"source":"port = 8080\n"}'
 }
 ```
 
-如果宿主不想依赖本机二进制，同一套工具实现也已经编译成 WebAssembly，
-可以由 JS 运行时直接加载（`npx verseconf-mcp-wasm`），宿主零安装。
+如果宿主不想依赖本机二进制，同一套工具实现也已经编译成 WebAssembly，设计上可由
+JS 运行时直接加载（`npx verseconf-mcp-wasm`），宿主零安装。
+
+> **但该 npm 包目前不可用**：已发布的 `verseconf@0.1.0` 缺 `pkg/` 目录，
+> `npx verseconf-mcp-wasm` 会失败；修复版 0.2.0 已在本地构建并通过打包验收，
+> 尚未发布。在此之前请使用上面的本机二进制形态。
 
 ## 相关
 

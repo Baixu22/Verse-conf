@@ -1,5 +1,7 @@
 # verseconf-cli
 
+**简体中文** | [English](README.en.md)
+
 VerseConf 配置语言的命令行工具。
 
 > **包名与命令名不同**：包叫 `verseconf-cli`，装出来的可执行文件叫 `verseconf`。

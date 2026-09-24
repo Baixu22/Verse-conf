@@ -1,5 +1,7 @@
 # verseconf-lsp
 
+**简体中文** | [English](README.en.md)
+
 VerseConf 的语言服务器（Language Server Protocol），为编辑器提供 `.vcf` 文件的
 实时诊断、补全与导航。
 
