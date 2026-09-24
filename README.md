@@ -5,7 +5,7 @@
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?style=flat-square)](https://github.com/Baixu22/Verse-conf)
 [![License](https://img.shields.io/badge/license-MIT%20or%20Apache--2.0-green.svg?style=flat-square)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg?style=flat-square)](https://www.rust-lang.org)
-[![Tests](https://img.shields.io/badge/tests-161%2F161%20%E2%9C%85-brightgreen.svg?style=flat-square)](#testing)
+[![Tests](https://img.shields.io/badge/tests-263%2F263%20%E2%9C%85-brightgreen.svg?style=flat-square)](#testing)
 
 > **VerseConf** is a next-generation configuration format built in Rust, designed to solve real-world configuration challenges while being AI-friendly.
 
