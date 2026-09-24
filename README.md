@@ -78,11 +78,11 @@ python3 compare/generate_charts.py
 ## 🚀 Quick Start
 
 ```bash
-# 从克隆的仓库安装 CLI（可执行文件叫 verseconf）
-cargo install --path crates/verseconf-cli
+# 安装 CLI（可执行文件叫 verseconf）
+cargo install verseconf-cli
 
-# 或：crates 发布到 crates.io 之后
-# cargo install verseconf-cli
+# 或者从克隆的仓库安装
+# cargo install --path crates/verseconf-cli
 
 # Parse and validate
 verseconf parse config.vcf
