@@ -95,6 +95,24 @@ jobs:
           verseconf parse examples/basic.vcf
           verseconf validate examples/basic.vcf
 
+  # 文档诚实性：docs/SPECIFICATION.md 的每条状态标注都必须与实测一致。
+  #
+  # 这份规范曾经把"设计目标"和"已实现能力"混在一起叙述、全文没有状态标注，
+  # 而 README 又声称"标注为未实现的条目请以本节为准"——指向了一份并不存在的标注。
+  # 补上标注之后，真正防止它再次漂移的是这个作业：
+  # 它按 docs/spec-status-probes.json 对每条声明真的跑一次 parse/validate，
+  # 并交叉核对 §0.4 速查表把该写法列在 ✅ 还是 🚧 分区。
+  # 无论"实现了标着未实现的特性"还是"改坏了标着已实现的特性"，这里都会失败。
+  spec-status:
+    name: spec status markers match reality (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Probe every SPEC status claim against the implementation
+        run: cargo test -p verseconf-test --test spec_status
+
   # 公开基准：语料与判定固定，被测实现必须全对，且任何策略都不许出现不确定结果。
   fidelity-benchmark:
     name: edit fidelity benchmark (blocking)
@@ -111,6 +129,25 @@ jobs:
           cp benchmark/results/latest.json /tmp/bench-first.json
           cargo run -q -p verseconf-bench --release > /dev/null
           diff -u /tmp/bench-first.json benchmark/results/latest.json
+
+  # 不确定性报告的分析口径 + 预登记冻结物。
+  #
+  # 上一轮的 195 次运行不是 195 个独立样本：失败集中在唯一一份 CRLF 文件上。
+  # 这个作业钉住两件事：区间必须按**来源**聚类算（同样的通过率，失败集中时
+  # 区间必须显著更宽），以及预登记的任务集/生成器/加权分布没有被改过。
+  # 「每条任务真的命中了它声称的特征」由 cargo test 里的 preregistration 测试管。
+  analysis:
+    name: cluster analysis + preregistration (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cluster-bootstrap analysis tests
+        run: node --test benchmark/analysis/cluster_report.test.mjs
+      - name: Preregistration has not drifted
+        run: node benchmark/confirmation/preregistration.mjs --verify
 
   # 性能数字必须来自真实运行。
   #

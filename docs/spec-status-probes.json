@@ -1,0 +1,433 @@
+{
+  "version": 1,
+  "description": "把 docs/SPECIFICATION.md 的状态标注钉在可执行的探针上：每条状态声明都对应一次真实的 parse/validate 调用。任何一侧漂移都会让 crates/verseconf-test/tests/spec_status.rs 失败。",
+  "quickref_section": "### 0.4",
+  "spec_file": "docs/SPECIFICATION.md",
+  "probes": [
+    {
+      "id": "line-comment",
+      "feature": "# 单行注释",
+      "section": "### Comments",
+      "quickref": "implemented",
+      "quickref_key": "单行注释",
+      "action": "parse",
+      "expect": "ok",
+      "source": "# 注释\nkey = 1\n"
+    },
+    {
+      "id": "inline-comment",
+      "feature": "行尾注释",
+      "section": "### Comments",
+      "quickref": "implemented",
+      "quickref_key": "行尾注释",
+      "action": "parse",
+      "expect": "ok",
+      "source": "key = \"v\"  # 行尾注释\n"
+    },
+    {
+      "id": "bare-key",
+      "feature": "裸键",
+      "section": "### Key-Value Pairs",
+      "quickref": "implemented",
+      "quickref_key": "裸键",
+      "action": "parse",
+      "expect": "ok",
+      "source": "name = \"VerseConf\"\n"
+    },
+    {
+      "id": "double-quoted-string",
+      "feature": "双引号字符串",
+      "section": "### String Values",
+      "quickref": "implemented",
+      "quickref_key": "双引号字符串",
+      "action": "parse",
+      "expect": "ok",
+      "source": "s = \"hello\"\n"
+    },
+    {
+      "id": "booleans",
+      "feature": "true / false",
+      "section": "### Booleans",
+      "quickref": "implemented",
+      "quickref_key": "true",
+      "action": "parse",
+      "expect": "ok",
+      "source": "a = true\nb = false\n"
+    },
+    {
+      "id": "positive-integer",
+      "feature": "正整数",
+      "section": "### Numbers",
+      "quickref": "implemented",
+      "quickref_key": "正整数",
+      "action": "parse",
+      "expect": "ok",
+      "source": "n = 42\n"
+    },
+    {
+      "id": "positive-float",
+      "feature": "正浮点数",
+      "section": "### Numbers",
+      "quickref": "implemented",
+      "quickref_key": "正浮点",
+      "action": "parse",
+      "expect": "ok",
+      "source": "f = 3.14\n"
+    },
+    {
+      "id": "date",
+      "feature": "日期",
+      "section": "### Date and Time",
+      "quickref": "implemented",
+      "quickref_key": "日期",
+      "action": "parse",
+      "expect": "ok",
+      "source": "d = 2024-06-01\n"
+    },
+    {
+      "id": "timestamp",
+      "feature": "时间戳",
+      "section": "### Date and Time",
+      "quickref": "implemented",
+      "quickref_key": "时间戳",
+      "action": "parse",
+      "expect": "ok",
+      "source": "t = 2024-01-15T09:00:00Z\n"
+    },
+    {
+      "id": "duration-seconds",
+      "feature": "时长 30s",
+      "section": "### Date and Time",
+      "quickref": "implemented",
+      "quickref_key": "时长",
+      "action": "parse",
+      "expect": "ok",
+      "source": "d = 30s\n"
+    },
+    {
+      "id": "array",
+      "feature": "数组",
+      "section": "### Arrays",
+      "quickref": "implemented",
+      "quickref_key": "数组",
+      "action": "parse",
+      "expect": "ok",
+      "source": "a = [1, 2, 3]\n"
+    },
+    {
+      "id": "block-table",
+      "feature": "块表",
+      "section": "### Tables (Blocks)",
+      "quickref": "implemented",
+      "quickref_key": "块表",
+      "action": "parse",
+      "expect": "ok",
+      "source": "tbl {\n  k = 1\n}\n"
+    },
+    {
+      "id": "array-table",
+      "feature": "表数组",
+      "section": "### Tables (Blocks)",
+      "quickref": "implemented",
+      "quickref_key": "表数组",
+      "action": "parse",
+      "expect": "ok",
+      "source": "[[srv]]\nname = \"a\"\n"
+    },
+    {
+      "id": "inline-table",
+      "feature": "内联表",
+      "section": "### Tables (Blocks)",
+      "quickref": "implemented",
+      "quickref_key": "内联表",
+      "action": "parse",
+      "expect": "ok",
+      "source": "t = { a = 1 }\n"
+    },
+    {
+      "id": "quoted-expression",
+      "feature": "引号内表达式",
+      "section": "### Expressions",
+      "quickref": "implemented",
+      "quickref_key": "引号内",
+      "action": "parse",
+      "expect": "ok",
+      "source": "port = 80\nurl = \"${port}\"\n"
+    },
+    {
+      "id": "env-default-pipe",
+      "feature": "引号内 ${ENV:VAR} 默认值",
+      "section": "### Expressions",
+      "quickref": "implemented",
+      "quickref_key": "引号内",
+      "action": "parse",
+      "expect": "ok",
+      "source": "h = \"${ENV:HOST|127.0.0.1}\"\n"
+    },
+    {
+      "id": "include-directive",
+      "feature": "@include 指令",
+      "section": "### File Inclusion",
+      "quickref": "implemented",
+      "quickref_key": "@include",
+      "action": "parse_no_include",
+      "expect": "ok",
+      "source": "@include \"x.vcf\"\n"
+    },
+    {
+      "id": "include-merge",
+      "feature": "@include merge=",
+      "section": "### File Inclusion",
+      "quickref": "implemented",
+      "quickref_key": "merge=",
+      "action": "parse_no_include",
+      "expect": "ok",
+      "source": "@include \"x.vcf\" merge=deep_merge\n"
+    },
+    {
+      "id": "crlf",
+      "feature": "CRLF 行尾",
+      "section": "### Encoding",
+      "quickref": "implemented",
+      "quickref_key": "CRLF",
+      "action": "parse",
+      "expect": "ok",
+      "source": "k = 1\r\nj = 2\r\n"
+    },
+    {
+      "id": "schema-range-ok",
+      "feature": "schema range 校验通过",
+      "section": "### Schema Field Attributes",
+      "quickref": "implemented",
+      "quickref_key": "range",
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  port { type = \"integer\" required = true range = 1024..65535 }\n}\nport = 8080\n"
+    },
+    {
+      "id": "schema-required-ok",
+      "feature": "schema required 校验通过",
+      "section": "### Schema Field Attributes",
+      "quickref": "implemented",
+      "quickref_key": "required",
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  port { type = \"integer\" required = true range = 1024..65535 }\n}\nport = 8080\n"
+    },
+    {
+      "id": "schema-enum-ok",
+      "feature": "schema enum 校验通过",
+      "section": "### Schema Field Attributes",
+      "quickref": "implemented",
+      "quickref_key": "enum",
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  mode { type = \"string\" enum = [\"dev\", \"prod\"] }\n}\nmode = \"dev\"\n"
+    },
+    {
+      "id": "validate-strict-rejects",
+      "feature": "validate --strict 拒绝未声明字段",
+      "section": "### Strict Mode",
+      "quickref": "implemented",
+      "quickref_key": "validate --strict",
+      "action": "validate_strict",
+      "expect": "error",
+      "source": "#@schema {\n  version = \"1.0\"\n  port { type = \"integer\" }\n}\nport = 8080\nundeclared = 1\n"
+    },
+    {
+      "id": "block-comment",
+      "feature": "### 块注释",
+      "section": "### Comments",
+      "quickref": "unimplemented",
+      "quickref_key": "块注释",
+      "action": "parse",
+      "expect": "error",
+      "source": "###\nblock comment\n###\nk = 1\n"
+    },
+    {
+      "id": "quoted-key",
+      "feature": "带引号的键",
+      "section": "### Key-Value Pairs",
+      "quickref": "unimplemented",
+      "quickref_key": "带引号的键",
+      "action": "parse",
+      "expect": "error",
+      "source": "\"server.host\" = \"localhost\"\n"
+    },
+    {
+      "id": "triple-quoted",
+      "feature": "三引号字符串",
+      "section": "### String Values",
+      "quickref": "unimplemented",
+      "quickref_key": "三引号",
+      "action": "parse",
+      "expect": "error",
+      "source": "s = \"\"\"multi\nline\"\"\"\n"
+    },
+    {
+      "id": "raw-string",
+      "feature": "r\"...\" 原始字符串",
+      "section": "### String Values",
+      "quickref": "unimplemented",
+      "quickref_key": "原始字符串",
+      "action": "parse",
+      "expect": "error",
+      "source": "p = r\"C:\\\\tmp\\\\x.txt\"\n"
+    },
+    {
+      "id": "negative-number",
+      "feature": "负数字面量",
+      "section": "### Numbers",
+      "quickref": "unimplemented",
+      "quickref_key": "负数字面量",
+      "action": "parse",
+      "expect": "error",
+      "source": "n = -42\n"
+    },
+    {
+      "id": "scientific",
+      "feature": "科学计数法",
+      "section": "### Numbers",
+      "quickref": "unimplemented",
+      "quickref_key": "科学计数法",
+      "action": "parse",
+      "expect": "error",
+      "source": "n = 1.5e-10\n"
+    },
+    {
+      "id": "hex-number",
+      "feature": "0xFF5733",
+      "section": "### Numbers",
+      "quickref": "unimplemented",
+      "quickref_key": "0xFF5733",
+      "action": "parse",
+      "expect": "error",
+      "source": "n = 0xFF5733\n"
+    },
+    {
+      "id": "binary-number",
+      "feature": "0b1010_1111",
+      "section": "### Numbers",
+      "quickref": "unimplemented",
+      "quickref_key": "0b1010_1111",
+      "action": "parse",
+      "expect": "error",
+      "source": "n = 0b1010_1111\n"
+    },
+    {
+      "id": "time-literal",
+      "feature": "时间字面量",
+      "section": "### Date and Time",
+      "quickref": "unimplemented",
+      "quickref_key": "时间字面量",
+      "action": "parse",
+      "expect": "error",
+      "source": "t = 02:30:00\n"
+    },
+    {
+      "id": "ms-duration",
+      "feature": "毫秒时长",
+      "section": "### Date and Time",
+      "quickref": "unimplemented",
+      "quickref_key": "毫秒时长",
+      "action": "parse",
+      "expect": "error",
+      "source": "t = 500ms\n"
+    },
+    {
+      "id": "bare-expression",
+      "feature": "裸表达式 ${...}",
+      "section": "### Expressions",
+      "quickref": "unimplemented",
+      "quickref_key": "裸",
+      "action": "parse",
+      "expect": "error",
+      "source": "a = 1\nx = ${a + 1}\n"
+    },
+    {
+      "id": "include-if-bare",
+      "feature": "@include if= 裸形式",
+      "section": "### File Inclusion",
+      "quickref": "unimplemented",
+      "quickref_key": "裸形式",
+      "action": "parse_no_include",
+      "expect": "error",
+      "source": "@include \"x.vcf\" if=${ENV:LOCAL_DEV}\n"
+    },
+    {
+      "id": "template-directive",
+      "feature": "#@template",
+      "section": "### Templates",
+      "quickref": "unimplemented",
+      "quickref_key": "#@template",
+      "action": "parse",
+      "expect": "error",
+      "source": "#@template base {\n}\n"
+    },
+    {
+      "id": "bom",
+      "feature": "UTF-8 BOM",
+      "section": "### Encoding",
+      "quickref": "unimplemented",
+      "quickref_key": "BOM",
+      "action": "parse",
+      "expect": "error",
+      "source": "﻿k = 1\n"
+    },
+    {
+      "id": "schema-pattern-not-enforced",
+      "feature": "schema pattern 不生效",
+      "section": "### Schema Field Attributes",
+      "quickref": "unimplemented",
+      "quickref_key": "pattern",
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  code { type = \"string\" pattern = \"^[a-z]+$\" }\n}\ncode = \"ABC\"\n"
+    },
+    {
+      "id": "schema-range-rejects",
+      "feature": "schema range 越界被拒",
+      "section": "### Schema Field Attributes",
+      "quickref": null,
+      "action": "validate",
+      "expect": "error",
+      "source": "#@schema {\n  version = \"1.0\"\n  port { type = \"integer\" range = 1024..65535 }\n}\nport = 80\n"
+    },
+    {
+      "id": "inline-table-satisfies-table-type",
+      "feature": "内联表满足 type = \"table\"",
+      "section": "### Tables (Blocks)",
+      "quickref": null,
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  database {\n    type = \"table\"\n    host { type = \"string\" required = true }\n  }\n}\n\ndatabase = { host = \"localhost\" }\n"
+    },
+    {
+      "id": "array-table-satisfies-array-type",
+      "feature": "数组表 [[name]] 满足 type = \"array\" 与 required",
+      "section": "### Tables (Blocks)",
+      "quickref": null,
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  servers {\n    type = \"array\"\n    required = true\n  }\n}\n\n[[servers]]\nname = \"primary\"\n\n[[servers]]\nname = \"replica\"\n"
+    },
+    {
+      "id": "schema-field-named-version",
+      "feature": "名为 version 的 schema 字段不破坏解析",
+      "section": "### Schema Definition",
+      "quickref": null,
+      "action": "validate",
+      "expect": "ok",
+      "source": "#@schema {\n  version = \"1.0\"\n  app_name { type = \"string\" required = true }\n  version { type = \"string\" required = true }\n}\n\napp_name = \"svc\"\nversion = \"2.0.0\"\n"
+    },
+    {
+      "id": "missing-array-table-still-required",
+      "feature": "required 的数组表缺失时仍然报错",
+      "section": "### Schema Field Attributes",
+      "quickref": null,
+      "action": "validate",
+      "expect": "error",
+      "source": "#@schema {\n  version = \"1.0\"\n  servers {\n    type = \"array\"\n    required = true\n  }\n}\n\nother = 1\n"
+    }
+  ]
+}
