@@ -59,7 +59,7 @@ toolchain required.
 
 > **That distribution path is not published**: the npm package has been abandoned (the
 > publishing account is unavailable). The published `verseconf@0.1.0` has no `pkg/` directory
-> and neither entry point works; the fixed 0.2.0 is built in-repo and passes its packaging
+> and neither entry point works; the fixed build is built in-repo and passes its packaging
 > checks, but will not be published. Use the local binary form above, or build the wasm
 > artifacts from source (see `integrations/verseconf-wasm/js-api`).
 

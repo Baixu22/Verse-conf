@@ -170,8 +170,8 @@ JSON.parse(call_tool_json('verseconf_audit', JSON.stringify({ source })));
 
 ### `verseconf_check_write`
 
-输入 `{ "baseline": string, "candidate": string, "schema"?: string }`，
-通过时输出 `{ "allowed": true, "baseline_bytes": integer, "candidate_bytes": integer }`；
+输入 `{ "baseline": string, "candidate": string, "schema"?: string, "format"?: "vcf" | "toml" }`，
+通过时输出 `{ "allowed": true, "format": string, "baseline_bytes": integer, "candidate_bytes": integer }`；
 拒绝时按失败模型返回与编辑路径同一套稳定错误码。
 
 **它不产生改动，只裁决改动。** `candidate` 是怎么来的与它无关——字符串替换、
@@ -182,6 +182,12 @@ JSON.parse(call_tool_json('verseconf_audit', JSON.stringify({ source })));
 （按规则 + 位置比较），文件本来就有的问题不会让这次改动背锅。
 `candidate` 无法解析、破坏 schema 或引入新高危实例时拒绝。
 不给 `schema` 时只用 `candidate` 自己声明的 `#@schema`，与编辑路径口径一致。
+
+`format` 默认 `vcf`，**由调用方声明而不是由本层猜**：猜错格式会把一份合法配置
+报成 `parse_failed`，而拒绝必须是可归因的。`format: "toml"` 走 TOML 适配层，
+校验与审计与 `.vcf` 路径**同源**（同一份 `AuditEngine`、同一份实例级比较、同一套拒绝码）。
+TOML 没有内联 schema 语法，所以它的 schema 只能旁挂传入。未知的 `format` 返回
+`invalid_arguments`，不会静默退回默认值。
 
 ## 失败模型
 

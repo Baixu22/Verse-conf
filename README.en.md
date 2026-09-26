@@ -237,7 +237,7 @@ Methodology and scope limits: [benchmark/README.md](benchmark/README.md).
 | `verseconf_audit` | Security audit with stable rule codes |
 | `verseconf_apply_edit` | Byte-range minimal edit from an edit plan, validated twice before writing |
 | `verseconf_edit_range` | Replace an explicit character range (a lower-level entry point) |
-| `verseconf_check_write` | **Pre-write check**: given the original and candidate text, decide whether the change may be written. It does not care how the candidate was produced, so a host keeps its own editing method and only adds this gate before writing |
+| `verseconf_check_write` | **Pre-write check**: given the original and candidate text, decide whether the change may be written. It does not care how the candidate was produced, so a host keeps its own editing method and only adds this gate before writing. Supports `.vcf` and **TOML** (via the `format` parameter) |
 
 Failures return **structured refusal reasons**, not a paragraph of prose (see
 [2.2](#22-the-refusal-paths) for the codes).
@@ -322,10 +322,10 @@ cargo test --workspace          # one command builds and tests everything
 
 | Channel | Status |
 |---------|--------|
-| crates.io (four crates) | ✅ **v0.2.0 published.** `cargo install verseconf-cli --version 0.2.0` verified in a clean directory: the `edit` command works and a second instance of an already-present high-risk rule is refused. Do not use 0.1.0 — it predates every fix (its CLI has no `edit`, and its core compares safety findings by rule rather than by instance) |
+| crates.io (five crates) | ✅ **v0.3.0 published** (core / cli / lsp / mcp / toml). `cargo install verseconf-cli --version 0.3.0` verified in a clean directory: the `edit` command works and a second instance of an already-present high-risk rule is refused. Do not use 0.1.0 — it predates every fix (its CLI has no `edit`, and its core compares safety findings by rule rather than by instance) |
 | API docs (docs.rs) | ✅ [docs.rs/verseconf-core](https://docs.rs/verseconf-core) |
 | VSCode extension `.vsix` | ⚠️ Produced and uploaded by CI as a build artifact; the repository contains no binary. See [9. Editor support](#9-editor-support) |
-| npm package `verseconf` | ❌ **Publishing abandoned**. The 0.1.0 on the registry does not work (the tarball has no `pkg/` directory, so both `require` and `import` fail); the fixed 0.2.0 is built in-repo and passes packaging checks (12/12), but the publishing account is no longer available, so it will not be published |
+| npm package `verseconf` | ❌ **Publishing abandoned**. The 0.1.0 on the registry does not work (the tarball has no `pkg/` directory, so both `require` and `import` fail); the fixed build is built in-repo and passes packaging checks (12/12), but the publishing account is no longer available, so it will not be published |
 | Browser CDN | ❌ Not published. The `pkg-web/` output is in no published package |
 
 ## 6. Quick start
@@ -634,7 +634,7 @@ asserts that the benchmark fails rather than reporting zeros.
 
 - Extend the cross-`@include` corpus to deeper nesting and to tables produced by merging
   several includes (core library, CLI, tool protocol and benchmark already cover one level, see section 3)
-- **No longer planned**: publishing the npm package. The fixed 0.2.0 build stays in the repo
+- **No longer planned**: publishing the npm package. The fixed build stays in the repo
   and its build and packaging checks run in CI, but the publishing account is unavailable
 - Broaden schema inference (for example, inferring a shared schema across several files)
 

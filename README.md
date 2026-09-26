@@ -211,7 +211,7 @@ cargo run -p verseconf-bench --release -- --check # 门禁模式（CI 用）
 | `verseconf_audit` | 安全审计，返回稳定规则码 |
 | `verseconf_apply_edit` | 按编辑计划做字符区间最小改动，写入前双重校验；给 `path` 时在 `include` 图里定位目标，响应里带出被改动的文件与合并视图的校验状态 |
 | `verseconf_edit_range` | 直接替换指定字符区间（更底层的入口） |
-| `verseconf_check_write` | **写前检查**：给定原文与候选文本，判断这次改动是否允许落盘。不关心候选怎么产生——宿主可以保留自己的编辑方式，只在写盘前过这一道 |
+| `verseconf_check_write` | **写前检查**：给定原文与候选文本，判断这次改动是否允许落盘。不关心候选怎么产生——宿主可以保留自己的编辑方式，只在写盘前过这一道。支持 `.vcf` 与 **TOML**（`format` 参数） |
 
 失败时返回**结构化的拒绝原因**，而不是一段自然语言（错误码见 [2.2](#22-拒绝路径)）。
 
@@ -292,10 +292,10 @@ cargo test --workspace          # 唯一一条命令完成构建与测试
 
 | 形态 | 状态 |
 |------|------|
-| crates.io（四个 crate） | ✅ **v0.2.0 已发布**。干净环境 `cargo install verseconf-cli --version 0.2.0` 已复验：`edit` 命令可用，同规则的新增高危实例会被拒绝。0.1.0 早于全部修复（CLI 没有 `edit`，core 仍按规则而非实例比较安全发现），请勿使用 |
+| crates.io（五个 crate） | ✅ **v0.3.0 已发布**（core / cli / lsp / mcp / toml）。干净环境 `cargo install verseconf-cli --version 0.3.0` 已复验：`edit` 命令可用，同规则的新增高危实例会被拒绝。0.1.0 早于全部修复（CLI 没有 `edit`，core 仍按规则而非实例比较安全发现），请勿使用 |
 | 文档（docs.rs） | ✅ [docs.rs/verseconf-core](https://docs.rs/verseconf-core) |
 | VSCode 扩展 `.vsix` | ⚠️ 由 CI 产出并上传为构建产物，仓库内不含二进制；见 [九、编辑器支持](#九编辑器支持) |
-| npm 包 `verseconf` | ❌ **已放弃发布**。registry 上的 0.1.0 不可用（包内缺 `pkg/` 目录，`require` 与 `import` 两条入口都失败）；修复版 0.2.0 已在仓库里构建并通过打包验收（12/12），但发布账号已不可用，不再发布 |
+| npm 包 `verseconf` | ❌ **已放弃发布**。registry 上的 0.1.0 不可用（包内缺 `pkg/` 目录，`require` 与 `import` 两条入口都失败）；修复版已在仓库里构建并通过打包验收（12/12），但发布账号已不可用，不再发布 |
 | 浏览器 CDN | ❌ 未发布。`pkg-web/` 产物未包含在任何已发布包中 |
 
 ## 六、快速开始
@@ -599,7 +599,7 @@ cargo publish -p verseconf-lsp
 **路线**
 
 - 把跨 `@include` 的语料扩到多层嵌套与"合并出来的表"（核心库、CLI、工具协议与基准已支持单层，见三）
-- **不再计划**：发布 npm 包。修复后的 0.2.0 产物留在仓库里，构建与打包验收都在 CI 里跑，
+- **不再计划**：发布 npm 包。修复后的产物留在仓库里，构建与打包验收都在 CI 里跑，
   但发布账号已不可用
 - 把 schema 推断的覆盖面扩大（例如由多个文件推断共享 schema）
 

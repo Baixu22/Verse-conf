@@ -55,7 +55,7 @@ verseconf-mcp --call verseconf_validate '{"source":"port = 8080\n"}'
 JS 运行时直接加载，不需要 Rust 工具链。
 
 > **但这条分发路径没有对外发布**：npm 包已放弃发布（发布账号不可用）。
-> 已发布的 `verseconf@0.1.0` 缺 `pkg/` 目录、两条入口都不可用；修复版 0.2.0
+> 已发布的 `verseconf@0.1.0` 缺 `pkg/` 目录、两条入口都不可用；修复版
 > 在仓库里构建并通过打包验收，但不会再发布。请使用上面的本机二进制形态，
 > 或从源码构建 wasm 产物（见 `integrations/verseconf-wasm/js-api`）。
 
