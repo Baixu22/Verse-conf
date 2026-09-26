@@ -117,8 +117,10 @@ xlarge.vcf  - 1MB    (10000 个配置项)
 - 优势随文件增大略有下降但保持稳定（约 1.25x）
 
 **VerseConf vs JSON**:
-- JSON 解析速度是 VerseConf 的 **2.8-5.0 倍**（`serde_json` 经过高度优化）
-- 小文件时 JSON 优势最大（5.0x），大文件时缩小到 2.8x
+- JSON 解析速度是 VerseConf 的 **2.77-5.65 倍**（`serde_json` 经过高度优化）
+- 优势最大出现在 medium 数据集（5.65x），xlarge 时缩小到 2.77x
+  （口径：`benchmark_results.json` 各规模 `vcf.avg_us / json.avg_us`，
+  small 4.88x / medium 5.65x / large 3.84x / xlarge 2.77x）
 
 **文件大小**:
 - VCF 与 TOML 相近（VCF 约大 8-12%）
@@ -147,7 +149,7 @@ xlarge.vcf  - 1MB    (10000 个配置项)
   解析前后的 RSS 变化，但仓库里没有这项数据
 - **增量支持**: VerseConf 支持增量解析与缓存(5.0)，TOML 和 JSON 不支持(2.0)
 - 综合得分是上述主观权重的合成，仅供参考，不是实测指标
-- VerseConf 的解析速度是 TOML 的 1.24-1.42 倍，相对 JSON 慢 2.8-5.0 倍
+- VerseConf 的解析速度是 TOML 的 1.24-1.42 倍，相对 JSON 慢 2.77-5.65 倍
 - VerseConf 支持增量解析与缓存，长期运行场景优势明显
 
 ### 1.5 实施计划
