@@ -11,6 +11,18 @@
  *   3. 同一串 JSON-RPC 请求喂给本机 `verseconf-mcp` 与 wasm 会话，
  *      逐行响应必须逐字节相同
  *
+ * 唯一的例外是 `verseconf_apply_edit` 的 `inputSchema`：wasm 目标没有文件系统，
+ * 因此**有意**不声明 `path`（TF-0063，用户确认过的收窄）。这一处不做逐字节比对，
+ * 改成分别断言两端的声明与实际行为各自自洽：
+ *
+ *   - 原生：声明 `path`，`oneOf` 覆盖 source 与 path 两支，真传 path 不会落到
+ *     「平台不支持」；
+ *   - wasm：不声明 `path`，`oneOf` 只要求 source，真传 path 返回
+ *     `unsupported_on_platform`。
+ *
+ * 除这一个工具外，所有响应仍然要求逐字节相同——「共用代码」不等于「能力相同」，
+ * 但能力差异必须被显式写出来并被测到，而不是让比对脚本假装两端一模一样。
+ *
  * 用法：
  *   node test/parity.mjs
  *   VERSECONF_CLI=/path/to/verseconf-cli VERSECONF_MCP=/path/to/verseconf-mcp node test/parity.mjs
@@ -52,6 +64,42 @@ function record(name, ok, detail) {
   } else {
     mismatches.push({ name, detail });
     console.error(`  FAIL  ${name}\n        ${detail}`);
+  }
+}
+
+/** 平台相关的那一个工具：wasm 有意不声明 path。 */
+const PLATFORM_TOOL = 'verseconf_apply_edit';
+
+/**
+ * 把 `verseconf_apply_edit` 的 `description` 与 `inputSchema` 换成占位标记，
+ * 其余原样保留。这一个工具的这两个字段都随平台变化（wasm 没有文件系统），
+ * 逐字节比对只会把有意为之的差异报成回归；差异本身由下面的平台断言逐条钉住。
+ * 解析失败时退回原文，不影响比对语义。
+ */
+function neutralizePlatformTool(jsonText) {
+  try {
+    const parsed = JSON.parse(jsonText);
+    const visit = (value) => {
+      if (Array.isArray(value)) {
+        value.forEach(visit);
+        return;
+      }
+      if (value && typeof value === 'object') {
+        if (value.name === PLATFORM_TOOL) {
+          if ('description' in value) {
+            value.description = '<platform-dependent>';
+          }
+          if ('inputSchema' in value) {
+            value.inputSchema = '<platform-dependent>';
+          }
+        }
+        Object.values(value).forEach(visit);
+      }
+    };
+    visit(parsed);
+    return JSON.stringify(parsed);
+  } catch {
+    return jsonText;
   }
 }
 
@@ -145,6 +193,10 @@ const requests = [
   { jsonrpc: '2.0', id: 12, method: 'tools/call', params: { arguments: {} } },
 ];
 
+// 通知不产生响应：比对时必须按「会回响应的请求」对齐，否则从通知之后开始
+// 每个标签都会错位一格，报出来的失败位置指向错误的请求。
+const answered = requests.filter((request) => request.id !== undefined);
+
 const lines = requests.map((request) => JSON.stringify(request));
 const native = spawnSync(mcpBin, [], { input: `${lines.join('\n')}\n`, encoding: 'utf8' });
 if (native.error) {
@@ -163,37 +215,120 @@ for (const line of lines) {
 
 record(
   '响应条数一致',
-  nativeLines.length === wasmLines.length,
-  `原生 ${nativeLines.length} 条，wasm ${wasmLines.length} 条`
+  nativeLines.length === wasmLines.length && nativeLines.length === answered.length,
+  `原生 ${nativeLines.length} 条，wasm ${wasmLines.length} 条，应回响应 ${answered.length} 条`
 );
 
 const count = Math.min(nativeLines.length, wasmLines.length);
+const toolsListIndex = answered.findIndex((request) => request.method === 'tools/list');
+
 for (let index = 0; index < count; index += 1) {
-  const label = `#${index + 1} ${requests[index].method}${requests[index].params?.name ? ` ${requests[index].params.name}` : ''}`;
-  if (nativeLines[index] === wasmLines[index]) {
-    record(label, true);
+  const request = answered[index];
+  const label = `#${request.id} ${request.method}${request.params?.name ? ` ${request.params.name}` : ''}`;
+  const platformDependent = request.method === 'tools/list';
+  const name = platformDependent ? `${label}（apply_edit 的平台差异除外）` : label;
+  const nativeText = platformDependent ? neutralizePlatformTool(nativeLines[index]) : nativeLines[index];
+  const wasmText = platformDependent ? neutralizePlatformTool(wasmLines[index]) : wasmLines[index];
+
+  if (nativeText === wasmText) {
+    record(name, true);
   } else {
     // 逐字节不同时再看语义是否相同，便于定位是序列化顺序还是行为差异
     let semanticallyEqual = false;
     try {
-      semanticallyEqual = JSON.stringify(JSON.parse(nativeLines[index])) === JSON.stringify(JSON.parse(wasmLines[index]));
+      semanticallyEqual =
+        JSON.stringify(JSON.parse(nativeText)) === JSON.stringify(JSON.parse(wasmText));
     } catch {
       semanticallyEqual = false;
     }
     record(
-      label,
+      name,
       false,
       `原生：${nativeLines[index]}\n        wasm：${wasmLines[index]}\n        语义相同=${semanticallyEqual}`
     );
   }
 }
 
+console.log('== 平台差异：apply_edit 的声明与实际必须各自自洽');
+
+const toolsOf = (jsonText) => {
+  const parsed = JSON.parse(jsonText);
+  return parsed.result?.tools ?? parsed.tools ?? [];
+};
+const findApplyEdit = (tools) => tools.find((tool) => tool.name === PLATFORM_TOOL);
+
+const nativeApplyEdit = toolsListIndex >= 0 ? findApplyEdit(toolsOf(nativeLines[toolsListIndex])) : undefined;
+const wasmApplyEdit = toolsListIndex >= 0 ? findApplyEdit(toolsOf(wasmLines[toolsListIndex])) : undefined;
+
+record(
+  '原生声明 apply_edit 的 path',
+  Boolean(nativeApplyEdit?.inputSchema?.properties?.path),
+  `原生 apply_edit 的 properties=${JSON.stringify(Object.keys(nativeApplyEdit?.inputSchema?.properties ?? {}))}`
+);
+record(
+  '原生 oneOf 覆盖 source 与 path 两支',
+  nativeApplyEdit?.inputSchema?.oneOf?.length === 2,
+  `原生 oneOf=${JSON.stringify(nativeApplyEdit?.inputSchema?.oneOf)}`
+);
+record(
+  'wasm 不声明 apply_edit 的 path',
+  wasmApplyEdit !== undefined && !wasmApplyEdit.inputSchema?.properties?.path,
+  `wasm apply_edit 的 properties=${JSON.stringify(Object.keys(wasmApplyEdit?.inputSchema?.properties ?? {}))}`
+);
+record(
+  'wasm oneOf 只要求 source',
+  wasmApplyEdit?.inputSchema?.oneOf?.length === 1 &&
+    JSON.stringify(wasmApplyEdit.inputSchema.oneOf[0]) === JSON.stringify({ required: ['source'] }),
+  `wasm oneOf=${JSON.stringify(wasmApplyEdit?.inputSchema?.oneOf)}`
+);
+record(
+  'wasm 的描述写明只接受 source',
+  typeof wasmApplyEdit?.description === 'string' && wasmApplyEdit.description.includes('wasm'),
+  `wasm apply_edit 的 description=${wasmApplyEdit?.description}`
+);
+
+// 声明与实际必须一致：真传 path 时两端的行为要跟各自的声明对得上。
+const pathRequest = JSON.stringify({
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'tools/call',
+  params: { name: PLATFORM_TOOL, arguments: { path: 'definitely-missing.vcf', plan: PLAN } },
+});
+const codeOf = (line) => {
+  try {
+    return JSON.parse(line).result?.structuredContent?.code;
+  } catch {
+    return undefined;
+  }
+};
+const nativePathLine = spawnSync(mcpBin, [], { input: `${pathRequest}\n`, encoding: 'utf8' })
+  .stdout.split('\n')
+  .filter((line) => line.length > 0)[0];
+const wasmPathLine = new api.McpSession().handleLine(pathRequest);
+const nativePathCode = codeOf(nativePathLine);
+const wasmPathCode = codeOf(wasmPathLine);
+
+record(
+  '原生传 path 不会落到「平台不支持」',
+  nativePathCode !== 'unsupported_on_platform',
+  `原生 code=${nativePathCode}`
+);
+record(
+  'wasm 传 path 返回 unsupported_on_platform',
+  wasmPathCode === 'unsupported_on_platform',
+  `wasm code=${wasmPathCode}`
+);
+
 // `--list-tools` / `--call` 两个便捷入口也要一致
 const nativeTools = spawnSync(mcpBin, ['--list-tools'], { encoding: 'utf8' }).stdout;
 const wasmTools = spawnSync(process.execPath, [path.join(packageRoot, 'bin', 'verseconf-mcp-wasm.mjs'), '--list-tools'], {
   encoding: 'utf8',
 }).stdout;
-record('--list-tools 输出一致', nativeTools === wasmTools, '两个入口的工具清单不一致');
+record(
+  '--list-tools 输出一致（apply_edit 的平台差异除外）',
+  neutralizePlatformTool(nativeTools) === neutralizePlatformTool(wasmTools),
+  '两个入口的工具清单除 apply_edit 的平台差异外仍不一致'
+);
 
 const callArgs = JSON.stringify({ source: SOURCE });
 const nativeCall = spawnSync(mcpBin, ['--call', 'verseconf_validate', callArgs], { encoding: 'utf8' });
