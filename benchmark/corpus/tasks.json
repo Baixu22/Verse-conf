@@ -1,12 +1,14 @@
 {
-  "version": "1.0",
+  "version": "1.2",
   "documents": {
     "commented": "documents/commented.vcf",
     "named-list": "documents/named-list.vcf",
     "inline": "documents/inline.vcf",
     "schema": "documents/schema.vcf",
     "secrets": "documents/secrets.vcf",
-    "crlf": "documents/crlf.vcf"
+    "crlf": "documents/crlf.vcf",
+    "cross-root": "documents/cross/root.vcf",
+    "cross-base": "documents/cross/base.vcf"
   },
   "tasks": [
     {
@@ -16,10 +18,25 @@
       "plan": {
         "version": "1.0",
         "edits": [
-          { "op": "set", "path": ["server", "port"], "value": 9090, "reason": "端口冲突" }
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": 9090,
+            "reason": "端口冲突"
+          }
         ]
       },
-      "expect": { "outcome": "applied", "path": ["server", "port"], "value": 9090 }
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "port"
+        ],
+        "value": 9090
+      }
     },
     {
       "id": "set-deep-nested",
@@ -27,9 +44,27 @@
       "description": "改三层嵌套里的标量",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["server", "database", "port"], "value": 5433 }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "database",
+              "port"
+            ],
+            "value": 5433
+          }
+        ]
       },
-      "expect": { "outcome": "applied", "path": ["server", "database", "port"], "value": 5433 }
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "database",
+          "port"
+        ],
+        "value": 5433
+      }
     },
     {
       "id": "set-unusual-spacing",
@@ -38,12 +73,24 @@
       "plan": {
         "version": "1.0",
         "edits": [
-          { "op": "set", "path": ["server", "database", "host"], "value": "db2.internal" }
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "database",
+              "host"
+            ],
+            "value": "db2.internal"
+          }
         ]
       },
       "expect": {
         "outcome": "applied",
-        "path": ["server", "database", "host"],
+        "path": [
+          "server",
+          "database",
+          "host"
+        ],
         "value": "db2.internal"
       }
     },
@@ -56,13 +103,25 @@
         "edits": [
           {
             "op": "set",
-            "path": ["server", "host"],
+            "path": [
+              "server",
+              "host"
+            ],
             "value": "127.0.0.1",
-            "expect": { "value": "0.0.0.0" }
+            "expect": {
+              "value": "0.0.0.0"
+            }
           }
         ]
       },
-      "expect": { "outcome": "applied", "path": ["server", "host"], "value": "127.0.0.1" }
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "host"
+        ],
+        "value": "127.0.0.1"
+      }
     },
     {
       "id": "set-crlf",
@@ -70,9 +129,25 @@
       "description": "CRLF 文件改一处，换行符必须保持 CRLF",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["server", "port"], "value": 9090 }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": 9090
+          }
+        ]
       },
-      "expect": { "outcome": "applied", "path": ["server", "port"], "value": 9090 }
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "port"
+        ],
+        "value": 9090
+      }
     },
     {
       "id": "set-root-scalar",
@@ -80,9 +155,23 @@
       "description": "改根表里一个没有空格的赋值",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["port"], "value": 9090 }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "port"
+            ],
+            "value": 9090
+          }
+        ]
       },
-      "expect": { "outcome": "applied", "path": ["port"], "value": 9090 }
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "port"
+        ],
+        "value": 9090
+      }
     },
     {
       "id": "set-quoted-value",
@@ -90,9 +179,23 @@
       "description": "改一个含空格的非 ASCII 字符串值",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["quoted"], "value": "新的 值" }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "quoted"
+            ],
+            "value": "新的 值"
+          }
+        ]
       },
-      "expect": { "outcome": "applied", "path": ["quoted"], "value": "新的 值" }
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "quoted"
+        ],
+        "value": "新的 值"
+      }
     },
     {
       "id": "set-named-list-element",
@@ -103,14 +206,30 @@
         "edits": [
           {
             "op": "set",
-            "path": [{ "key": "servers", "match": { "name": "replica" } }, "weight"],
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "replica"
+                }
+              },
+              "weight"
+            ],
             "value": 20
           }
         ]
       },
       "expect": {
         "outcome": "applied",
-        "path": [{ "key": "servers", "match": { "name": "replica" } }, "weight"],
+        "path": [
+          {
+            "key": "servers",
+            "match": {
+              "name": "replica"
+            }
+          },
+          "weight"
+        ],
         "value": 20
       }
     },
@@ -123,12 +242,23 @@
         "edits": [
           {
             "op": "set",
-            "path": [{ "key": "servers", "match": { "name": "primary" } }, "ip"],
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "primary"
+                }
+              },
+              "ip"
+            ],
             "value": "10.9.9.9"
           }
         ]
       },
-      "expect": { "outcome": "refused", "code": "target_ambiguous" }
+      "expect": {
+        "outcome": "refused",
+        "code": "target_ambiguous"
+      }
     },
     {
       "id": "refuse-missing",
@@ -136,9 +266,21 @@
       "description": "目标字段不存在时必须拒绝",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["server", "missing"], "value": 1 }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "missing"
+            ],
+            "value": 1
+          }
+        ]
       },
-      "expect": { "outcome": "refused", "code": "target_not_found" }
+      "expect": {
+        "outcome": "refused",
+        "code": "target_not_found"
+      }
     },
     {
       "id": "refuse-stale-expect",
@@ -149,13 +291,21 @@
         "edits": [
           {
             "op": "set",
-            "path": ["server", "port"],
+            "path": [
+              "server",
+              "port"
+            ],
             "value": 1,
-            "expect": { "value": 1234 }
+            "expect": {
+              "value": 1234
+            }
           }
         ]
       },
-      "expect": { "outcome": "refused", "code": "expectation_mismatch" }
+      "expect": {
+        "outcome": "refused",
+        "code": "expectation_mismatch"
+      }
     },
     {
       "id": "refuse-schema-break",
@@ -163,9 +313,21 @@
       "description": "把 schema 声明为整数的字段改成字符串必须被拒绝",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["server", "port"], "value": "not-a-number" }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": "not-a-number"
+          }
+        ]
       },
-      "expect": { "outcome": "refused", "code": "validation_failed" }
+      "expect": {
+        "outcome": "refused",
+        "code": "validation_failed"
+      }
     },
     {
       "id": "refuse-security",
@@ -173,9 +335,21 @@
       "description": "关闭证书校验必须被拒绝",
       "plan": {
         "version": "1.0",
-        "edits": [{ "op": "set", "path": ["tls", "ssl_verify"], "value": false }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "tls",
+              "ssl_verify"
+            ],
+            "value": false
+          }
+        ]
       },
-      "expect": { "outcome": "refused", "code": "security_rejected" }
+      "expect": {
+        "outcome": "refused",
+        "code": "security_rejected"
+      }
     },
     {
       "id": "refuse-invalid-plan",
@@ -183,9 +357,434 @@
       "description": "契约版本不符的编辑计划必须被拒绝",
       "plan": {
         "version": "9.9",
-        "edits": [{ "op": "set", "path": ["server", "port"], "value": 9090 }]
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": 9090
+          }
+        ]
       },
-      "expect": { "outcome": "refused", "code": "invalid_plan" }
+      "expect": {
+        "outcome": "refused",
+        "code": "invalid_plan"
+      }
+    },
+    {
+      "id": "insert-root-key",
+      "document": "inline",
+      "description": "在根表插入一个新键（追加在文件末尾是等价的）",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "insert",
+            "path": [
+              "region"
+            ],
+            "value": "eu-west-1",
+            "reason": "新增区域"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "region"
+        ],
+        "value": "eu-west-1"
+      }
+    },
+    {
+      "id": "insert-nested-key",
+      "document": "commented",
+      "description": "在嵌套表内部插入一个键：不能简单追加到文件末尾",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "insert",
+            "path": [
+              "server",
+              "workers"
+            ],
+            "value": 4,
+            "reason": "提高并发"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "workers"
+        ],
+        "value": 4
+      }
+    },
+    {
+      "id": "insert-into-inline-table-scope",
+      "document": "inline",
+      "description": "插入时不得动到已有的内联表与非常规空白",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "insert",
+            "path": [
+              "owner"
+            ],
+            "value": "platform-team"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "owner"
+        ],
+        "value": "platform-team"
+      }
+    },
+    {
+      "id": "delete-root-key",
+      "document": "inline",
+      "description": "删除根表的一个键，其余写法原样保留",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "delete",
+            "path": [
+              "quoted"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "quoted"
+        ]
+      }
+    },
+    {
+      "id": "delete-nested-key-with-metadata",
+      "document": "commented",
+      "description": "删除带行尾注释与 #@ 元数据的嵌套键",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "delete",
+            "path": [
+              "server",
+              "timeout"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "id": "delete-named-list-field",
+      "document": "named-list",
+      "description": "删除命名列表里某个元素的字段：按字段名找第一处的实现会删错元素",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "delete",
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "replica"
+                }
+              },
+              "weight"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          {
+            "key": "servers",
+            "match": {
+              "name": "replica"
+            }
+          },
+          "weight"
+        ]
+      }
+    },
+    {
+      "id": "multi-set-two-tables",
+      "document": "commented",
+      "description": "一个计划里改两处不同表的字段：两处都必须是字符区间级最小改动",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": 9090,
+            "reason": "端口冲突"
+          },
+          {
+            "op": "set",
+            "path": [
+              "logging",
+              "level"
+            ],
+            "value": "debug"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "targets": [
+          {
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": 9090
+          },
+          {
+            "path": [
+              "logging",
+              "level"
+            ],
+            "value": "debug"
+          }
+        ]
+      }
+    },
+    {
+      "id": "multi-set-and-delete",
+      "document": "inline",
+      "description": "一个计划里同时改一处、删一处（混合操作）",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "port"
+            ],
+            "value": 9090
+          },
+          {
+            "op": "delete",
+            "path": [
+              "quoted"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "targets": [
+          {
+            "path": [
+              "port"
+            ],
+            "value": 9090
+          },
+          {
+            "path": [
+              "quoted"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "multi-set-same-named-element",
+      "document": "named-list",
+      "description": "同一个命名列表元素上改两个字段",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "replica"
+                }
+              },
+              "ip"
+            ],
+            "value": "10.0.0.30"
+          },
+          {
+            "op": "set",
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "replica"
+                }
+              },
+              "weight"
+            ],
+            "value": 20
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "targets": [
+          {
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "replica"
+                }
+              },
+              "ip"
+            ],
+            "value": "10.0.0.30"
+          },
+          {
+            "path": [
+              {
+                "key": "servers",
+                "match": {
+                  "name": "replica"
+                }
+              },
+              "weight"
+            ],
+            "value": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "cross-set-included-scalar",
+      "document": "cross-root",
+      "description": "目标只在被包含文件里：必须改那个文件，而不是入口文件",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "server",
+              "port"
+            ],
+            "value": 9443,
+            "reason": "换 TLS 端口"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "server",
+          "port"
+        ],
+        "value": 9443,
+        "target_file": "cross-base"
+      }
+    },
+    {
+      "id": "cross-set-included-with-comment",
+      "document": "cross-root",
+      "description": "改被包含文件里的标量，行尾注释必须原样保留",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "logging",
+              "level"
+            ],
+            "value": "debug"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "logging",
+          "level"
+        ],
+        "value": "debug",
+        "target_file": "cross-base"
+      }
+    },
+    {
+      "id": "cross-set-root-key",
+      "document": "cross-root",
+      "description": "目标在入口文件里：不该因为文件里还有 include 就改错地方",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "set",
+            "path": [
+              "app",
+              "name"
+            ],
+            "value": "svc2"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "app",
+          "name"
+        ],
+        "value": "svc2",
+        "target_file": "cross-root"
+      }
+    },
+    {
+      "id": "cross-delete-included-key",
+      "document": "cross-root",
+      "description": "删除被包含文件里的键，其余行一个字节不动",
+      "plan": {
+        "version": "1.0",
+        "edits": [
+          {
+            "op": "delete",
+            "path": [
+              "logging",
+              "level"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "applied",
+        "path": [
+          "logging",
+          "level"
+        ],
+        "target_file": "cross-base"
+      }
     }
   ]
 }

@@ -1,0 +1,6 @@
+# 跨文件编辑的入口文档：目标可能落在被包含的 base.vcf 里
+@include "base.vcf" merge=deep_merge
+
+app {
+  name = "svc" #@ required
+}

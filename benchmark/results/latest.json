@@ -1,22 +1,22 @@
 {
-  "methodology_version": "1.0",
-  "corpus_fingerprint": "115811767f1177d0",
-  "document_count": 6,
-  "task_count": 14,
+  "methodology_version": "1.2",
+  "corpus_fingerprint": "162777399290a695",
+  "document_count": 8,
+  "task_count": 27,
   "strategies": [
     {
       "name": "verseconf-intent",
       "summary": "意图契约 + 字符区间最小改动 + 写入前双重校验",
       "metrics": {
-        "applied_tasks": 8,
+        "applied_tasks": 21,
         "refused_tasks": 6,
-        "correct": 8,
+        "correct": 21,
         "collateral": 0,
         "wrong": 0,
         "refused_correctly": 6,
         "refused_wrongly": 0,
         "applied_wrongly": 0,
-        "comments_kept": 8,
+        "comments_kept": 21,
         "deterministic": true
       },
       "results": [
@@ -133,7 +133,7 @@
           "description": "关闭证书校验必须被拒绝",
           "expected": "refused(security_rejected)",
           "outcome": "refused_correctly",
-          "detail": "按 security_rejected 拒绝：改动引入新的安全风险：<result>（SEC-005）",
+          "detail": "按 security_rejected 拒绝：改动引入新的安全风险：<result>（SEC-005 @ tls.ssl_verify）",
           "comments_kept": true,
           "deterministic": true
         },
@@ -145,6 +145,123 @@
           "detail": "按 invalid_plan 拒绝：unsupported_version: 契约版本 '9.9' 不受支持，当前只接受 1.0",
           "comments_kept": true,
           "deterministic": true
+        },
+        {
+          "task_id": "insert-root-key",
+          "description": "在根表插入一个新键（追加在文件末尾是等价的）",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已插入，插入区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-nested-key",
+          "description": "在嵌套表内部插入一个键：不能简单追加到文件末尾",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已插入，插入区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-into-inline-table-scope",
+          "description": "插入时不得动到已有的内联表与非常规空白",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已插入，插入区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-root-key",
+          "description": "删除根表的一个键，其余写法原样保留",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已删除，删除区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-nested-key-with-metadata",
+          "description": "删除带行尾注释与 #@ 元数据的嵌套键",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已删除，删除区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-named-list-field",
+          "description": "删除命名列表里某个元素的字段：按字段名找第一处的实现会删错元素",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已删除，删除区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-two-tables",
+          "description": "一个计划里改两处不同表的字段：两处都必须是字符区间级最小改动",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "2 个目标全部成立，改动之外的行与字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-and-delete",
+          "description": "一个计划里同时改一处、删一处（混合操作）",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "2 个目标全部成立，改动之外的行与字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-same-named-element",
+          "description": "同一个命名列表元素上改两个字段",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "2 个目标全部成立，改动之外的行与字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-included-scalar",
+          "description": "目标只在被包含文件里：必须改那个文件，而不是入口文件",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-included-with-comment",
+          "description": "改被包含文件里的标量，行尾注释必须原样保留",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-root-key",
+          "description": "目标在入口文件里：不该因为文件里还有 include 就改错地方",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标值已改对，改动区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-delete-included-key",
+          "description": "删除被包含文件里的键，其余行一个字节不动",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已删除，删除区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
         }
       ]
     },
@@ -152,15 +269,15 @@
       "name": "whole-file-rewrite",
       "summary": "改值后整个文件按 AI 友好规范形式重新序列化，无写入前校验",
       "metrics": {
-        "applied_tasks": 8,
+        "applied_tasks": 21,
         "refused_tasks": 6,
         "correct": 0,
-        "collateral": 8,
+        "collateral": 21,
         "wrong": 0,
         "refused_correctly": 3,
         "refused_wrongly": 0,
         "applied_wrongly": 3,
-        "comments_kept": 8,
+        "comments_kept": 19,
         "deterministic": true
       },
       "results": [
@@ -289,6 +406,123 @@
           "detail": "按 invalid_plan 拒绝：unsupported_version: 契约版本 '9.9' 不受支持，当前只接受 1.0",
           "comments_kept": true,
           "deterministic": true
+        },
+        {
+          "task_id": "insert-root-key",
+          "description": "在根表插入一个新键（追加在文件末尾是等价的）",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 6→10，不同行 9，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-nested-key",
+          "description": "在嵌套表内部插入一个键：不能简单追加到文件末尾",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 23→22，不同行 17，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-into-inline-table-scope",
+          "description": "插入时不得动到已有的内联表与非常规空白",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 6→10，不同行 9，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-root-key",
+          "description": "删除根表的一个键，其余写法原样保留",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 6→8，不同行 7，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-nested-key-with-metadata",
+          "description": "删除带行尾注释与 #@ 元数据的嵌套键",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 23→20，不同行 17，CRLF 否→否",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-named-list-field",
+          "description": "删除命名列表里某个元素的字段：按字段名找第一处的实现会删错元素",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 16→13，不同行 13，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-two-tables",
+          "description": "一个计划里改两处不同表的字段：两处都必须是字符区间级最小改动",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "目标之外的前缀字节被改动：应原样保留 \"# 服务端配置\\\\n# 这份文档专门用来检验「改动之外字节零变化」：\\\\n# 有多余…\"",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-and-delete",
+          "description": "一个计划里同时改一处、删一处（混合操作）",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "目标之外的前缀字节被改动：应原样保留 \"# 内联表、数组与非常规空白：值替换不该动到别的写法\\\\napp = { name…\"",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-same-named-element",
+          "description": "同一个命名列表元素上改两个字段",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "目标之外的前缀字节被改动：应原样保留 \"# 命名列表：按 name 字段定位唯一元素。\\\\n# 前两条同名，任何\\\"挑第一个…\"",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-included-scalar",
+          "description": "目标只在被包含文件里：必须改那个文件，而不是入口文件",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 9→8，不同行 8，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-included-with-comment",
+          "description": "改被包含文件里的标量，行尾注释必须原样保留",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 9→8，不同行 8，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-root-key",
+          "description": "目标在入口文件里：不该因为文件里还有 include 就改错地方",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之前与之后的字节也变了：行数 6→5，不同行 5，CRLF 否→否",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-delete-included-key",
+          "description": "删除被包含文件里的键，其余行一个字节不动",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动之外的字节也变了：行数 9→7，不同行 8，CRLF 否→否",
+          "comments_kept": false,
+          "deterministic": true
         }
       ]
     },
@@ -296,15 +530,15 @@
       "name": "line-diff",
       "summary": "按字段名找第一处匹配行并整行替换，无路径解析、无写入前校验",
       "metrics": {
-        "applied_tasks": 8,
+        "applied_tasks": 21,
         "refused_tasks": 6,
-        "correct": 2,
-        "collateral": 3,
-        "wrong": 3,
+        "correct": 6,
+        "collateral": 6,
+        "wrong": 6,
         "refused_correctly": 2,
-        "refused_wrongly": 0,
+        "refused_wrongly": 3,
         "applied_wrongly": 4,
-        "comments_kept": 3,
+        "comments_kept": 8,
         "deterministic": true
       },
       "results": [
@@ -431,6 +665,123 @@
           "expected": "refused(invalid_plan)",
           "outcome": "refused_correctly",
           "detail": "按 invalid_plan 拒绝：unsupported_version: 契约版本 '9.9' 不受支持，当前只接受 1.0",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-root-key",
+          "description": "在根表插入一个新键（追加在文件末尾是等价的）",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已插入，插入区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-nested-key",
+          "description": "在嵌套表内部插入一个键：不能简单追加到文件末尾",
+          "expected": "applied",
+          "outcome": "wrong",
+          "detail": "目标值应为 4，实际为 <缺失>",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "insert-into-inline-table-scope",
+          "description": "插入时不得动到已有的内联表与非常规空白",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已插入，插入区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-root-key",
+          "description": "删除根表的一个键，其余写法原样保留",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已删除，删除区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-nested-key-with-metadata",
+          "description": "删除带行尾注释与 #@ 元数据的嵌套键",
+          "expected": "applied",
+          "outcome": "correct",
+          "detail": "目标已删除，删除区间之外字节零变化",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "delete-named-list-field",
+          "description": "删除命名列表里某个元素的字段：按字段名找第一处的实现会删错元素",
+          "expected": "applied",
+          "outcome": "wrong",
+          "detail": "目标 servers[name=\"replica\"].weight 应被删除，实际仍然存在：10",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-two-tables",
+          "description": "一个计划里改两处不同表的字段：两处都必须是字符区间级最小改动",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "目标之外的后缀字节被改动：应原样保留 \" #@ type_hint=\\\"string\\\"\\\\n  output = [\\\"std…\"",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-and-delete",
+          "description": "一个计划里同时改一处、删一处（混合操作）",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "目标之外的前缀字节被改动：应原样保留 \"# 内联表、数组与非常规空白：值替换不该动到别的写法\\\\napp = { name…\"",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "multi-set-same-named-element",
+          "description": "同一个命名列表元素上改两个字段",
+          "expected": "applied",
+          "outcome": "wrong",
+          "detail": "目标 servers[name=\"replica\"].ip 应为 \"10.0.0.30\"，实际为 \"10.0.0.3\"",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-included-scalar",
+          "description": "目标只在被包含文件里：必须改那个文件，而不是入口文件",
+          "expected": "applied",
+          "outcome": "refused_wrongly",
+          "detail": "应当改动，实际以 target_not_found 拒绝",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-included-with-comment",
+          "description": "改被包含文件里的标量，行尾注释必须原样保留",
+          "expected": "applied",
+          "outcome": "refused_wrongly",
+          "detail": "应当改动，实际以 target_not_found 拒绝",
+          "comments_kept": true,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-set-root-key",
+          "description": "目标在入口文件里：不该因为文件里还有 include 就改错地方",
+          "expected": "applied",
+          "outcome": "collateral",
+          "detail": "改动区间之后的字节也变了：行数 6→6，不同行 1，CRLF 否→否",
+          "comments_kept": false,
+          "deterministic": true
+        },
+        {
+          "task_id": "cross-delete-included-key",
+          "description": "删除被包含文件里的键，其余行一个字节不动",
+          "expected": "applied",
+          "outcome": "refused_wrongly",
+          "detail": "应当改动，实际以 target_not_found 拒绝",
           "comments_kept": true,
           "deterministic": true
         }

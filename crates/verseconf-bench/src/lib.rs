@@ -4,7 +4,12 @@
 //! 因为判定不依赖任何被测实现：
 //!
 //! - **附带损伤**的定义直接来自意图执行协议的验收口径「改动之外的字节零变化」，
-//!   只由原始源码与目标值的字节区间决定；
+//!   只由原始源码与改动区域决定。三种操作各有其形态：
+//!   - `set`：原值区间的**前缀与后缀**必须逐字节不变；
+//!   - `insert`：**原文的每一个字节**都必须落在结果的最长公共前缀或后缀里
+//!     （即原文没有被改动，只是多了一段）；
+//!   - `delete`：**结果的每一个字节**都必须落在原文的最长公共前缀或后缀里
+//!     （即只是少了一段，其余没被动过）；
 //! - **正确**的定义是「目标字段的值确实变成了期望值」；
 //! - **拒绝**必须给出期望的稳定错误码，拒绝理由不对不算通过——否则"一律拒绝"也能拿满分。
 
@@ -19,7 +24,7 @@ use std::path::{Path, PathBuf};
 use verseconf_core::{EditValue, PathSegment};
 
 /// 判定口径的版本。判定规则变化时必须递增，否则历史结果不可比。
-pub const METHODOLOGY_VERSION: &str = "1.0";
+pub const METHODOLOGY_VERSION: &str = "1.2";
 
 /// 固定语料：一组文档 + 一组编辑任务
 #[derive(Debug, Clone, Deserialize)]
@@ -45,15 +50,54 @@ pub struct Task {
 pub struct Expectation {
     /// `applied` 或 `refused`
     pub outcome: String,
-    /// `applied` 时目标字段的路径
+    /// `applied` 时目标字段的路径（单条编辑）
     #[serde(default)]
     pub path: Vec<serde_json::Value>,
-    /// `applied` 时目标字段的期望值
+    /// `applied` 时目标字段的期望值（单条编辑）
     #[serde(default)]
     pub value: Option<serde_json::Value>,
     /// `refused` 时期望的稳定错误码
     #[serde(default)]
     pub code: Option<String>,
+    /// 跨文件任务：期望被改动的文件（文档键）。
+    ///
+    /// 非空时该任务走跨 @include 的评测路径：策略从 document 指向的入口文件出发，
+    /// 允许顺着 include 走到别的文件；判定拿**这个文件**的内容做附带损伤比对，
+    /// 并且要求策略改动的正是这个文件。
+    #[serde(default)]
+    pub target_file: Option<String>,
+    /// **多条编辑**计划里每个目标的期望。
+    ///
+    /// 非空时走多编辑判定：每个目标都要成立，且改动必须**只**落在这些目标上。
+    /// 为空时沿用单条编辑的判定路径，历史任务的语义与数字都不变。
+    #[serde(default)]
+    pub targets: Vec<TargetExpect>,
+}
+
+/// 多编辑计划里的一个目标
+#[derive(Debug, Clone, Deserialize)]
+pub struct TargetExpect {
+    /// 目标字段的路径
+    pub path: Vec<serde_json::Value>,
+    /// 期望值；`delete` 目标省略
+    #[serde(default)]
+    pub value: Option<serde_json::Value>,
+}
+
+impl TargetExpect {
+    pub fn path(&self) -> Result<Vec<PathSegment>, String> {
+        serde_json::from_value(serde_json::Value::Array(self.path.clone()))
+            .map_err(|error| format!("expect.targets 里的 path 无法解析：{error}"))
+    }
+
+    pub fn value(&self) -> Result<Option<EditValue>, String> {
+        match &self.value {
+            None => Ok(None),
+            Some(raw) => serde_json::from_value(raw.clone())
+                .map(Some)
+                .map_err(|error| format!("expect.targets 里的 value 无法解析：{error}")),
+        }
+    }
 }
 
 impl Task {
@@ -63,6 +107,27 @@ impl Task {
 
     pub fn plan_json(&self) -> String {
         self.plan.to_string()
+    }
+
+    /// 编辑计划里的操作类型（`set` / `insert` / `delete`）。
+    ///
+    /// 判定需要知道是哪种操作，因为"改动之外字节零变化"在三种操作下的
+    /// 形态不同：替换是「前后缀不变」，插入是「原文全被前后缀覆盖」，
+    /// 删除是「新文全被前后缀覆盖」。
+    pub fn plan_op(&self) -> Result<String, String> {
+        self.plan
+            .get("edits")
+            .and_then(|edits| edits.as_array())
+            .and_then(|edits| edits.first())
+            .and_then(|edit| edit.get("op"))
+            .and_then(|op| op.as_str())
+            .map(str::to_string)
+            .ok_or_else(|| format!("任务 {} 的 plan 里读不到 edits[0].op", self.id))
+    }
+
+    /// 是否是多条编辑的任务
+    pub fn is_multi_edit(&self) -> bool {
+        !self.expect.targets.is_empty()
     }
 
     pub fn expect_path(&self) -> Result<Vec<PathSegment>, String> {
@@ -260,26 +325,32 @@ pub fn run(corpus_dir: &Path, repeat: usize) -> Result<RunReport, String> {
         sources.insert(key.clone(), corpus.source(corpus_dir, key)?);
     }
 
+    // 跨文件任务需要的文件树：相对路径 → 内容。仍然不碰磁盘——语料就是文件树。
+    let tree: strategies::FileTree = corpus
+        .documents
+        .iter()
+        .filter_map(|(key, relative)| {
+            sources
+                .get(key)
+                .map(|source| (PathBuf::from(relative), source.clone()))
+        })
+        .collect();
+
     let mut strategies = Vec::new();
     for strategy in strategies::all() {
         let mut results = Vec::new();
-        let mut forward: Vec<strategies::StrategyOutcome> = Vec::new();
+        let mut forward: Vec<RunOutcome> = Vec::new();
 
         for task in &corpus.tasks {
-            let source = sources
-                .get(&task.document)
-                .ok_or_else(|| format!("任务 {} 引用了未知文档 {}", task.id, task.document))?;
-            let plan_json = task.plan_json();
-
-            let first = strategy.apply(source, &plan_json);
+            let first = evaluate(strategy.as_ref(), task, &corpus, &sources, &tree)?;
             let mut deterministic = true;
             for _ in 1..repeat {
-                if strategy.apply(source, &plan_json) != first {
+                if evaluate(strategy.as_ref(), task, &corpus, &sources, &tree)? != first {
                     deterministic = false;
                 }
             }
 
-            let judgement = judge::judge(task, source, &first)?;
+            let judgement = judge_task(task, &first, &corpus, &sources)?;
             results.push(TaskResult {
                 task_id: task.id.clone(),
                 description: task.description.clone(),
@@ -297,12 +368,9 @@ pub fn run(corpus_dir: &Path, repeat: usize) -> Result<RunReport, String> {
         }
 
         // 逆序再跑一遍：捕捉策略内部的顺序依赖或共享状态。
-        let mut reverse: Vec<strategies::StrategyOutcome> = Vec::new();
+        let mut reverse: Vec<RunOutcome> = Vec::new();
         for task in corpus.tasks.iter().rev() {
-            let source = sources
-                .get(&task.document)
-                .ok_or_else(|| format!("任务 {} 引用了未知文档 {}", task.id, task.document))?;
-            reverse.push(strategy.apply(source, &task.plan_json()));
+            reverse.push(evaluate(strategy.as_ref(), task, &corpus, &sources, &tree)?);
         }
         reverse.reverse();
         let order_independent = forward == reverse;
@@ -323,6 +391,102 @@ pub fn run(corpus_dir: &Path, repeat: usize) -> Result<RunReport, String> {
         task_count: corpus.tasks.len(),
         strategies,
     })
+}
+
+/// 一次评测里策略的输出。单文件与跨文件统一成同一形状，便于做确定性比对。
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum RunOutcome {
+    Single(strategies::StrategyOutcome),
+    Across(strategies::FileOutcome),
+}
+
+/// 按任务类型选择评测路径：跨文件任务从入口文件出发，允许顺着 include 走。
+fn evaluate(
+    strategy: &dyn strategies::EditStrategy,
+    task: &Task,
+    corpus: &Corpus,
+    sources: &BTreeMap<String, String>,
+    tree: &strategies::FileTree,
+) -> Result<RunOutcome, String> {
+    let plan_json = task.plan_json();
+
+    match &task.expect.target_file {
+        Some(target_key) => {
+            let entry = document_path(corpus, &task.document)?;
+            // 目标文件也得存在，否则是语料写错了
+            let _ = document_path(corpus, target_key)?;
+            Ok(RunOutcome::Across(
+                strategy.apply_across_files(tree, &entry, &plan_json),
+            ))
+        }
+        None => {
+            let source = sources
+                .get(&task.document)
+                .ok_or_else(|| format!("任务 {} 引用了未知文档 {}", task.id, task.document))?;
+            Ok(RunOutcome::Single(strategy.apply(source, &plan_json)))
+        }
+    }
+}
+
+fn document_path(corpus: &Corpus, key: &str) -> Result<PathBuf, String> {
+    corpus
+        .documents
+        .get(key)
+        .map(PathBuf::from)
+        .ok_or_else(|| format!("语料里没有文档 {}", key))
+}
+
+/// 判定。跨文件任务拿**目标文件**的内容做附带损伤比对，并且要求改的正是那个文件——
+/// 改到别的文件上属于定位错误，直接记误改，不必再走单文件判定。
+fn judge_task(
+    task: &Task,
+    outcome: &RunOutcome,
+    corpus: &Corpus,
+    sources: &BTreeMap<String, String>,
+) -> Result<judge::Judgement, String> {
+    match outcome {
+        RunOutcome::Single(single) => {
+            let source = sources
+                .get(&task.document)
+                .ok_or_else(|| format!("任务 {} 引用了未知文档 {}", task.id, task.document))?;
+            judge::judge(task, source, single)
+        }
+        RunOutcome::Across(across) => {
+            let target_key = task
+                .expect
+                .target_file
+                .as_ref()
+                .ok_or_else(|| format!("任务 {} 缺少 expect.target_file", task.id))?;
+            let target = document_path(corpus, target_key)?;
+            let target_source = sources
+                .get(target_key)
+                .ok_or_else(|| format!("语料里没有文档 {}", target_key))?;
+
+            match across {
+                strategies::FileOutcome::Applied { path, source } if path == &target => {
+                    judge::judge(
+                        task,
+                        target_source,
+                        &strategies::StrategyOutcome::Applied(source.clone()),
+                    )
+                }
+                strategies::FileOutcome::Applied { path, .. } => Ok(judge::Judgement {
+                    outcome: Outcome::Wrong,
+                    detail: format!(
+                        "改了别的文件：期望 {}，实际 {}",
+                        target.display(),
+                        path.display()
+                    ),
+                    comments_kept: false,
+                }),
+                strategies::FileOutcome::Refused { code, message } => judge::judge(
+                    task,
+                    target_source,
+                    &strategies::StrategyOutcome::refused(code, message),
+                ),
+            }
+        }
+    }
 }
 
 fn summarize(corpus: &Corpus, results: &[TaskResult], order_independent: bool) -> Metrics {

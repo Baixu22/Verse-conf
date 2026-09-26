@@ -1,0 +1,9 @@
+# 被包含的基础配置：跨文件编辑的目标多半在这里
+server {
+  host = "127.0.0.1"
+  port = 8080 #@ range(1024..65535)
+}
+
+logging {
+  level = "info" # keep this comment
+}
