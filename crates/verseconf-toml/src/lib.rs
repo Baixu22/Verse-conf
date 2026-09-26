@@ -61,7 +61,10 @@ mod ast_bridge;
 mod guard;
 
 pub use ast_bridge::toml_to_ast;
-pub use guard::{audit_toml, toml_ast, validate_toml_against_schema, TomlGuard};
+pub use guard::{
+    audit_toml, check_write_toml, check_write_toml_with, toml_ast, validate_toml_against_schema,
+    TomlGuard,
+};
 
 use std::collections::BTreeMap;
 use std::ops::Range;

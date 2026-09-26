@@ -110,6 +110,28 @@ pub fn validate_toml_against_schema(source: &str, schema_text: &str) -> Result<(
         })
 }
 
+/// 写前检查：与编辑机制解耦的 TOML 门禁。
+///
+/// 语义与 `.vcf` 路径的 `verseconf_core::check_write` 完全一致：**只裁决改动，
+/// 不产生改动**。`candidate` 可以由宿主的任何编辑方式产生——字符串替换、
+/// 区间替换、整文件重写都可以——这里只回答「这次改动允许落盘吗」。
+///
+/// 通过返回 `Ok(())`；拒绝返回与编辑路径同一套 [`EditRefusal`]。
+pub fn check_write_toml(baseline: &str, candidate: &str) -> Result<(), EditRefusal> {
+    check_write_toml_with(baseline, candidate, &TomlGuard::default())
+}
+
+/// [`check_write_toml`] 的完整形态：可以旁挂 schema，也可以显式关掉审计。
+pub fn check_write_toml_with(
+    baseline: &str,
+    candidate: &str,
+    guard: &TomlGuard<'_>,
+) -> Result<(), EditRefusal> {
+    // 复用编辑路径那一份实现，而不是再写一遍「基线 vs 候选」的比较逻辑：
+    // 两套一旦分叉，「写入前双重校验」这句话就不再对两种格式同时成立。
+    finalize_toml_edit(baseline, candidate.to_string(), guard).map(|_| ())
+}
+
 /// 写入前的双重校验。
 ///
 /// 顺序与 `.vcf` 路径的 `finalize_edit` 一致：先确认结果仍然合法（含 schema），
