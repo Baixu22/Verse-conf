@@ -1,13 +1,17 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server};
-use verseconf_core::{parse, VerseconfError};
+use verseconf_core::{parse, IndentStyle, PrettyPrintConfig, VerseconfError};
 
 pub struct VerseConfBackend {
     client: Client,
     documents: Mutex<HashMap<Url, String>>,
+    /// 是否已经收到过 `shutdown`。决定 `exit` 之后的退出码：
+    /// 先 shutdown 再 exit → 0；未经 shutdown 直接 exit → 1（LSP 规范要求）。
+    shutdown_seen: Arc<AtomicBool>,
 }
 
 #[tower_lsp::async_trait]
@@ -28,6 +32,10 @@ impl LanguageServer for VerseConfBackend {
                     ..Default::default()
                 }),
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
+                // 文档格式化：编辑器里的 `verseconf.format` 命令依赖它。
+                // 此前这里没有声明，扩展把命令转发给 editor.action.formatDocument
+                // 却找不到任何 provider，于是"格式化"永远没有任何效果。
+                document_formatting_provider: Some(OneOf::Left(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
                 document_symbol_provider: Some(OneOf::Left(true)),
@@ -69,6 +77,8 @@ impl LanguageServer for VerseConfBackend {
     }
 
     async fn shutdown(&self) -> Result<()> {
+        // 记下来，供 exit 监护任务决定退出码。
+        self.shutdown_seen.store(true, Ordering::SeqCst);
         Ok(())
     }
 
@@ -252,13 +262,30 @@ impl LanguageServer for VerseConfBackend {
             }
         }
 
-        Ok(Some(Hover {
-            contents: HoverContents::Markup(MarkupContent {
-                kind: MarkupKind::Markdown,
-                value: "## VerseConf\n\n**A modern configuration language for the AI era.**\n\n---\n\n### Quick Reference\n\n| Syntax | Description |\n|--------|-------------|\n| `key = value` | Simple assignment |\n| `# comment` | Comment line |\n| `block { }` | Nested block |".into(),
-            }),
-            range: None,
-        }))
+        // 没有命中任何符号时返回 None。
+        // 之前这里无条件回一张"VerseConf 快速参考"样板卡，导致畸形行、空白处、
+        // 甚至从未打开过的文档都返回同一份内容，客户端无法区分
+        // "此处无信息" 与 "此处有信息"。
+        Ok(None)
+    }
+
+    /// 文档格式化。
+    ///
+    /// 复用核心库的保注释格式化器：注释与 `#@` 元数据都会原样保留，
+    /// 这也是本项目"改动之外字节不变"这条主张在编辑器里的延伸。
+    ///
+    /// 两种情况下**不做任何修改**，而不是给出一个猜出来的结果：
+    /// - 文档无法解析（语法错误时格式化只会把错误放大）；
+    /// - 格式化结果与原文一致（返回空编辑列表，让编辑器保持原样）。
+    async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
+        let uri = params.text_document.uri;
+
+        let text = match self.documents.lock().unwrap().get(&uri).cloned() {
+            Some(text) => text,
+            None => return Ok(None),
+        };
+
+        Ok(formatting_edits(&text, &params.options))
     }
 
     async fn goto_definition(
@@ -421,9 +448,25 @@ fn extract_symbols(text: &str) -> Vec<SymbolInfo> {
 
 fn find_symbol_at_position(text: &str, position: Position) -> Option<SymbolInfo> {
     let symbols = extract_symbols(text);
-    symbols
-        .into_iter()
-        .find(|s| s.range.start.line <= position.line && s.range.end.line >= position.line)
+    symbols.into_iter().find(|s| {
+        // 只比对行号会让整行任意列都命中同一个符号：光标停在行尾空白处
+        // 也会返回该行的符号信息。列号必须一起判定。
+        if position.line < s.range.start.line || position.line > s.range.end.line {
+            return false;
+        }
+        if s.range.start.line == s.range.end.line {
+            return position.character >= s.range.start.character
+                && position.character <= s.range.end.character;
+        }
+        // 跨行符号：首行只接受起始列之后，末行只接受结束列之前
+        if position.line == s.range.start.line {
+            return position.character >= s.range.start.character;
+        }
+        if position.line == s.range.end.line {
+            return position.character <= s.range.end.character;
+        }
+        true
+    })
 }
 
 fn find_symbol_definition(text: &str, name: &str) -> Option<Range> {
@@ -567,11 +610,48 @@ fn infer_type(value: &str) -> &'static str {
     }
 }
 
+/// `verseconf/generateSchema` 的请求参数。
+///
+/// 直接传文本而不是 URI：这样结果只取决于调用方手里的那份内容，
+/// 不受服务端文档缓存与消息先后顺序影响。
+#[derive(Debug, serde::Deserialize)]
+pub struct GenerateSchemaParams {
+    pub text: String,
+}
+
+/// `verseconf/generateSchema` 的响应
+#[derive(Debug, serde::Serialize)]
+pub struct GenerateSchemaResponse {
+    /// 可直接写进配置文件的 `#@schema { ... }` 文本
+    pub schema: String,
+}
+
 impl VerseConfBackend {
+    /// 自定义请求：由一份配置文本推断出 `#@schema { ... }` 块。
+    ///
+    /// 走语言服务器而不是让扩展另找命令行，是为了保持"一个二进制、一条通道"：
+    /// 扩展包里已经带着这个服务端，不需要用户再装别的东西。
+    pub async fn generate_schema(
+        &self,
+        params: GenerateSchemaParams,
+    ) -> tower_lsp::jsonrpc::Result<GenerateSchemaResponse> {
+        match verseconf_core::infer_schema(&params.text) {
+            Ok(schema) => Ok(GenerateSchemaResponse { schema }),
+            // 解析不了就如实报错，不返回半份 schema
+            Err(error) => Err(tower_lsp::jsonrpc::Error::invalid_params(error.to_string())),
+        }
+    }
+
     pub fn new(client: Client) -> Self {
+        Self::with_shutdown_flag(client, Arc::new(AtomicBool::new(false)))
+    }
+
+    /// 构造后端并复用外部的 shutdown 标志，使 `exit` 监护任务能读到它。
+    pub fn with_shutdown_flag(client: Client, shutdown_seen: Arc<AtomicBool>) -> Self {
         Self {
             client,
             documents: Mutex::new(HashMap::new()),
+            shutdown_seen,
         }
     }
 
@@ -638,6 +718,39 @@ fn offset_to_position(text: &str, offset: usize) -> Position {
     Position::new(line, character)
 }
 
+/// 计算格式化需要的编辑列表。
+///
+/// 抽成纯函数是为了能直接单测：`formatting()` 需要 LSP `Client`，
+/// 而这里只依赖文档文本与编辑器选项。
+///
+/// 返回 `None` 表示"什么都不做"——文档无法解析时绝不给出猜出来的结果。
+fn formatting_edits(text: &str, options: &FormattingOptions) -> Option<Vec<TextEdit>> {
+    // 跟随编辑器自己的缩进设置，避免格式化结果与用户的编辑器配置互相打架
+    let config = PrettyPrintConfig {
+        indent_size: options.tab_size.max(1) as usize,
+        indent_style: if options.insert_spaces {
+            IndentStyle::Spaces
+        } else {
+            IndentStyle::Tabs
+        },
+        ..PrettyPrintConfig::default()
+    };
+
+    match verseconf_core::format_with_config(text, config) {
+        Ok(formatted) if formatted != text => {
+            let end = offset_to_position(text, text.len());
+            Some(vec![TextEdit {
+                range: Range::new(Position::new(0, 0), end),
+                new_text: formatted,
+            }])
+        }
+        // 已经规范：返回空编辑列表，让编辑器保持原样
+        Ok(_) => Some(Vec::new()),
+        // 解析失败：保持沉默
+        Err(_) => None,
+    }
+}
+
 /// 把带位置的解析错误转成编辑器诊断
 fn diagnostic_from_error(error: &VerseconfError, text: &str) -> Diagnostic {
     let span = error.span();
@@ -645,7 +758,15 @@ fn diagnostic_from_error(error: &VerseconfError, text: &str) -> Diagnostic {
     let range = if span.is_unknown() {
         Range::new(Position::new(0, 0), Position::new(0, 0))
     } else {
-        let start = Position::new(span.line.saturating_sub(1), span.column.saturating_sub(1));
+        // 起点必须和终点走同一套换算：span.column 是 Unicode 标量计数的列号，
+        // 而 LSP 的 character 以 UTF-16 code unit 计。非 BMP 字符（emoji 等）
+        // 会让两者差 1，之前的实现让 START 用字符计数、END 用 UTF-16，
+        // 同一个 range 内部自相矛盾。
+        let start = if span.start < text.len() {
+            offset_to_position(text, span.start)
+        } else {
+            Position::new(span.line.saturating_sub(1), span.column.saturating_sub(1))
+        };
         let end = if span.end > span.start {
             offset_to_position(text, span.end)
         } else {
@@ -670,10 +791,24 @@ fn diagnostic_from_error(error: &VerseconfError, text: &str) -> Diagnostic {
 pub async fn run() {
     env_logger::init();
 
-    let stdin = tokio::io::stdin();
+    let shutdown_seen = Arc::new(AtomicBool::new(false));
+    let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
+
+    // serve() 在收到 exit 之后可能永不返回（见 exit_watcher 模块头的死锁说明），
+    // 所以退出必须由一个独立任务从 serve() 之外驱动。
+    crate::exit_watcher::spawn_exit_watcher(shutdown_seen.clone(), exit_rx);
+
+    let stdin = crate::exit_watcher::ExitAwareStdin::new(tokio::io::stdin(), exit_tx);
     let stdout = tokio::io::stdout();
 
-    let (service, socket) = LspService::new(VerseConfBackend::new);
+    let (service, socket) = LspService::build(move |client| {
+        VerseConfBackend::with_shutdown_flag(client, shutdown_seen)
+    })
+    .custom_method(
+        "verseconf/generateSchema",
+        VerseConfBackend::generate_schema,
+    )
+    .finish();
     Server::new(stdin, stdout, socket).serve(service).await;
 }
 
@@ -727,5 +862,153 @@ mod tests {
     fn test_valid_document_produces_no_diagnostics() {
         let source = "name = \"ok\"\nport = 8080\n";
         assert!(parse(source).is_ok());
+    }
+
+    #[test]
+    fn test_diagnostic_start_column_uses_utf16_like_the_end() {
+        // 回归：START 曾经用 Unicode 标量列号、END 用 UTF-16，同一个 range
+        // 内部不自洽。非 BMP 字符（emoji）会让两者差 1。
+        let ascii = "x = \"ab\" bad line here\n";
+        let ascii_diag = diagnostic_from_error(&parse(ascii).unwrap_err(), ascii);
+
+        let astral = "x = \"😀\" bad line here\n";
+        let astral_diag = diagnostic_from_error(&parse(astral).unwrap_err(), astral);
+
+        // 两段文本里 "bad" 的 UTF-16 偏移都是 13：emoji 占 2 个 code unit，
+        // 与 "ab" 的 2 个字符宽度相同，所以两边的列号必须相等。
+        assert_eq!(
+            ascii_diag.range.start.character, astral_diag.range.start.character,
+            "ASCII 与 astral 文档里同一处错误的起始列必须一致"
+        );
+        assert_eq!(ascii_diag.range.start.character, 13);
+        assert_eq!(
+            ascii_diag.range.end.character,
+            astral_diag.range.end.character
+        );
+    }
+
+    #[test]
+    fn test_find_symbol_at_position_respects_the_column() {
+        // 回归：只比对行号时，整行任意列都命中同一个符号。
+        let text = "name = \"ok\"\n";
+        assert!(find_symbol_at_position(text, Position::new(0, 0)).is_some());
+        assert!(find_symbol_at_position(text, Position::new(0, 2)).is_some());
+        // 行尾空白处（列 50）不该命中该符号
+        assert!(
+            find_symbol_at_position(text, Position::new(0, 50)).is_none(),
+            "光标在行尾空白处不应返回该行符号"
+        );
+    }
+
+    #[test]
+    fn test_hover_source_has_no_boilerplate_fallback() {
+        // 回归：无命中时必须返回 None，让客户端能区分"无信息"与"有信息"。
+        // 之前无条件回一张样板卡，畸形行与从未打开的文档都拿到相同内容。
+        let source = include_str!("server.rs");
+        let hover_body = source
+            .split("async fn hover")
+            .nth(1)
+            .expect("server.rs 里应当有 hover 实现");
+        let hover_body = hover_body.split("async fn formatting").next().unwrap();
+        assert!(
+            hover_body.contains("Ok(None)"),
+            "hover 无命中时必须返回 None"
+        );
+        assert!(
+            !hover_body.contains("A modern configuration language for the AI era"),
+            "hover 里不应再出现样板卡文案"
+        );
+    }
+
+    fn default_format_options() -> FormattingOptions {
+        FormattingOptions {
+            tab_size: 2,
+            insert_spaces: true,
+            ..FormattingOptions::default()
+        }
+    }
+
+    #[test]
+    fn test_formatting_preserves_comments_and_metadata() {
+        // 格式化必须保住注释与 #@ 元数据——这是本项目在编辑器里的核心主张
+        let messy = "server {
+      host = \"127.0.0.1\"   # 监听地址
+   port = 8080  #@ range(1024..65535)
+}
+";
+        let edits =
+            formatting_edits(messy, &default_format_options()).expect("可解析的文档应当能格式化");
+        assert_eq!(edits.len(), 1, "应当只返回一个整篇替换编辑");
+
+        let formatted = &edits[0].new_text;
+        assert!(formatted.contains("# 监听地址"), "行尾注释必须保留");
+        assert!(
+            formatted.contains("#@ range(1024..65535)"),
+            "#@ 元数据必须保留"
+        );
+        assert!(formatted.contains("host = \"127.0.0.1\""), "值不能被改掉");
+    }
+
+    #[test]
+    fn test_formatting_is_idempotent() {
+        let messy = "server {
+      host = \"127.0.0.1\"   # 注释
+}
+";
+        let first = formatting_edits(messy, &default_format_options()).unwrap();
+        assert_eq!(first.len(), 1);
+        let once = first[0].new_text.clone();
+
+        // 再格式化一次不应产生任何编辑
+        let second = formatting_edits(&once, &default_format_options()).unwrap();
+        assert!(
+            second.is_empty(),
+            "格式化必须幂等：第二次不应再产生编辑，实际 {:?}",
+            second
+        );
+    }
+
+    #[test]
+    fn test_formatting_refuses_unparseable_documents() {
+        // 语法错误时保持沉默，而不是把坏文档改成另一个样子
+        let broken = "bad line here
+";
+        assert!(
+            formatting_edits(broken, &default_format_options()).is_none(),
+            "无法解析的文档必须返回 None（不做任何修改）"
+        );
+    }
+
+    #[test]
+    fn test_formatting_follows_editor_indent_settings() {
+        let source = "server {
+  host = \"x\"
+}
+";
+        let four_spaces = FormattingOptions {
+            tab_size: 4,
+            insert_spaces: true,
+            ..FormattingOptions::default()
+        };
+        let edits = formatting_edits(source, &four_spaces).expect("应当能格式化");
+        assert_eq!(edits.len(), 1, "缩进变化应当产生编辑");
+        assert!(
+            edits[0].new_text.contains("    host = \"x\""),
+            "应当使用编辑器设置的 4 空格缩进，实际：{:?}",
+            edits[0].new_text
+        );
+    }
+
+    #[test]
+    fn test_formatting_covers_the_whole_document() {
+        let source = "a = 1
+b = 2
+";
+        let edits = formatting_edits(source, &default_format_options()).unwrap();
+        if !edits.is_empty() {
+            assert_eq!(edits[0].range.start, Position::new(0, 0));
+        }
+        // 已规范或需替换，两种情况都不允许出现"部分覆盖"的编辑
+        assert!(edits.len() <= 1, "不应当返回多个编辑");
     }
 }
