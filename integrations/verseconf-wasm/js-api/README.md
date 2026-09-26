@@ -8,11 +8,16 @@ Rust 实现编译出的 WebAssembly 模块，因此：
 
 ## 安装
 
+**这个包没有发布到 npm，也不会再发布**：发布账号已不可用，这条分发路径已放弃
+（见仓库根 README 的安装状态表）。要用它请从本仓库构建：
+
 ```bash
-npm install verseconf
+cd integrations/verseconf-wasm/js-api
+npm install
+npm run build      # 产物：dist/（CJS + ESM + 类型声明）、pkg/ 与 pkg-web/（wasm）
 ```
 
-Node.js 18 及以上。包内自带 wasm，没有运行时依赖，安装过程不编译任何东西。
+Node.js 18 及以上。包内自带 wasm，没有运行时依赖，构建过程只编译 wasm 与 TypeScript。
 
 ## 两种引入方式都可用
 
@@ -61,14 +66,15 @@ tools();        // 四个工具的名称、描述与 inputSchema
 serverInfo();   // { name: 'verseconf', version: '0.1.0', protocolVersion: '2024-11-05' }
 ```
 
-## 零安装的工具协议服务端
+## 工具协议服务端（stdio）
 
-包内提供一个 stdio 服务端，用法与本机 `verseconf-mcp` 一致：
+包内提供一个 stdio 服务端，用法与本机 `verseconf-mcp` 一致。**它没有发布到 npm**，
+所以先按上面的「安装」一节从源码构建，再直接跑构建产物：
 
 ```bash
-npx verseconf-mcp-wasm --list-tools
-npx verseconf-mcp-wasm --call verseconf_validate '{"source":"port = 8080\n"}'
-npx verseconf-mcp-wasm            # 逐行 JSON-RPC over stdio
+node bin/verseconf-mcp-wasm.mjs --list-tools
+node bin/verseconf-mcp-wasm.mjs --call verseconf_validate '{"source":"port = 8080\n"}'
+node bin/verseconf-mcp-wasm.mjs            # 逐行 JSON-RPC over stdio
 ```
 
 宿主接入配置（只需要 Node，不需要任何本机二进制）：
@@ -124,6 +130,8 @@ parseJson('port = 8080\n');   // { port: 8080 }
 - `package.json` 的版本号（本分发层）与 `serverInfo().version` / `getVersion()`
   （内嵌的 Rust 核心）是两个独立版本。0.1.0 的包在真实消费者环境里两条入口都不可用，
   因此本分发层从 0.2.0 重新起算；核心仍是 0.1.0。
+- 0.2.0 已在仓库里构建并通过打包验收（`test/package.test.mjs`，12/12，CI 阻塞），
+  但**不会发布到 registry**——发布账号已不可用。
 
 ## 从源码构建
 

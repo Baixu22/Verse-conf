@@ -35,17 +35,19 @@ cargo build -p verseconf-mcp --release
 }
 ```
 
-### 形态二：WebAssembly（宿主零安装）
+### 形态二：WebAssembly（宿主无需 Rust 工具链）
 
 `integrations/verseconf-wasm` 把**同一套工具实现**编译成 WebAssembly，
-再由 `integrations/verseconf-wasm/js-api` 包成 npm 包。宿主只需要一个
-JS 运行时（Agent 宿主本来就带），不需要 Rust 工具链，也不需要预编译的本机二进制：
+再由 `integrations/verseconf-wasm/js-api` 构建成可分发的包。宿主只需要一个
+JS 运行时（Agent 宿主本来就带），不需要 Rust 工具链，也不需要预编译的本机二进制。
+
+**这条路径没有对外发布**：npm 包已放弃发布（发布账号不可用），所以要从源码构建：
 
 ```bash
-npm install verseconf
-npx verseconf-mcp-wasm --list-tools
-npx verseconf-mcp-wasm --call verseconf_validate '{"source":"port = 8080\n"}'
-npx verseconf-mcp-wasm            # 逐行 JSON-RPC over stdio
+cd integrations/verseconf-wasm/js-api && npm install && npm run build
+node bin/verseconf-mcp-wasm.mjs --list-tools
+node bin/verseconf-mcp-wasm.mjs --call verseconf_validate '{"source":"port = 8080\n"}'
+node bin/verseconf-mcp-wasm.mjs            # 逐行 JSON-RPC over stdio
 ```
 
 宿主接入配置：

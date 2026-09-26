@@ -1,7 +1,7 @@
 {
   "name": "verseconf",
   "version": "0.2.0",
-  "description": "VerseConf 的 JavaScript/WebAssembly 分发：宿主零安装即可获得配置校验、安全审计与确定性最小改动编辑",
+  "description": "VerseConf 的 JavaScript/WebAssembly 分发：宿主无需 Rust 工具链即可获得配置校验、安全审计与确定性最小改动编辑（未发布到 npm）",
   "license": "MIT OR Apache-2.0",
   "author": "VerseConf Contributors",
   "homepage": "https://github.com/Baixu22/Verse-conf",

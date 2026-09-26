@@ -48,6 +48,7 @@ wasm 侧**不重新实现任何能力**：`src/mcp.rs` 直接复用 `verseconf-m
 
 ## 发布状态
 
-npm 包 **0.2.0 已在本地构建并通过打包验收，尚未发布**。
-registry 上现有的 `0.1.0` 不可用（包内缺 `pkg/` 目录，`require` 与 `import`
-两条入口都失败）——详见仓库根 README 的安装状态表。
+npm 包 **已放弃发布**（发布账号不可用）。修复版 0.2.0 已在仓库里构建并通过打包验收
+（`js-api/test/package.test.mjs`，12/12，CI 的 `wasm-distribution` 作业阻塞），
+但不会再发布到 registry。registry 上现有的 `0.1.0` 不可用（包内缺 `pkg/` 目录，
+`require` 与 `import` 两条入口都失败）——详见仓库根 README 的安装状态表。

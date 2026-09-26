@@ -254,17 +254,24 @@ verseconf-mcp --list-tools      # inspect the tool contract offline
 }
 ```
 
-### WebAssembly (zero-install hosts)
+### WebAssembly (hosts without a Rust toolchain)
 
 The same tool implementations are compiled to WebAssembly and can be loaded by a JS
-runtime, so the host needs no Rust toolchain. The package also ships a stdio server,
-`npx verseconf-mcp-wasm`. Both paths share the same functions and return byte-identical
+runtime, so the host needs no Rust toolchain. The build output also ships a stdio server,
+`verseconf-mcp-wasm.mjs`.
+
+**This distribution path is not published**: the npm package has been abandoned (see the
+status table in [5. Installation](#5-installation)), so using it means building from source:
+
+```bash
+cd integrations/verseconf-wasm/js-api && npm install && npm run build
+```
+
+Both paths share the same functions and return byte-identical
 responses for the same request (checked by `npm run test:parity`). **Sharing code is not the
 same as having the same capabilities**: a wasm target has no filesystem, so `tools/list`
 does not advertise `path` there and passing it returns `unsupported_on_platform`; to edit by
-path, the host must read the file itself and pass the text as `source`. **That npm package is
-currently unusable**, however — see the status table in
-[5. Installation](#5-installation).
+path, the host must read the file itself and pass the text as `source`.
 
 The full tool contract is in [docs/MCP.md](docs/MCP.md).
 
@@ -312,7 +319,7 @@ cargo test --workspace          # one command builds and tests everything
 | crates.io (four crates) | ✅ v0.1.0 published; `cargo install verseconf-cli` verified in a clean directory |
 | API docs (docs.rs) | ✅ [docs.rs/verseconf-core](https://docs.rs/verseconf-core) |
 | VSCode extension `.vsix` | ⚠️ Produced and uploaded by CI as a build artifact; the repository contains no binary. See [9. Editor support](#9-editor-support) |
-| npm package `verseconf` | ❌ **The published 0.1.0 does not work** (the tarball has no `pkg/` directory, so both `require` and `import` fail). The fixed 0.2.0 is built and passes packaging checks locally, but has not been published |
+| npm package `verseconf` | ❌ **Publishing abandoned**. The 0.1.0 on the registry does not work (the tarball has no `pkg/` directory, so both `require` and `import` fail); the fixed 0.2.0 is built in-repo and passes packaging checks (12/12), but the publishing account is no longer available, so it will not be published |
 | Browser CDN | ❌ Not published. The `pkg-web/` output is in no published package |
 
 ## 6. Quick start
@@ -600,8 +607,9 @@ asserts that the benchmark fails rather than reporting zeros.
    "targets inside a table produced by merging several includes" are not covered yet.
 2. The benchmark uses deterministic stand-in strategies and no real model — it measures
    the inherent cost of an approach, not a particular model's score.
-3. Distribution is still being closed out: no usable npm release and no published browser
-   CDN build.
+3. **JS / WebAssembly distribution is not published**: the npm package has been abandoned
+   (the publishing account is unavailable) and no browser CDN build exists. Both paths are
+   build-from-source only; the CLI and the libraries ship via crates.io.
 4. **Parse performance is not this project's advantage**: it is 2.77–5.65x slower than
    `serde_json` (see Appendix A). The evidence for this project is edit fidelity, not
    parse speed.
@@ -610,7 +618,8 @@ asserts that the benchmark fails rather than reporting zeros.
 
 - Extend the cross-`@include` corpus to deeper nesting and to tables produced by merging
   several includes (core library, CLI, tool protocol and benchmark already cover one level, see section 3)
-- Publish the fixed npm package so the zero-install path holds for real
+- **No longer planned**: publishing the npm package. The fixed 0.2.0 build stays in the repo
+  and its build and packaging checks run in CI, but the publishing account is unavailable
 - Broaden schema inference (for example, inferring a shared schema across several files)
 
 ## Appendix A: parse performance

@@ -53,13 +53,14 @@ verseconf-mcp --call verseconf_validate '{"source":"port = 8080\n"}'
 ```
 
 If a host would rather not depend on a local binary, the same tool implementations are
-also compiled to WebAssembly and are designed to be loaded directly by a JS runtime
-(`npx verseconf-mcp-wasm`), requiring no installation.
+also compiled to WebAssembly and can be loaded directly by a JS runtime, with no Rust
+toolchain required.
 
-> **That npm package is currently unusable**: the published `verseconf@0.1.0` has no
-> `pkg/` directory, so `npx verseconf-mcp-wasm` fails. The fixed 0.2.0 is built and passes
-> its packaging checks locally, but has not been published. Until then, use the local
-> binary form above.
+> **That distribution path is not published**: the npm package has been abandoned (the
+> publishing account is unavailable). The published `verseconf@0.1.0` has no `pkg/` directory
+> and neither entry point works; the fixed 0.2.0 is built in-repo and passes its packaging
+> checks, but will not be published. Use the local binary form above, or build the wasm
+> artifacts from source (see `integrations/verseconf-wasm/js-api`).
 
 ## See also
 

@@ -228,15 +228,22 @@ verseconf-mcp --list-tools      # 离线查看工具契约
 }
 ```
 
-### WebAssembly（宿主零安装）
+### WebAssembly（宿主无需 Rust 工具链）
 
 同一套工具实现已编译成 WebAssembly，JS 运行时可直接加载，宿主不需要 Rust 工具链；
-包内还带一个 stdio 服务端 `npx verseconf-mcp-wasm`。两条路径共用同一批函数，
-同一串请求的响应逐字节相同（`npm run test:parity` 做这项比对）。
+产物里带一个 stdio 服务端 `verseconf-mcp-wasm.mjs`。
+
+**这条分发路径没有对外发布**：npm 包已放弃发布（见 [五、安装](#五安装) 的状态表），
+所以要用它只能从源码构建：
+
+```bash
+cd integrations/verseconf-wasm/js-api && npm install && npm run build
+```
+
+两条路径共用同一批函数，同一串请求的响应逐字节相同（`npm run test:parity` 做这项比对）。
 **但共用代码不等于能力相同**：wasm 目标没有文件系统，`tools/list` 在 wasm 上不声明
 `path`，真传了会返回 `unsupported_on_platform`；要按路径改文件，得由宿主自己读文件、
 把内容作为 `source` 传进来。
-**另外该 npm 包目前不可用**，见 [五、安装](#五安装) 的状态表。
 
 完整工具契约与协议细节见 [docs/MCP.md](docs/MCP.md)。
 
@@ -283,7 +290,7 @@ cargo test --workspace          # 唯一一条命令完成构建与测试
 | crates.io（四个 crate） | ✅ v0.1.0 已发布，干净环境 `cargo install verseconf-cli` 已复验 |
 | 文档（docs.rs） | ✅ [docs.rs/verseconf-core](https://docs.rs/verseconf-core) |
 | VSCode 扩展 `.vsix` | ⚠️ 由 CI 产出并上传为构建产物，仓库内不含二进制；见 [九、编辑器支持](#九编辑器支持) |
-| npm 包 `verseconf` | ❌ **已发布的 0.1.0 不可用**（包内缺 `pkg/` 目录，`require` 与 `import` 两条入口都失败）。修复版 0.2.0 已在本地构建并通过打包验收，尚未发布 |
+| npm 包 `verseconf` | ❌ **已放弃发布**。registry 上的 0.1.0 不可用（包内缺 `pkg/` 目录，`require` 与 `import` 两条入口都失败）；修复版 0.2.0 已在仓库里构建并通过打包验收（12/12），但发布账号已不可用，不再发布 |
 | 浏览器 CDN | ❌ 未发布。`pkg-web/` 产物未包含在任何已发布包中 |
 
 ## 六、快速开始
@@ -568,7 +575,8 @@ cargo publish -p verseconf-lsp
    更深的嵌套链与"目标位于被多层 include 合并出来的表里"尚未覆盖。
 2. 基准使用确定性替身策略，不含真实模型 —— 它测的是写法的固有代价，
    不是某个模型的得分。
-3. 分发路径仍在收口：npm 包未发布可用版本，浏览器 CDN 形态未发布。
+3. **JS / WebAssembly 分发没有对外发布**：npm 包已放弃发布（发布账号不可用），
+   浏览器 CDN 形态也未发布。这两条路径只能从源码构建使用；命令行与库走 crates.io。
 4. **解析性能不是本项目的优势**：相对 `serde_json` 慢 2.77–5.65 倍（见附录 A）。
    本项目的证据是编辑保真度，不是解析速度。
 5. **合并视图的校验有条件**：只有合并器实际读到的文件集合与 include 图一致时才会返回
@@ -578,7 +586,8 @@ cargo publish -p verseconf-lsp
 **路线**
 
 - 把跨 `@include` 的语料扩到多层嵌套与"合并出来的表"（核心库、CLI、工具协议与基准已支持单层，见三）
-- 发布修复后的 npm 包，使「宿主零安装」这条路径对外成立
+- **不再计划**：发布 npm 包。修复后的 0.2.0 产物留在仓库里，构建与打包验收都在 CI 里跑，
+  但发布账号已不可用
 - 把 schema 推断的覆盖面扩大（例如由多个文件推断共享 schema）
 
 ## 附录 A：解析性能对比

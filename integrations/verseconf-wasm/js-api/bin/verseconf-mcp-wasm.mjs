@@ -18,7 +18,7 @@ import readline from 'node:readline';
 
 import glue from '../pkg/verseconf_wasm.js';
 
-const USAGE = `verseconf-mcp-wasm - 用 WebAssembly 运行的工具协议服务（宿主零安装）
+const USAGE = `verseconf-mcp-wasm - 用 WebAssembly 运行的工具协议服务（需要 Node，不需要 Rust 工具链）
 
 用法：
   verseconf-mcp-wasm                      以 stdio 逐行 JSON-RPC 方式运行（宿主默认接入方式）
