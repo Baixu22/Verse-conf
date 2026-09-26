@@ -1867,6 +1867,7 @@ version = "0.1.0"
 dependencies = [
  "env_logger",
  "log",
+ "serde",
  "serde_json",
  "tokio",
  "tower-lsp",
@@ -1892,6 +1893,15 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+ "verseconf-core",
+]
+
+[[package]]
+name = "verseconf-toml"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "toml_edit",
  "verseconf-core",
 ]
 

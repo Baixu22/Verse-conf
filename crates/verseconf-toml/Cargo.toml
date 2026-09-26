@@ -1,0 +1,17 @@
+[package]
+name = "verseconf-toml"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "把编辑意图契约用到真实 TOML 配置上：复用 toml_edit 定位值区间，只替换目标字节"
+# 这是为一个真实消费者做的试点适配，不进发布流程。
+publish = false
+
+[dependencies]
+verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
+toml_edit.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

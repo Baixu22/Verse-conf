@@ -6,6 +6,7 @@ members = [
     "crates/verseconf-lsp",
     "crates/verseconf-mcp",
     "crates/verseconf-bench",
+    "crates/verseconf-toml",
     "compare",
     "integrations/verseconf-wasm",
 ]
@@ -29,6 +30,7 @@ chrono = "0.4"
 regex = "1.10"
 atty = "0.2"
 toml = "0.8"
+toml_edit = "0.22"
 serde_json = "1.0"
 notify = "6.1"
 
