@@ -24,6 +24,7 @@ export const TOOL_AUDIT = 'verseconf_audit';
 export const TOOL_APPLY_EDIT = 'verseconf_apply_edit';
 /** 区间编辑：对指定字节区间做替换，走同一套写入前校验 */
 export const TOOL_EDIT_RANGE = 'verseconf_edit_range';
+export const TOOL_CHECK_WRITE = 'verseconf_check_write';
 
 /** 工具返回的文本内容块 */
 export interface ToolContent {
@@ -120,6 +121,12 @@ export interface EditRangeResult {
   replaced: ReplacedRange;
 }
 
+export interface CheckWriteResult {
+  allowed: true;
+  baseline_bytes: number;
+  candidate_bytes: number;
+}
+
 /**
  * 编辑计划（意图契约）。完整定义见
  * `crates/verseconf-core/schemas/edit-plan.schema.json`。
@@ -163,7 +170,20 @@ export function editRange(
   return callTool<EditRangeResult>(TOOL_EDIT_RANGE, { source, start, end, replacement });
 }
 
-/** `tools/list` 的四个工具描述 */
+/** 写前检查：给定原文与候选文本，判断这次改动是否允许落盘（不产生改动） */
+export function checkWrite(
+  baseline: string,
+  candidate: string,
+  options: { schema?: string } = {}
+): ToolResult<CheckWriteResult> {
+  return callTool<CheckWriteResult>(TOOL_CHECK_WRITE, {
+    baseline,
+    candidate,
+    ...(options.schema === undefined ? {} : { schema: options.schema }),
+  });
+}
+
+/** `tools/list` 的五个工具描述 */
 export function tools(): ToolDescriptor[] {
   return (JSON.parse(glue.tools_json()) as { tools: ToolDescriptor[] }).tools;
 }

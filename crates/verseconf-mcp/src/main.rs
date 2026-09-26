@@ -7,7 +7,7 @@ verseconf-mcp - 把 VerseConf 能力暴露给 Agent 宿主的工具协议服务
 
 用法：
   verseconf-mcp                      以 stdio 逐行 JSON-RPC 方式运行（宿主默认接入方式）
-  verseconf-mcp --list-tools         打印四个工具的描述与输入契约
+  verseconf-mcp --list-tools         打印五个工具的描述与输入契约
   verseconf-mcp --call <工具名> [JSON 参数]
                                      单次调用工具，便于冒烟测试与排错
   verseconf-mcp --help               显示本帮助

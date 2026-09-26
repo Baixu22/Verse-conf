@@ -44,7 +44,7 @@ function check(name, fn) {
   }
 }
 
-/** 四个能力在任意一条加载路径上都必须表现一致 */
+/** 五个能力在任意一条加载路径上都必须表现一致 */
 function assertToolSurface(api, label) {
   const validate = api.validate(SOURCE);
   assert.equal(validate.isError, false, `${label}: validate 不应失败`);
@@ -77,12 +77,19 @@ function assertToolSurface(api, label) {
   const ranged = api.editRange('port = 8080\n', 7, 11, '9090');
   assert.equal(ranged.structuredContent.source, 'port = 9090\n');
 
-  assert.equal(api.tools().length, 4, `${label}: 必须暴露四个工具`);
+  // 写前检查：宿主用自己的方式产生候选，落盘前只问这一道
+  const allowed = api.checkWrite('tls_verify = true\nport = 8080\n', 'tls_verify = true\nport = 9090\n');
+  assert.equal(allowed.structuredContent.allowed, true, `${label}: 良性改动必须放行`);
+  const gate = api.checkWrite('tls_verify = true\n', 'tls_verify = false\n');
+  assert.equal(gate.isError, true, `${label}: 关闭证书校验必须拒绝`);
+  assert.equal(gate.structuredContent.code, 'security_rejected');
+
+  assert.equal(api.tools().length, 5, `${label}: 必须暴露五个工具`);
   assert.equal(api.serverInfo().name, 'verseconf');
 }
 
 console.log('== Node CommonJS（require）');
-check('dist/index.cjs 可 require 且四个能力可用', () => {
+check('dist/index.cjs 可 require 且五个能力可用', () => {
   const api = require(path.join(packageRoot, 'dist', 'index.cjs'));
   assertToolSurface(api, 'cjs');
 });
@@ -97,7 +104,7 @@ await (async () => {
     console.error(`  FAIL  dist/index.mjs 可 import\n        ${error.message.split('\n')[0]}`);
     return;
   }
-  check('dist/index.mjs 可 import 且四个能力可用', () => assertToolSurface(api, 'esm'));
+  check('dist/index.mjs 可 import 且五个能力可用', () => assertToolSurface(api, 'esm'));
 })();
 
 console.log('== wasm-bindgen nodejs 目标产物');
@@ -105,7 +112,7 @@ check('pkg/verseconf_wasm.js 可直接加载', () => {
   const glue = require(path.join(packageRoot, 'pkg', 'verseconf_wasm.js'));
   const envelope = JSON.parse(glue.call_tool_json('verseconf_validate', JSON.stringify({ source: SOURCE })));
   assert.equal(envelope.structuredContent.valid, true);
-  assert.equal(JSON.parse(glue.tools_json()).tools.length, 4);
+  assert.equal(JSON.parse(glue.tools_json()).tools.length, 5);
 });
 
 console.log('== 浏览器/打包器目标（web）');
@@ -113,7 +120,7 @@ await (async () => {
   try {
     const glue = await import(pathToFileURL(path.join(packageRoot, 'pkg-web', 'verseconf_wasm.js')).href);
     const bytes = readFileSync(path.join(packageRoot, 'pkg-web', 'verseconf_wasm_bg.wasm'));
-    check('pkg-web 用 initSync 实例化后四个能力可用', () => {
+    check('pkg-web 用 initSync 实例化后五个能力可用', () => {
       glue.initSync({ module: bytes });
       const envelope = JSON.parse(glue.call_tool_json('verseconf_audit', JSON.stringify({ source: SECRETS })));
       assert.ok(envelope.structuredContent.findings.some((finding) => finding.rule_id === 'SEC-SENS-001'));
@@ -136,7 +143,7 @@ check('wasm 侧逐行 JSON-RPC 会话与原生服务端同形', () => {
   assert.equal(session.isInitialized(), true);
 
   const list = JSON.parse(session.handleLine(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} })));
-  assert.equal(list.result.tools.length, 4);
+  assert.equal(list.result.tools.length, 5);
 
   const notification = session.handleLine(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }));
   assert.equal(notification, undefined, '通知不应产生响应');
@@ -149,7 +156,7 @@ check('bin/verseconf-mcp-wasm.mjs --list-tools 可运行', () => {
     [path.join(packageRoot, 'bin', 'verseconf-mcp-wasm.mjs'), '--list-tools'],
     { encoding: 'utf8' }
   );
-  assert.equal(JSON.parse(stdout).tools.length, 4);
+  assert.equal(JSON.parse(stdout).tools.length, 5);
 });
 
 console.log(`\n${passed} 项通过，${failures.length} 项失败`);

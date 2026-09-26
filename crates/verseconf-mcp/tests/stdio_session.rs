@@ -1,4 +1,4 @@
-//! 真实二进制层面的验收：宿主能否发现并调用四个工具、失败是否返回结构化原因。
+//! 真实二进制层面的验收：宿主能否发现并调用五个工具、失败是否返回结构化原因。
 //!
 //! 这里刻意走子进程 + stdio，而不是直接调用库函数，以证明「宿主可接入」成立。
 
@@ -36,7 +36,7 @@ fn run_session(lines: &[&str]) -> (Vec<serde_json::Value>, String, i32) {
 }
 
 #[test]
-fn host_can_discover_and_call_all_four_tools_over_stdio() {
+fn host_can_discover_and_call_all_five_tools_over_stdio() {
     let source = "#@schema {\n  server {\n    type = \"table\"\n    port {\n      type = \"integer\"\n    }\n  }\n}\n\nserver {\n  port = 8080 #@ range(1..65535)\n}\n";
 
     let requests = [
@@ -53,26 +53,28 @@ fn host_can_discover_and_call_all_four_tools_over_stdio() {
             serde_json::to_string(source).unwrap()
         ),
         r#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"verseconf_edit_range","arguments":{"source":"port = 8080\n","start":7,"end":11,"replacement":"9090"}}}"#.to_string(),
+        // 宿主用自己的方式改完之后，落盘前过一道写前检查
+        r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"verseconf_check_write","arguments":{"baseline":"tls_verify = true\n","candidate":"tls_verify = false\n"}}}"#.to_string(),
     ];
     let request_refs: Vec<&str> = requests.iter().map(String::as_str).collect();
 
     let (responses, stderr, status) = run_session(&request_refs);
     assert_eq!(status, 0, "服务应当正常退出，stderr: {}", stderr);
 
-    // 通知不产生响应：7 条请求里 6 条有 id
-    assert_eq!(responses.len(), 6, "响应条数应与带 id 的请求一致");
+    // 通知不产生响应：8 条请求里 7 条有 id
+    assert_eq!(responses.len(), 7, "响应条数应与带 id 的请求一致");
     let ids: Vec<i64> = responses
         .iter()
         .map(|response| response["id"].as_i64().expect("响应必须带 id"))
         .collect();
-    assert_eq!(ids, vec![1, 2, 3, 4, 5, 6]);
+    assert_eq!(ids, vec![1, 2, 3, 4, 5, 6, 7]);
 
     // 握手
     assert!(responses[0]["result"]["capabilities"]["tools"].is_object());
 
     // 工具发现
     let tools = responses[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 4);
+    assert_eq!(tools.len(), 5);
     let names: Vec<&str> = tools
         .iter()
         .map(|tool| tool["name"].as_str().unwrap())
@@ -82,11 +84,12 @@ fn host_can_discover_and_call_all_four_tools_over_stdio() {
         "verseconf_audit",
         "verseconf_apply_edit",
         "verseconf_edit_range",
+        "verseconf_check_write",
     ] {
         assert!(names.contains(&expected), "缺少工具 {}", expected);
     }
 
-    // 四个工具都能被调用并返回结构化结果
+    // 五个工具都能被调用并返回结构化结果
     assert_eq!(responses[2]["result"]["isError"], serde_json::json!(false));
     assert_eq!(
         responses[2]["result"]["structuredContent"]["valid"],
@@ -163,7 +166,7 @@ fn list_tools_flag_prints_the_contract_for_offline_inspection() {
     let payload: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("输出必须是合法 JSON");
     let tools = payload["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 4);
+    assert_eq!(tools.len(), 5);
     for tool in tools {
         assert!(tool["inputSchema"]["properties"].is_object());
     }

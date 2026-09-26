@@ -8,7 +8,7 @@
  *
  * 用法（与本机二进制一致）：
  *   verseconf-mcp-wasm                      以 stdio 逐行 JSON-RPC 方式运行
- *   verseconf-mcp-wasm --list-tools         打印四个工具的描述与输入契约
+ *   verseconf-mcp-wasm --list-tools         打印五个工具的描述与输入契约
  *   verseconf-mcp-wasm --call <工具名> [JSON 参数]
  *   verseconf-mcp-wasm --help
  */
@@ -22,7 +22,7 @@ const USAGE = `verseconf-mcp-wasm - 用 WebAssembly 运行的工具协议服务�
 
 用法：
   verseconf-mcp-wasm                      以 stdio 逐行 JSON-RPC 方式运行（宿主默认接入方式）
-  verseconf-mcp-wasm --list-tools         打印四个工具的描述与输入契约
+  verseconf-mcp-wasm --list-tools         打印五个工具的描述与输入契约
   verseconf-mcp-wasm --call <工具名> [JSON 参数]
                                           单次调用工具，便于冒烟测试与排错
   verseconf-mcp-wasm --help               显示本帮助

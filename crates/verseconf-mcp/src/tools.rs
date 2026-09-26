@@ -1,4 +1,4 @@
-//! 四个能力的工具契约与实现。
+//! 五个能力的工具契约与实现。
 //!
 //! 工具只接受文本与结构化意图，返回结构化结果；失败时返回稳定的错误码，
 //! 宿主不需要解析人类可读文案来判断失败原因。
@@ -7,9 +7,9 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 use verseconf_core::{
-    apply_edit_plan, apply_edit_plan_in_files, parse, replace_range, validate_ast, AppliedEdit,
-    AuditEngine, EditPlan, EditRefusal, EffectiveView, SchemaValidator, VerseconfError,
-    EDIT_PLAN_JSON_SCHEMA,
+    apply_edit_plan, apply_edit_plan_in_files, check_write_with, parse, replace_range,
+    validate_ast, AppliedEdit, AuditEngine, EditPlan, EditRefusal, EffectiveView, SchemaValidator,
+    VerseconfError, WriteGuard, EDIT_PLAN_JSON_SCHEMA,
 };
 
 /// `plan` 字段的 schema：把仓库里已有的编辑计划 schema 原样内联进工具发现结果。
@@ -97,6 +97,8 @@ pub const TOOL_AUDIT: &str = "verseconf_audit";
 pub const TOOL_APPLY_EDIT: &str = "verseconf_apply_edit";
 /// 区间编辑：对指定字节区间做替换，走同一套写入前校验
 pub const TOOL_EDIT_RANGE: &str = "verseconf_edit_range";
+/// 写前检查：判断「把 baseline 改成 candidate」是否允许落盘
+pub const TOOL_CHECK_WRITE: &str = "verseconf_check_write";
 
 /// 工具描述，供宿主发现
 #[derive(Debug, Clone)]
@@ -165,7 +167,7 @@ impl ToolFailure {
     }
 }
 
-/// 四个工具的描述
+/// 五个工具的描述
 pub fn tool_descriptors() -> Vec<ToolDescriptor> {
     vec![
         ToolDescriptor {
@@ -217,6 +219,20 @@ pub fn tool_descriptors() -> Vec<ToolDescriptor> {
                 }
             }),
         },
+        ToolDescriptor {
+            name: TOOL_CHECK_WRITE,
+            description: "写前检查：给定改动前的文本 baseline 与准备落盘的文本 candidate，判断这次改动是否允许写入。它不关心 candidate 是怎么产生的——宿主可以用自己的编辑方式（字符串替换、区间替换、整文件重写），只在落盘前过这一道。只拒绝本次改动**新引入**的高危安全实例（按规则+位置比较），不因文件本来就有的问题拒绝；候选不合法或破坏 schema 时同样拒绝。通过返回 allowed=true；拒绝返回与编辑路径同一套稳定错误码。",
+            input_schema: json!({
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["baseline", "candidate"],
+                "properties": {
+                    "baseline": { "type": "string", "description": "改动前的配置文本（用于建立风险基线）" },
+                    "candidate": { "type": "string", "description": "准备落盘的配置文本" },
+                    "schema": { "type": "string", "description": "可选的旁挂 schema（`#@schema { ... }` 文本）。候选文本自己没有 schema 时用它做校验" }
+                }
+            }),
+        },
     ]
 }
 
@@ -227,6 +243,7 @@ pub fn call_tool(name: &str, arguments: &Value) -> Result<ToolOutcome, ToolFailu
         TOOL_AUDIT => audit(arguments),
         TOOL_APPLY_EDIT => apply_edit(arguments),
         TOOL_EDIT_RANGE => edit_range(arguments),
+        TOOL_CHECK_WRITE => check_write_tool(arguments),
         other => Err(ToolFailure::unknown_tool(other)),
     }
 }
@@ -399,6 +416,31 @@ fn audit(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
     })
 }
 
+/// 写前检查：宿主用自己的编辑方式产生 candidate，落盘前过这一道。
+///
+/// 这是「门禁」与「编辑机制」解耦后的独立入口：它不产生改动，只裁决改动。
+/// 因此它不需要模型理解编辑计划协议——模型照旧用自己的方式改文件，
+/// 成本侧不增加任何 token。
+fn check_write_tool(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
+    let baseline = required_str(arguments, "baseline")?;
+    let candidate = required_str(arguments, "candidate")?;
+    let guard = match arguments.get("schema") {
+        Some(Value::String(schema)) => WriteGuard::with_schema(schema),
+        _ => WriteGuard::default(),
+    };
+
+    check_write_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+
+    Ok(ToolOutcome {
+        structured: json!({
+            "allowed": true,
+            "baseline_bytes": baseline.len(),
+            "candidate_bytes": candidate.len(),
+        }),
+        summary: "写前检查通过：改动未引入新的高危安全实例，且结果仍然合法。".to_string(),
+    })
+}
+
 fn apply_edit(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
     let plan_value = arguments
         .get("plan")
@@ -564,10 +606,10 @@ mod tests {
     #[test]
     fn descriptors_are_unique_and_have_object_schemas() {
         let descriptors = tool_descriptors();
-        assert_eq!(descriptors.len(), 4, "必须暴露四个工具");
+        assert_eq!(descriptors.len(), 5, "必须暴露五个工具");
 
         let names: BTreeSet<&str> = descriptors.iter().map(|tool| tool.name).collect();
-        assert_eq!(names.len(), 4, "工具名必须唯一");
+        assert_eq!(names.len(), descriptors.len(), "工具名必须唯一");
 
         for descriptor in &descriptors {
             assert!(!descriptor.description.trim().is_empty());
@@ -667,6 +709,44 @@ mod tests {
             json!("parse_error")
         );
         assert!(broken.structured["diagnostics"][0]["line"].is_number());
+    }
+
+    #[test]
+    fn check_write_refuses_a_dangerous_candidate_and_allows_a_safe_one() {
+        // 宿主用自己的编辑方式产生 candidate，门禁只裁决、不参与编辑
+        let baseline = "tls_verify = true\nport = 8080\n";
+
+        let dangerous = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({ "baseline": baseline, "candidate": "tls_verify = false\nport = 8080\n" }),
+        )
+        .expect_err("关闭证书校验必须被拒绝");
+        assert_eq!(dangerous.code, "security_rejected");
+
+        let safe = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({ "baseline": baseline, "candidate": "tls_verify = true\nport = 9090\n" }),
+        )
+        .expect("与安全无关的改动必须放行");
+        assert_eq!(safe.structured["allowed"], json!(true));
+    }
+
+    #[test]
+    fn check_write_accepts_a_sidecar_schema() {
+        // 类型漂移（整数被写成字符串）正是确认性复验里 10 次静默误改的形态；
+        // 旁挂 schema 必须能挡住它，哪怕 candidate 来自朴素字符串替换。
+        let schema = "#@schema {\n  tab_spaces {\n    type = \"integer\"\n  }\n}\n";
+
+        let refusal = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": "tab_spaces = 4242\n",
+                "candidate": "tab_spaces = \"4242\"\n",
+                "schema": schema,
+            }),
+        )
+        .expect_err("类型漂移必须被 schema 拒绝");
+        assert_eq!(refusal.code, "validation_failed");
     }
 
     #[test]
@@ -833,7 +913,7 @@ mod tests {
 
     #[test]
     fn result_envelopes_are_shared_by_every_distribution_path() {
-        assert_eq!(tools_list_value()["tools"].as_array().unwrap().len(), 4);
+        assert_eq!(tools_list_value()["tools"].as_array().unwrap().len(), 5);
 
         let ok = tool_result_value(TOOL_VALIDATE, &json!({ "source": "port = 8080\n" }));
         assert_eq!(ok["isError"], json!(false));

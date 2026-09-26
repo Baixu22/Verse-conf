@@ -7,7 +7,7 @@
  *
  *   1. `npm pack` 的清单必须包含运行时真正需要的文件（wasm、glue、两个入口、bin）
  *   2. 在一个全新的空目录里安装这个 tgz
- *   3. 用 `require('verseconf')` 与 `import 'verseconf'` 各跑一遍四个能力
+ *   3. 用 `require('verseconf')` 与 `import 'verseconf'` 各跑一遍五个能力
  *   4. 直接跑包内的零安装 stdio 服务端
  */
 
@@ -83,7 +83,7 @@ try {
   });
 
   const consumerSource = `
-const { validate, audit, applyEdit, editRange, tools } = require('verseconf');
+const { validate, audit, applyEdit, editRange, checkWrite, tools } = require('verseconf');
 const valid = validate('port = 8080\\n');
 if (valid.isError !== false || valid.structuredContent.valid !== true) throw new Error('validate 结果不对');
 const found = audit('db_password = "secret"\\nhost = "0.0.0.0"\\n').structuredContent.findings.map((f) => f.rule_id);
@@ -95,16 +95,18 @@ const edited = applyEdit('server {\\n  port = 8080 #@ range(1..65535)\\n}\\n', {
 if (!edited.structuredContent.source.includes('port = 9090')) throw new Error('applyEdit 结果不对');
 if (!edited.structuredContent.source.includes('#@ range(1..65535)')) throw new Error('applyEdit 丢了元数据');
 if (editRange('port = 8080\\n', 7, 11, '9090').structuredContent.source !== 'port = 9090\\n') throw new Error('editRange 结果不对');
-if (tools().length !== 4) throw new Error('工具数量不对');
+if (checkWrite('tls_verify = true\\n', 'tls_verify = true\\nport = 9090\\n').structuredContent.allowed !== true) throw new Error('checkWrite 放行结果不对');
+if (checkWrite('tls_verify = true\\n', 'tls_verify = false\\n').structuredContent.code !== 'security_rejected') throw new Error('checkWrite 拒绝结果不对');
+if (tools().length !== 5) throw new Error('工具数量不对');
 console.log('cjs ok');
 `;
   writeFileSync(path.join(workDir, 'consumer.cjs'), consumerSource);
-  check("require('verseconf') 四个能力可用", () => {
+  check("require('verseconf') 五个能力可用", () => {
     assert.match(run(process.execPath, ['consumer.cjs'], { cwd: workDir }), /cjs ok/);
   });
 
   const esmSource = `
-import { validate, audit, applyEdit, editRange, tools, McpSession } from 'verseconf';
+import { validate, audit, applyEdit, editRange, checkWrite, tools, McpSession } from 'verseconf';
 const valid = validate('port = 8080\\n');
 if (valid.structuredContent.valid !== true) throw new Error('validate 结果不对');
 if (!audit('db_password = "secret"\\n').structuredContent.findings.some((f) => f.rule_id === 'SEC-SENS-001')) {
@@ -113,13 +115,14 @@ if (!audit('db_password = "secret"\\n').structuredContent.findings.some((f) => f
 if (!applyEdit('port = 8080\\n', { version: '1.0', edits: [{ op: 'set', path: ['port'], value: 9090 }] })
   .structuredContent.source.includes('9090')) throw new Error('applyEdit 结果不对');
 if (editRange('port = 8080\\n', 7, 11, '9090').structuredContent.source !== 'port = 9090\\n') throw new Error('editRange 结果不对');
-if (tools().length !== 4) throw new Error('工具数量不对');
+if (checkWrite('tls_verify = true\\n', 'tls_verify = false\\n').structuredContent.code !== 'security_rejected') throw new Error('checkWrite 结果不对');
+if (tools().length !== 5) throw new Error('工具数量不对');
 const session = new McpSession();
 if (session.handleLine('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}') === undefined) throw new Error('握手失败');
 console.log('esm ok');
 `;
   writeFileSync(path.join(workDir, 'consumer.mjs'), esmSource);
-  check("import 'verseconf' 四个能力可用", () => {
+  check("import 'verseconf' 五个能力可用", () => {
     assert.match(run(process.execPath, ['consumer.mjs'], { cwd: workDir }), /esm ok/);
   });
 
@@ -129,7 +132,7 @@ console.log('esm ok');
       [path.join(workDir, 'node_modules', 'verseconf', 'bin', 'verseconf-mcp-wasm.mjs'), '--list-tools'],
       { cwd: workDir }
     );
-    assert.equal(JSON.parse(stdout).tools.length, 4);
+    assert.equal(JSON.parse(stdout).tools.length, 5);
   });
 
   check('包内 stdio 服务端可完成一次真实会话', () => {

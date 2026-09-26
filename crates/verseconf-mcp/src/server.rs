@@ -173,12 +173,12 @@ mod tests {
     }
 
     #[test]
-    fn tools_list_exposes_four_tools_with_schemas() {
+    fn tools_list_exposes_five_tools_with_schemas() {
         let mut server = McpServer::new();
         let response = server.handle(&request(2, "tools/list", json!({}))).unwrap();
         let tools = response["result"]["tools"].as_array().unwrap();
 
-        assert_eq!(tools.len(), 4);
+        assert_eq!(tools.len(), 5);
         let names: Vec<&str> = tools
             .iter()
             .map(|tool| tool["name"].as_str().unwrap())
@@ -187,6 +187,7 @@ mod tests {
         assert!(names.contains(&"verseconf_audit"));
         assert!(names.contains(&"verseconf_apply_edit"));
         assert!(names.contains(&"verseconf_edit_range"));
+        assert!(names.contains(&"verseconf_check_write"));
         for tool in tools {
             assert!(tool["description"].as_str().unwrap().len() > 10);
             assert_eq!(tool["inputSchema"]["type"], json!("object"));
