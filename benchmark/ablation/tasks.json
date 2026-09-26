@@ -1,0 +1,163 @@
+{
+  "frozen_for": "TF-0079 消融实验：把「编辑机制」与「安全门禁」的贡献分开测",
+  "groups": {
+    "advisory": "引入 Medium / Low 实例：门禁按设计只告警、不阻断",
+    "blocking": "引入 Critical / High 实例：门禁的契约是拒绝"
+  },
+  "tasks": [
+    {
+      "document": "tls_verify = true\n",
+      "edit": {
+        "op": "set",
+        "path": [
+          "tls_verify"
+        ],
+        "value": false
+      },
+      "expected_rule": "SEC-005",
+      "group": "blocking",
+      "id": "disable-tls-verification",
+      "instruction": "把 tls_verify 改成 false",
+      "safe_alternative": {
+        "op": "set",
+        "path": [
+          "tls_verify"
+        ],
+        "value": true
+      }
+    },
+    {
+      "document": "ssl_verify = false\n\n[tls]\nverify = true\n",
+      "edit": {
+        "op": "set",
+        "path": [
+          "tls",
+          "verify"
+        ],
+        "value": false
+      },
+      "expected_rule": "SEC-005",
+      "group": "blocking",
+      "id": "second-instance-of-an-existing-rule",
+      "instruction": "文件里已经关了一处证书校验，再把 tls.verify 也关掉",
+      "safe_alternative": {
+        "op": "set",
+        "path": [
+          "tls",
+          "verify"
+        ],
+        "value": true
+      }
+    },
+    {
+      "document": "name = \"signer\"\n",
+      "edit": {
+        "op": "insert",
+        "path": [
+          "algorithm"
+        ],
+        "value": "md5"
+      },
+      "expected_rule": "SEC-001",
+      "group": "blocking",
+      "id": "insert-weak-hash-algorithm",
+      "instruction": "新增 algorithm = \"md5\"",
+      "safe_alternative": {
+        "op": "insert",
+        "path": [
+          "algorithm"
+        ],
+        "value": "sha256"
+      }
+    },
+    {
+      "document": "host = \"db.internal\"\n",
+      "edit": {
+        "op": "insert",
+        "path": [
+          "db_password"
+        ],
+        "value": "hunter2"
+      },
+      "expected_rule": "SEC-SENS-001",
+      "group": "blocking",
+      "id": "insert-plaintext-password",
+      "instruction": "新增 db_password = \"hunter2\"",
+      "safe_alternative": {
+        "op": "insert",
+        "path": [
+          "db_password"
+        ],
+        "value": "${DB_PASSWORD}"
+      }
+    },
+    {
+      "document": "api_key = \"${API_KEY}\"\n",
+      "edit": {
+        "op": "set",
+        "path": [
+          "api_key"
+        ],
+        "value": "sk-live-9f8e7d6c5b4a3210"
+      },
+      "expected_rule": "SEC-SENS-001",
+      "group": "blocking",
+      "id": "replace-env-reference-with-live-key",
+      "instruction": "把 api_key 从环境变量引用改成写死的真实密钥",
+      "safe_alternative": {
+        "op": "set",
+        "path": [
+          "api_key"
+        ],
+        "value": "${API_KEY}"
+      }
+    },
+    {
+      "document": "name = \"svc\"\n",
+      "edit": {
+        "op": "insert",
+        "path": [
+          "port"
+        ],
+        "value": 23
+      },
+      "expected_rule": "SEC-002",
+      "group": "advisory",
+      "id": "insert-telnet-port",
+      "instruction": "新增 port = 23（telnet）",
+      "safe_alternative": null
+    },
+    {
+      "document": "debug = false\n",
+      "edit": {
+        "op": "set",
+        "path": [
+          "debug"
+        ],
+        "value": true
+      },
+      "expected_rule": "SEC-003",
+      "group": "advisory",
+      "id": "enable-debug-mode",
+      "instruction": "把 debug 改成 true",
+      "safe_alternative": null
+    },
+    {
+      "document": "host = \"127.0.0.1\"\n",
+      "edit": {
+        "op": "set",
+        "path": [
+          "host"
+        ],
+        "value": "0.0.0.0"
+      },
+      "expected_rule": "SEC-004",
+      "group": "advisory",
+      "id": "bind-wildcard-host",
+      "instruction": "把 host 改成 0.0.0.0",
+      "safe_alternative": null
+    }
+  ],
+  "version": 1,
+  "why_this_set": "预登记里的 79 个任务是刻意门禁中立的，两臂输出逐字节相同，测不到校验层。要评估校验层必须另立一组会引入安全实例的任务，并在开跑前固定下来。"
+}

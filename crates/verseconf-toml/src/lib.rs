@@ -55,6 +55,8 @@
 //! - **审计覆盖到数组表**：`[[name]]` 元素里的键与普通表里的键走同一条判定路径，
 //!   位置标识形如 `name[0].password`。
 
+/// TF-0079：把「编辑机制」与「安全门禁」的贡献分开测的消融实验。
+pub mod ablation;
 mod ast_bridge;
 mod guard;
 

@@ -1,0 +1,126 @@
+{
+  "arms": {
+    "mechanism-only": "只保留编辑机制：复用 toml_edit 定位值区间、只替换目标字节",
+    "mechanism-plus-gate": "编辑机制 + 校验层：写入前做 schema 与安全双重校验"
+  },
+  "metrics": {
+    "false_refusal": "门禁拒绝了本来应该放行的改动",
+    "prevented": "门禁拒绝、且独立复核确认这条改动确实会新增高危实例",
+    "silent_security_mis_edit": "改动被应用、且改动后相对改动前新增了 Critical/High 高危实例——调用方拿不到任何信号"
+  },
+  "summary": {
+    "advisory_applied_by_both": 3,
+    "advisory_tasks": 3,
+    "blocking_prevented": 5,
+    "blocking_refusals": 5,
+    "blocking_silent_mis_edits": 5,
+    "blocking_silent_mis_edits_gated": 0,
+    "blocking_tasks": 5,
+    "blocking_with_safe_alternative": 5,
+    "neutral_false_refusals_gated": 0,
+    "neutral_false_refusals_mechanism_only": 0,
+    "neutral_tasks": 79,
+    "refusals_naming_instance": 5,
+    "safe_alternatives_accepted": 5
+  },
+  "tasks": [
+    {
+      "expected_rule": "SEC-005",
+      "gated": "refused:security_rejected",
+      "gated_prevented": true,
+      "group": "blocking",
+      "id": "disable-tls-verification",
+      "mechanism_only": "applied",
+      "refusal_names_instance": true,
+      "safe_alternative_accepted": true,
+      "silently_introduced": [
+        "SEC-005 @ tls_verify"
+      ]
+    },
+    {
+      "expected_rule": "SEC-005",
+      "gated": "refused:security_rejected",
+      "gated_prevented": true,
+      "group": "blocking",
+      "id": "second-instance-of-an-existing-rule",
+      "mechanism_only": "applied",
+      "refusal_names_instance": true,
+      "safe_alternative_accepted": true,
+      "silently_introduced": [
+        "SEC-005 @ tls.verify"
+      ]
+    },
+    {
+      "expected_rule": "SEC-001",
+      "gated": "refused:security_rejected",
+      "gated_prevented": true,
+      "group": "blocking",
+      "id": "insert-weak-hash-algorithm",
+      "mechanism_only": "applied",
+      "refusal_names_instance": true,
+      "safe_alternative_accepted": true,
+      "silently_introduced": [
+        "SEC-001 @ algorithm"
+      ]
+    },
+    {
+      "expected_rule": "SEC-SENS-001",
+      "gated": "refused:security_rejected",
+      "gated_prevented": true,
+      "group": "blocking",
+      "id": "insert-plaintext-password",
+      "mechanism_only": "applied",
+      "refusal_names_instance": true,
+      "safe_alternative_accepted": true,
+      "silently_introduced": [
+        "SEC-SENS-001 @ db_password"
+      ]
+    },
+    {
+      "expected_rule": "SEC-SENS-001",
+      "gated": "refused:security_rejected",
+      "gated_prevented": true,
+      "group": "blocking",
+      "id": "replace-env-reference-with-live-key",
+      "mechanism_only": "applied",
+      "refusal_names_instance": true,
+      "safe_alternative_accepted": true,
+      "silently_introduced": [
+        "SEC-SENS-001 @ api_key"
+      ]
+    },
+    {
+      "expected_rule": "SEC-002",
+      "gated": "applied",
+      "gated_prevented": false,
+      "group": "advisory",
+      "id": "insert-telnet-port",
+      "mechanism_only": "applied",
+      "refusal_names_instance": false,
+      "safe_alternative_accepted": null,
+      "silently_introduced": []
+    },
+    {
+      "expected_rule": "SEC-003",
+      "gated": "applied",
+      "gated_prevented": false,
+      "group": "advisory",
+      "id": "enable-debug-mode",
+      "mechanism_only": "applied",
+      "refusal_names_instance": false,
+      "safe_alternative_accepted": null,
+      "silently_introduced": []
+    },
+    {
+      "expected_rule": "SEC-004",
+      "gated": "applied",
+      "gated_prevented": false,
+      "group": "advisory",
+      "id": "bind-wildcard-host",
+      "mechanism_only": "applied",
+      "refusal_names_instance": false,
+      "safe_alternative_accepted": null,
+      "silently_introduced": []
+    }
+  ]
+}
