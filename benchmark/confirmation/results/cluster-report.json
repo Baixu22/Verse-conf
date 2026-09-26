@@ -1,0 +1,867 @@
+{
+  "generated_from": "benchmark/confirmation/results/runs.jsonl",
+  "seed": 20260926,
+  "iterations": 2000,
+  "units": {
+    "runs": 1422,
+    "tasks": 79,
+    "documents": 16,
+    "clusters": 16
+  },
+  "independence_note": "独立单元是**来源**：1422 次运行来自 79 个任务、16 份文档、16 个来源。把 1422 当成独立样本数会高估证据量。",
+  "overall": {
+    "semantic": {
+      "point": {
+        "n": 1422,
+        "passed": 1313,
+        "rate": 0.9233473980309423
+      },
+      "low": 0.8248945147679325,
+      "high": 0.9831276371308016,
+      "median": 0.9277777777777778,
+      "iterations": 2000,
+      "usable": true,
+      "emptyStrata": 0
+    },
+    "byte": {
+      "point": {
+        "n": 1422,
+        "passed": 1310,
+        "rate": 0.9212376933895922
+      },
+      "low": 0.8185654008438819,
+      "high": 0.9831276371308016,
+      "median": 0.9258101851851852,
+      "iterations": 2000,
+      "usable": true,
+      "emptyStrata": 0
+    }
+  },
+  "by_document": [
+    {
+      "key": "browser-harness-pyproject.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 90,
+          "rate": 1
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 90,
+          "rate": 1
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "clap-Cargo.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 78,
+          "rate": 0.8666666666666667
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 78,
+          "rate": 0.8666666666666667
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "half-Makefile.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 85,
+          "rate": 0.9444444444444444
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 85,
+          "rate": 0.9444444444444444
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "node-gyp-pyproject.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 90,
+          "rate": 1
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 90,
+          "rate": 1
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "opendal-Cargo.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 88,
+          "rate": 0.9777777777777777
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 88,
+          "rate": 0.9777777777777777
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "pandas-pyproject.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "regex-regression.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 24,
+          "rate": 0.26666666666666666
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 21,
+          "rate": 0.23333333333333334
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "reqwest-Cargo.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 90,
+          "rate": 1
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 90,
+          "rate": 1
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "terminal-bench-task.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "tinyvec-rustfmt.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 88,
+          "rate": 0.9777777777777777
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 88,
+          "rate": 0.9777777777777777
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "tokio-Cargo.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "typeshed-tensorflow-METADATA.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "versepixpin-pyproject.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 89,
+          "rate": 0.9888888888888889
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "verseshell-Cargo.toml [LF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 77,
+          "rate": 0.8555555555555555
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 77,
+          "rate": 0.8555555555555555
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "vscode-python-pyproject.toml [CRLF]",
+      "units": {
+        "runs": 72,
+        "tasks": 4,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 72,
+          "passed": 70,
+          "rate": 0.9722222222222222
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 72,
+          "passed": 70,
+          "rate": 0.9722222222222222
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    },
+    {
+      "key": "which-deny.toml [CRLF]",
+      "units": {
+        "runs": 90,
+        "tasks": 5,
+        "documents": 1,
+        "clusters": 1
+      },
+      "semantic": {
+        "point": {
+          "n": 90,
+          "passed": 88,
+          "rate": 0.9777777777777777
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      },
+      "byte": {
+        "point": {
+          "n": 90,
+          "passed": 88,
+          "rate": 0.9777777777777777
+        },
+        "low": null,
+        "high": null,
+        "iterations": 0,
+        "usable": false,
+        "reason": "只有 1 个来源，无法按来源聚类"
+      }
+    }
+  ],
+  "by_ending": [
+    {
+      "key": "CRLF",
+      "units": {
+        "runs": 702,
+        "tasks": 39,
+        "documents": 8,
+        "clusters": 8
+      },
+      "semantic": {
+        "point": {
+          "n": 702,
+          "passed": 689,
+          "rate": 0.9814814814814815
+        },
+        "low": 0.9694407894736842,
+        "high": 0.9928774928774928,
+        "median": 0.9819444444444444,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 702,
+          "passed": 689,
+          "rate": 0.9814814814814815
+        },
+        "low": 0.9694407894736842,
+        "high": 0.9928774928774928,
+        "median": 0.9819444444444444,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    },
+    {
+      "key": "LF",
+      "units": {
+        "runs": 720,
+        "tasks": 40,
+        "documents": 8,
+        "clusters": 8
+      },
+      "semantic": {
+        "point": {
+          "n": 720,
+          "passed": 624,
+          "rate": 0.8666666666666667
+        },
+        "low": 0.6875,
+        "high": 0.9792708333333328,
+        "median": 0.8694444444444445,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 720,
+          "passed": 621,
+          "rate": 0.8625
+        },
+        "low": 0.675,
+        "high": 0.9792708333333328,
+        "median": 0.8652777777777778,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    }
+  ],
+  "by_model": [
+    {
+      "key": "glm-5.3",
+      "units": {
+        "runs": 711,
+        "tasks": 79,
+        "documents": 16,
+        "clusters": 16
+      },
+      "semantic": {
+        "point": {
+          "n": 711,
+          "passed": 659,
+          "rate": 0.9268635724331927
+        },
+        "low": 0.8283875564438522,
+        "high": 0.9859353023909986,
+        "median": 0.9316239316239316,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 711,
+          "passed": 658,
+          "rate": 0.9254571026722925
+        },
+        "low": 0.8241639832704123,
+        "high": 0.9859353023909986,
+        "median": 0.9301994301994302,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    },
+    {
+      "key": "glm-5.3-flash",
+      "units": {
+        "runs": 711,
+        "tasks": 79,
+        "documents": 16,
+        "clusters": 16
+      },
+      "semantic": {
+        "point": {
+          "n": 711,
+          "passed": 654,
+          "rate": 0.919831223628692
+        },
+        "low": 0.8227848101265823,
+        "high": 0.9805555555555555,
+        "median": 0.925,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 711,
+          "passed": 652,
+          "rate": 0.9170182841068917
+        },
+        "low": 0.8143455289066549,
+        "high": 0.9805555555555555,
+        "median": 0.9222222222222223,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    }
+  ],
+  "by_arm": [
+    {
+      "key": "host-string-replace",
+      "units": {
+        "runs": 474,
+        "tasks": 79,
+        "documents": 16,
+        "clusters": 16
+      },
+      "semantic": {
+        "point": {
+          "n": 474,
+          "passed": 462,
+          "rate": 0.9746835443037974
+        },
+        "low": 0.9416666666666667,
+        "high": 1,
+        "median": 0.975,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 474,
+          "passed": 459,
+          "rate": 0.9683544303797469
+        },
+        "low": 0.925,
+        "high": 1,
+        "median": 0.9708333333333333,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    },
+    {
+      "key": "toml-edit-span",
+      "units": {
+        "runs": 474,
+        "tasks": 79,
+        "documents": 16,
+        "clusters": 16
+      },
+      "semantic": {
+        "point": {
+          "n": 474,
+          "passed": 430,
+          "rate": 0.9071729957805907
+        },
+        "low": 0.76875,
+        "high": 0.9978354978354979,
+        "median": 0.915070864437953,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 474,
+          "passed": 430,
+          "rate": 0.9071729957805907
+        },
+        "low": 0.76875,
+        "high": 0.9978354978354979,
+        "median": 0.915070864437953,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    },
+    {
+      "key": "verseconf-intent",
+      "units": {
+        "runs": 474,
+        "tasks": 79,
+        "documents": 16,
+        "clusters": 16
+      },
+      "semantic": {
+        "point": {
+          "n": 474,
+          "passed": 421,
+          "rate": 0.8881856540084389
+        },
+        "low": 0.7552492426701287,
+        "high": 0.9704641350210971,
+        "median": 0.8945147679324894,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      },
+      "byte": {
+        "point": {
+          "n": 474,
+          "passed": 421,
+          "rate": 0.8881856540084389
+        },
+        "low": 0.7552492426701287,
+        "high": 0.9704641350210971,
+        "median": 0.8945147679324894,
+        "iterations": 2000,
+        "usable": true,
+        "emptyStrata": 0
+      }
+    }
+  ],
+  "silent_miswrites": {
+    "runs": 19,
+    "documents": 9,
+    "clusters": 9
+  },
+  "weighted": {
+    "weights": {
+      "LF": 0.9,
+      "CRLF": 0.1
+    },
+    "weights_source": "benchmark/confirmation/weights.json",
+    "observed": {
+      "LF": {
+        "units": {
+          "runs": 720,
+          "tasks": 40,
+          "documents": 8,
+          "clusters": 8
+        },
+        "share": 0.5063291139240507
+      },
+      "CRLF": {
+        "units": {
+          "runs": 702,
+          "tasks": 39,
+          "documents": 8,
+          "clusters": 8
+        },
+        "share": 0.4936708860759494
+      }
+    },
+    "oversampled": true,
+    "max_deviation": 0.39367088607594936,
+    "is_production_average": false,
+    "label": "按预登记使用分布加权（语料与目标分布不一致，**不是**生产环境平均值）",
+    "semantic": {
+      "rate": 0.8781481481481481,
+      "low": 0.706217821067821,
+      "high": 0.9869730725623582
+    },
+    "byte": {
+      "rate": 0.8743981481481482,
+      "low": 0.6942138888888889,
+      "high": 0.9869730725623582
+    }
+  }
+}

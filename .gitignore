@@ -34,6 +34,10 @@ desktop.ini
 compare/test_data/
 compare/compare/
 
+# 确认性运行的工作目录：每次运行一份文件副本，不入库
+# （入的是 runs.jsonl 与聚类报告，那是证据本身）
+benchmark/confirmation/results/work/
+
 # 生成的报告（如果需要可以保留，但通常由脚本生成）
 # compare/performance_charts.md
 

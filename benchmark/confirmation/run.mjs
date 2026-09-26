@@ -42,13 +42,14 @@ const SYSTEM_PROMPT =
   '你是一个配置编辑助手。你会收到一份 TOML 配置的完整内容和一个改动要求。严格按要求做，只输出被要求的内容，不要解释、不要寒暄。';
 
 function parseArgs(argv) {
-  const args = { runner: 'deterministic', out: null, tiers: [], repeat: R, base: process.env.PILOT_BASE ?? 'http://127.0.0.1:3065/v1', apiKey: process.env.PILOT_API_KEY ?? null, reasoning: 'minimal', timeoutMs: 300000, limit: null };
+  const args = { runner: 'deterministic', out: null, tiers: [], repeat: R, base: process.env.PILOT_BASE ?? 'http://127.0.0.1:3065/v1', apiKey: process.env.PILOT_API_KEY ?? null, reasoning: 'minimal', timeoutMs: 300000, limit: null, concurrency: 1 };
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
     if (key === '--runner') args.runner = argv[++i];
     else if (key === '--out') args.out = argv[++i];
     else if (key === '--tier') args.tiers.push(argv[++i]);
     else if (key === '--repeat') args.repeat = Number(argv[++i]);
+    else if (key === '--concurrency') args.concurrency = Number(argv[++i]);
     else if (key === '--base') args.base = argv[++i];
     else if (key === '--api-key') args.apiKey = argv[++i];
     else if (key === '--reasoning') args.reasoning = argv[++i];
@@ -151,10 +152,17 @@ async function judge({ original, result, task, runDir }) {
   const diff = singleRegion(original, result);
   const keyPart = (line) => (line === undefined ? null : line.slice(0, line.indexOf('=')));
 
+  // §三 的第 2、3 条按**位置**判定（开跑前修正过，见 PREREGISTRATION.md 的修正说明）：
+  // 差异区间的起点必须落在目标行的键值分隔符之后。这里刻意不做子串匹配——
+  // 值本身可以包含键名（pandas 的 matplotlib = "pandas:plotting._matplotlib"）
+  // 或 `=`（requires-python = ">=3.11"），子串判定会把字节完全保真的结果判成不保真。
+  const separatorIndex = targetLineStart + originalLine.indexOf('=');
+  const changedStartsAfterSeparator = diff.prefix > separatorIndex;
+
   const checks = {
     one_changed_region: diff.prefix + diff.suffix + diff.removed.length === original.length,
-    changed_region_excludes_key: !diff.removed.includes(task.path.at(-1)?.key ?? task.path.at(-1)),
-    changed_region_excludes_equals: !diff.removed.includes('='),
+    changed_region_excludes_key: changedStartsAfterSeparator,
+    changed_region_excludes_equals: changedStartsAfterSeparator,
     line_count_unchanged: originalLines.length === lines.length,
     target_line_value_equals_expected: lines[index] === expectedLine,
     target_line_preserves_everything_but_the_value: lines[index] === expectedLine,
@@ -178,15 +186,18 @@ async function judge({ original, result, task, runDir }) {
   );
   checks.value_reads_back = verify.code === 0;
 
-  const byte_ok = [
-    'one_changed_region',
-    'changed_region_excludes_key',
-    'changed_region_excludes_equals',
-    'line_count_unchanged',
-    'target_line_value_equals_expected',
-    'target_line_preserves_everything_but_the_value',
-    'target_line_key_part_unchanged',
-  ].every((name) => checks[name]);
+  // §三：口径 A 是「在口径 B 之上再加七条字节检查」，所以 A 通过必须蕴含 B 通过。
+  const byte_ok =
+    checks.value_reads_back &&
+    [
+      'one_changed_region',
+      'changed_region_excludes_key',
+      'changed_region_excludes_equals',
+      'line_count_unchanged',
+      'target_line_value_equals_expected',
+      'target_line_preserves_everything_but_the_value',
+      'target_line_key_part_unchanged',
+    ].every((name) => checks[name]);
 
   return { checks, semantic_ok: checks.value_reads_back, byte_ok };
 }
@@ -313,74 +324,104 @@ async function main() {
   const jsonlPath = path.join(outDir, 'runs.jsonl');
   const stream = fs.createWriteStream(jsonlPath, { flags: 'w' });
 
-  let runs = 0;
-  let failures = 0;
+  // 展开所有运行，再按并发度跑。每个运行彼此独立——各自一个工作目录、最多一次模型调用、
+  // 不重试——所以并发只是吞吐选择，不改变 §三 / §四 / §五 的任何度量口径。
+  const specs = [];
   for (const task of tasks) {
     for (const arm of ARMS) {
       for (const tier of tiers) {
         for (let repeat = 1; repeat <= args.repeat; repeat += 1) {
-          const runDir = path.join(outDir, 'work', safeDirName(`${task.id}-${arm}-${tier}-${repeat}`));
-          fs.mkdirSync(runDir, { recursive: true });
-          const file = path.join(runDir, 'config.toml');
-          fs.writeFileSync(file, task.source);
-
-          let record = {
-            cluster: task.cluster,
-            document: task.document,
-            ending: task.ending,
-            arm,
-            model: tier,
-            task: task.id,
-            repeat,
-            semantic_ok: false,
-            byte_ok: false,
-            applied: false,
-            input_tokens: 0,
-            output_tokens: 0,
-            reasoning_tokens: 0,
-            calls: 0,
-            failure: null,
-          };
-
-          try {
-            let output;
-            if (args.runner === 'model') {
-              const reply = await callModel(args, tier, armPrompt(arm, task));
-              record.calls = 1;
-              record.input_tokens = reply.input_tokens;
-              record.output_tokens = reply.output_tokens;
-              record.reasoning_tokens = reply.reasoning_tokens;
-              output = reply.output;
-            } else {
-              output = scriptedOutput(arm, task);
-            }
-
-            const applied = await applyOutput(arm, task, runDir, output);
-            record.applied = applied.ok;
-            if (!applied.ok) record.failure = applied.reason;
-          } catch (error) {
-            // §五：模型调用失败也计入分母，不重试、不剔除
-            record.failure = `model_call_failed: ${String(error).slice(0, 120)}`;
-            failures += 1;
-          }
-
-          if (record.applied) {
-            const result = fs.readFileSync(file, 'utf8');
-            const verdict = await judge({ original: task.source, result, task, runDir });
-            record.semantic_ok = verdict.semantic_ok;
-            record.byte_ok = verdict.byte_ok;
-          }
-
-          stream.write(`${JSON.stringify(record)}\n`);
-          runs += 1;
+          specs.push({ task, arm, tier, repeat });
         }
       }
     }
   }
+
+  let runs = 0;
+  let failures = 0;
+  let cursor = 0;
+  const started = Date.now();
+
+  async function runOne({ task, arm, tier, repeat }) {
+    const runDir = path.join(outDir, 'work', safeDirName(`${task.id}-${arm}-${tier}-${repeat}`));
+    fs.mkdirSync(runDir, { recursive: true });
+    const file = path.join(runDir, 'config.toml');
+    fs.writeFileSync(file, task.source);
+
+    const record = {
+      cluster: task.cluster,
+      document: task.document,
+      ending: task.ending,
+      arm,
+      model: tier,
+      task: task.id,
+      repeat,
+      semantic_ok: false,
+      byte_ok: false,
+      applied: false,
+      input_tokens: 0,
+      output_tokens: 0,
+      reasoning_tokens: 0,
+      calls: 0,
+      failure: null,
+    };
+
+    try {
+      let output;
+      if (args.runner === 'model') {
+        const reply = await callModel(args, tier, armPrompt(arm, task));
+        record.calls = 1;
+        record.input_tokens = reply.input_tokens;
+        record.output_tokens = reply.output_tokens;
+        record.reasoning_tokens = reply.reasoning_tokens;
+        output = reply.output;
+      } else {
+        output = scriptedOutput(arm, task);
+      }
+
+      const applied = await applyOutput(arm, task, runDir, output);
+      record.applied = applied.ok;
+      if (!applied.ok) record.failure = applied.reason;
+    } catch (error) {
+      // §五：模型调用失败也计入分母，不重试、不剔除
+      record.failure = `model_call_failed: ${String(error).slice(0, 120)}`;
+    }
+
+    if (record.applied) {
+      const result = fs.readFileSync(file, 'utf8');
+      const verdict = await judge({ original: task.source, result, task, runDir });
+      record.semantic_ok = verdict.semantic_ok;
+      record.byte_ok = verdict.byte_ok;
+    }
+
+    if (record.failure && record.failure.startsWith('model_call_failed')) failures += 1;
+    runs += 1;
+    stream.write(`${JSON.stringify(record)}\n`);
+    if (runs % 100 === 0) {
+      const elapsed = ((Date.now() - started) / 1000).toFixed(0);
+      console.log(`  ... ${runs}/${specs.length}（${elapsed}s）`);
+    }
+  }
+
+  async function worker() {
+    while (cursor < specs.length) {
+      const spec = specs[cursor];
+      cursor += 1;
+      await runOne(spec);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(args.concurrency, specs.length)) }, () => worker())
+  );
   await new Promise((resolve) => stream.end(resolve));
 
-  console.log(`runner=${args.runner} tiers=${tiers.join(',')} tasks=${tasks.length} arms=${ARMS.length} repeat=${args.repeat}`);
-  console.log(`写出 ${runs} 次运行到 ${jsonlPath}（模型调用失败 ${failures} 次，已计入分母）`);
+  const elapsed = ((Date.now() - started) / 1000).toFixed(0);
+  console.log(
+    `runner=${args.runner} tiers=${tiers.join(',')} tasks=${tasks.length} arms=${ARMS.length} ` +
+      `repeat=${args.repeat} concurrency=${args.concurrency}`
+  );
+  console.log(`写出 ${runs} 次运行到 ${jsonlPath}（模型调用失败 ${failures} 次，已计入分母；用时 ${elapsed}s）`);
   if (args.runner === 'deterministic') {
     console.log('注意：deterministic 只是管线冒烟，不是证据——结论只能用 model 模式的结果。');
   }
