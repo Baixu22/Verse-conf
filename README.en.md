@@ -7,6 +7,11 @@
 > Deterministic code performs a byte-range minimal edit, with schema validation and a
 > security audit before anything is written. **When it cannot be certain, it refuses
 > instead of guessing.**
+>
+> ⚠️ **The confirmatory replication measured no net benefit**: the hard gates failed, and the
+> project has been closed out as a **small reliable configuration-editing library** with no
+> further platform narrative. See [13. Known limitations](#13-known-limitations-and-roadmap),
+> item 5.
 
 [![crates.io](https://img.shields.io/crates/v/verseconf-core.svg)](https://crates.io/crates/verseconf-core)
 [![CI](https://github.com/Baixu22/Verse-conf/actions/workflows/ci.yml/badge.svg)](https://github.com/Baixu22/Verse-conf/actions/workflows/ci.yml)
@@ -613,6 +618,16 @@ asserts that the benchmark fails rather than reporting zeros.
 4. **Parse performance is not this project's advantage**: it is 2.77–5.65x slower than
    `serde_json` (see Appendix A). The evidence for this project is edit fidelity, not
    parse speed.
+5. **No net benefit was measured, and the project has been closed out as a "small reliable
+   configuration-editing library"** per its preregistration: the confirmatory replication
+   (1,422 real model runs on frozen holdout documents, against thresholds fixed before the
+   run) **failed the hard gates** — 88.8% semantic / 88.8% byte fidelity, below both controls
+   (97.5% / 90.7% and 96.8% / 90.7%); 10 silent mis-edits (controls: 9 / 0); model-side cost
+   8.9% higher. The only positive evidence is on the safety side: the ablation shows the
+   validation gate blocked all 5 edits that would have introduced high-risk instances (the
+   control arm wrote every one of them silently), with 0 false refusals across 79 neutral
+   tasks. See [benchmark/confirmation/VERDICT.md](benchmark/confirmation/VERDICT.md) and
+   [benchmark/ablation/](benchmark/ablation/).
 
 **Roadmap**
 

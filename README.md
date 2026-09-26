@@ -5,6 +5,10 @@
 > **Agent 编辑配置的确定性执行层。**
 > 模型只给出「改哪个字段、改成什么」，由确定性代码完成字符区间级最小改动，
 > 写入前做 schema 与安全双重校验；**无法确定时拒绝，而不是猜测**。
+>
+> ⚠️ **确认性复验没有测到净收益**：硬门禁不通过，本项目已按预登记收尾为
+> **小型可靠配置编辑库**，不再扩大平台叙事。逐条对照见
+> [十三、已知限制](#十三已知限制与路线) 第 6 条。
 
 [![crates.io](https://img.shields.io/crates/v/verseconf-core.svg)](https://crates.io/crates/verseconf-core)
 [![CI](https://github.com/Baixu22/Verse-conf/actions/workflows/ci.yml/badge.svg)](https://github.com/Baixu22/Verse-conf/actions/workflows/ci.yml)
@@ -582,6 +586,14 @@ cargo publish -p verseconf-lsp
 5. **合并视图的校验有条件**：只有合并器实际读到的文件集合与 include 图一致时才会返回
    `effective_view: "validated"`。嵌套 include 的基准目录与合并器的解析方式不同，
    此时返回 `not_validated`，`verseconf edit --write` 默认拒绝落盘。
+6. **没有测到净收益，本项目已按预登记收尾为「小型可靠配置编辑库」**：确认性复验
+   （1422 次真实模型运行，冻结的 holdout 语料 + 开跑前预登记的门槛）里**硬门禁不通过**——
+   语义正确 88.8% / 字节保真 88.8%，低于两个对照的 97.5% / 90.7% 与 96.8% / 90.7%；
+   静默误改 10 次（对照 9 / 0）；模型侧成本还贵 8.9%。唯一测到的正面证据在安全侧：
+   消融实验里校验层把 5 条会引入高危实例的改动全部拦下（对照臂全部静默写入），
+   79 条中立任务 0 误拒。逐条对照与边界见
+   [benchmark/confirmation/VERDICT.md](benchmark/confirmation/VERDICT.md) 与
+   [benchmark/ablation/](benchmark/ablation/)。
 
 **路线**
 
