@@ -8,7 +8,7 @@ repository.workspace = true
 description = "Language Server Protocol implementation for VerseConf"
 
 [dependencies]
-verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
+verseconf-core = { version = "0.2.0", path = "../verseconf-core" }
 tower-lsp = "0.20"
 # sync: exit 监护任务的 mpsc 通道；time: exit 之后的落盘缓冲
 tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "io-std", "sync", "time"] }

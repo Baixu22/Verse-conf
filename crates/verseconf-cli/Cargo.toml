@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 # 带 version 才能发布到 registry（只有 path 的依赖无法打包）。
-verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
+verseconf-core = { version = "0.2.0", path = "../verseconf-core" }
 clap.workspace = true
 anyhow.workspace = true
 chrono = "0.4"

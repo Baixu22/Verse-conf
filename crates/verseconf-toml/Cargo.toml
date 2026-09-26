@@ -10,7 +10,7 @@ description = "把编辑意图契约用到真实 TOML 配置上：复用 toml_ed
 publish = false
 
 [dependencies]
-verseconf-core = { version = "0.1.0", path = "../verseconf-core" }
+verseconf-core = { version = "0.2.0", path = "../verseconf-core" }
 toml_edit.workspace = true
 
 [dev-dependencies]

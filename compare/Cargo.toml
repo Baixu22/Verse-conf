@@ -1,6 +1,6 @@
 [package]
 name = "verseconf-compare"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 # 只用于本仓库的格式对比与基准，不发布。
 publish = false

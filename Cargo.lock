@@ -1816,7 +1816,7 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "verseconf-bench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1825,7 +1825,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1835,7 +1835,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-compare"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1845,7 +1845,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "atty",
  "chrono",
@@ -1863,7 +1863,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-lsp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "env_logger",
  "log",
@@ -1876,7 +1876,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-mcp"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1885,7 +1885,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-test"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "criterion",
  "insta",
@@ -1898,7 +1898,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-toml"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde_json",
  "toml_edit",
@@ -1907,7 +1907,7 @@ dependencies = [
 
 [[package]]
 name = "verseconf-wasm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "console_error_panic_hook",
  "serde_json",
