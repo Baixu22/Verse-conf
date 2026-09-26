@@ -67,17 +67,18 @@ from the implementation.
 
 ## Public benchmark: does editing a config change anything else?
 
-The repository ships an edit fidelity benchmark a third party can re-run (6 documents,
-14 tasks, no network and no model):
+The repository ships an edit fidelity benchmark a third party can re-run (8 documents,
+27 tasks covering `set` / `insert` / `delete`, multi-edit plans and edits across
+`@include`, no network and no model):
 
 | Strategy | Correct | Collateral damage | Refusal accuracy |
 |---|---|---|---|
-| Intent contract + byte-range minimal edit | 8/8 | **0/8** | 6/6 |
-| Rewrite the whole file after changing the value | 0/8 | 8/8 | 3/6 |
-| Replace the first line matching the field name | 2/8 | 3/8 | 2/6 |
+| Intent contract + byte-range minimal edit | 21/21 | **0/21** | 6/6 |
+| Rewrite the whole file after changing the value | 0/21 | 21/21 | 3/6 |
+| Replace the first line matching the field name | 6/21 | 6/21 | 2/6 |
 
 The corpus, the judge and all three strategies live in the repository; re-running produces
-the same corpus fingerprint `115811767f1177d0`. Methodology and scope limits:
+the same corpus fingerprint `162777399290a695`. Methodology and scope limits:
 [`benchmark/README.md`](https://github.com/Baixu22/Verse-conf/blob/main/benchmark/README.md).
 
 ## See also

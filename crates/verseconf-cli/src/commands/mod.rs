@@ -1,9 +1,12 @@
 pub mod audit;
 pub mod diff;
 pub mod doc;
+pub mod edit;
 pub mod env;
 pub mod format;
 pub mod parse;
+pub mod schema;
 pub mod template;
 pub mod validate;
 pub mod version;
+pub mod watch;

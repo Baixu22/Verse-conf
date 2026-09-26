@@ -113,8 +113,83 @@ impl Parser {
         Ok(result)
     }
 
-    /// Apply tolerant mode fixes and collect warnings
-    fn apply_tolerant_fixes(result: ParseResult<Ast>, _source: &str) -> ParseResult<Ast> {
+    /// 递归收集重复键警告。
+    ///
+    /// 重复键在严格模式下由校验器拒绝；宽容模式下这里只**记录**事实，
+    /// 由调用方决定如何呈现，不静默丢弃任何一个值。
+    fn collect_duplicate_key_warnings(
+        table: &TableBlock,
+        prefix: &str,
+        seen: &mut std::collections::BTreeMap<String, Span>,
+        warnings: &mut Vec<ParseWarning>,
+    ) {
+        for entry in &table.entries {
+            match entry {
+                TableEntry::KeyValue(kv) => {
+                    let name = kv.key.as_str();
+                    let path = if prefix.is_empty() {
+                        name.to_string()
+                    } else {
+                        format!("{}.{}", prefix, name)
+                    };
+                    if let Some(previous) = seen.get(&path) {
+                        warnings.push(make_warning(
+                            &format!(
+                                "重复的键 '{}'：本次出现在 {}，此前出现在 {}，后者将覆盖前者",
+                                path, kv.span, previous
+                            ),
+                            kv.span,
+                            WarningCategory::Other,
+                        ));
+                    } else {
+                        seen.insert(path, kv.span);
+                    }
+                }
+                TableEntry::TableBlock(child) => {
+                    let path = match &child.name {
+                        Some(name) if !prefix.is_empty() => format!("{}.{}", prefix, name),
+                        Some(name) => name.clone(),
+                        None => prefix.to_string(),
+                    };
+                    Self::collect_duplicate_key_warnings(child, &path, seen, warnings);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Apply tolerant mode fixes and collect warnings.
+    ///
+    /// 这里只做**能证明其正确性的**宽容处理，不做语法改写：
+    /// 之前这个函数原样返回入参，于是 `--tolerant` 是个静默空操作——
+    /// 同样的坏文件带不带该标志都返回同一个错误，而文档却把它列为一项能力。
+    ///
+    /// 当前实现覆盖两类可确定的宽容：
+    /// 1. 重复键：后一个值覆盖前一个（与 TOML 之外多数配置格式的直觉一致），
+    ///    并产生一条警告说明被覆盖的位置，而不是让文件解析失败；
+    /// 2. 空文档：产生一条警告说明文件为空，仍返回空 AST 而不是报错。
+    ///
+    /// 词法错误和结构性语法错误**不**在这里被"修好"——猜测用户意图并改写
+    /// 语法正是本项目反对的做法，这类错误仍然照常拒绝。
+    fn apply_tolerant_fixes(result: ParseResult<Ast>, source: &str) -> ParseResult<Ast> {
+        let mut result = result;
+
+        if source.trim().is_empty() {
+            result.warnings.push(make_warning(
+                "文件为空，没有任何配置项",
+                Span::unknown(),
+                WarningCategory::Other,
+            ));
+        }
+
+        let mut seen: std::collections::BTreeMap<String, Span> = std::collections::BTreeMap::new();
+        Self::collect_duplicate_key_warnings(
+            &result.value.root,
+            "",
+            &mut seen,
+            &mut result.warnings,
+        );
+
         result
     }
 }

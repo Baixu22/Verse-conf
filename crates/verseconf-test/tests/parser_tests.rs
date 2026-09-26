@@ -202,6 +202,59 @@ port = 8080
     assert_eq!(parse_result.value.root.entries.len(), 2);
 }
 
+/// 回归：`tolerant: true` 曾经是个静默空操作（apply_tolerant_fixes 原样返回入参），
+/// 于是宽容模式永远产生不了任何警告，调用方无法区分它与严格模式。
+#[test]
+fn test_tolerant_mode_reports_duplicate_keys() {
+    let source = "port = 8080
+port = 9090
+";
+    let config = ParseConfig {
+        tolerant: true,
+        collect_warnings: true,
+    };
+    let result = parse_with_config(source, config).expect("宽容模式应能解析");
+    assert!(
+        result.has_warnings(),
+        "重复键在宽容模式下必须产生警告，而不是静默通过"
+    );
+    assert!(
+        result.warnings.iter().any(|w| w.message.contains("port")),
+        "警告里应指出重复的键名，实际：{:?}",
+        result
+            .warnings
+            .iter()
+            .map(|w| &w.message)
+            .collect::<Vec<_>>()
+    );
+}
+
+/// 回归：空文档在宽容模式下应给出警告而不是悄悄返回空 AST。
+#[test]
+fn test_tolerant_mode_reports_empty_document() {
+    let config = ParseConfig {
+        tolerant: true,
+        collect_warnings: true,
+    };
+    let result = parse_with_config(
+        "   
+
+", config,
+    )
+    .expect("空文档应能解析");
+    assert!(result.has_warnings(), "空文档在宽容模式下必须产生警告");
+}
+
+/// 严格模式（tolerant=false）不应产生这些警告，证明两条路径确实不同。
+#[test]
+fn test_strict_mode_does_not_emit_tolerant_warnings() {
+    let source = "port = 8080
+port = 9090
+";
+    let result = parse_with_config(source, ParseConfig::default()).expect("应能解析");
+    assert!(!result.has_warnings(), "严格模式不应产生宽容模式才有的警告");
+}
+
 #[test]
 fn test_parse_config_default() {
     let source = r#"

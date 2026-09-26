@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -17,6 +17,31 @@ pub enum FileChangeEvent {
     Removed(PathBuf),
 }
 
+/// 一次重载的结果，供调用方（例如 `verseconf watch`）作出反应。
+///
+/// 关键在于 **解析失败也要报出来**：之前 `handle_event` 里写的是
+/// `if let Ok(ast) = ...`，解析失败时静默保留旧 AST——于是"文件现在是坏的"
+/// 这件事永远不会被任何人知道。这正是本项目最反对的那种失败方式。
+#[derive(Debug, Clone)]
+pub enum ReloadEvent {
+    /// 文件内容变化后的重新解析结果；`error` 为 `None` 表示解析成功
+    Changed {
+        path: PathBuf,
+        error: Option<String>,
+    },
+    /// 被监视的文件已删除
+    Removed { path: PathBuf },
+}
+
+impl ReloadEvent {
+    /// 事件对应的文件路径
+    pub fn path(&self) -> &Path {
+        match self {
+            ReloadEvent::Changed { path, .. } | ReloadEvent::Removed { path } => path,
+        }
+    }
+}
+
 /// 热重载状态
 #[derive(Debug)]
 struct HotReloadState {
@@ -28,6 +53,8 @@ struct HotReloadState {
 pub struct HotReloader {
     state: Arc<Mutex<HotReloadState>>,
     _watcher: Option<RecommendedWatcher>,
+    /// 有订阅者时，每次重载的结果都会发到这里
+    events: Option<Sender<ReloadEvent>>,
 }
 
 impl HotReloader {
@@ -38,7 +65,19 @@ impl HotReloader {
                 watched_files: HashMap::new(),
             })),
             _watcher: None,
+            events: None,
         }
+    }
+
+    /// 构造一个会把重载结果发到通道里的实例。
+    ///
+    /// 调用方拿到 `Receiver` 后即可对每次变化作出反应（`verseconf watch` 用它
+    /// 打印每次改动后的校验结果）。
+    pub fn with_events(cache_size: usize) -> (Self, Receiver<ReloadEvent>) {
+        let (tx, rx) = channel();
+        let mut reloader = Self::new(cache_size);
+        reloader.events = Some(tx);
+        (reloader, rx)
     }
 
     pub fn watch(&mut self, path: &Path) -> Result<(), String> {
@@ -123,6 +162,7 @@ impl HotReloader {
 
     fn setup_watcher(&mut self) -> Result<(), String> {
         let state = Arc::clone(&self.state);
+        let events = self.events.clone();
         let (tx, rx) = channel();
 
         let watcher = RecommendedWatcher::new(tx, notify::Config::default())
@@ -131,7 +171,7 @@ impl HotReloader {
         std::thread::spawn(move || loop {
             match rx.recv_timeout(Duration::from_secs(1)) {
                 Ok(Ok(event)) => {
-                    handle_event(&event, &state);
+                    handle_event(&event, &state, events.as_ref());
                 }
                 Ok(Err(e)) => {
                     eprintln!("Watch error: {}", e);
@@ -147,7 +187,11 @@ impl HotReloader {
     }
 }
 
-fn handle_event(event: &Event, state: &Arc<Mutex<HotReloadState>>) {
+fn handle_event(
+    event: &Event,
+    state: &Arc<Mutex<HotReloadState>>,
+    events: Option<&Sender<ReloadEvent>>,
+) {
     for path in &event.paths {
         let change_event = match event.kind {
             notify::EventKind::Modify(_) => FileChangeEvent::Modified(path.clone()),
@@ -158,14 +202,35 @@ fn handle_event(event: &Event, state: &Arc<Mutex<HotReloadState>>) {
 
         match &change_event {
             FileChangeEvent::Modified(p) | FileChangeEvent::Created(p) => {
-                let mut state = state.lock().unwrap();
-                if let Ok(ast) = state.parser.parse_file(p) {
-                    state.watched_files.insert(p.clone(), ast);
+                // 解析成功就更新缓存；失败也必须把错误发出去。
+                // 这里以前是 `if let Ok(ast) = ...`：解析失败时静默保留旧 AST，
+                // 于是"文件现在是坏的"这件事永远不会被任何人知道。
+                let error = {
+                    let mut state = state.lock().unwrap();
+                    match state.parser.parse_file(p) {
+                        Ok(ast) => {
+                            state.watched_files.insert(p.clone(), ast);
+                            None
+                        }
+                        Err(error) => Some(error),
+                    }
+                };
+
+                if let Some(sender) = events {
+                    let _ = sender.send(ReloadEvent::Changed {
+                        path: p.clone(),
+                        error,
+                    });
                 }
             }
             FileChangeEvent::Removed(p) => {
-                let mut state = state.lock().unwrap();
-                state.watched_files.remove(p);
+                {
+                    let mut state = state.lock().unwrap();
+                    state.watched_files.remove(p);
+                }
+                if let Some(sender) = events {
+                    let _ = sender.send(ReloadEvent::Removed { path: p.clone() });
+                }
             }
         }
     }
@@ -183,6 +248,81 @@ mod tests {
     use super::*;
     use std::fs::File;
     use std::io::Write;
+
+    /// 回归：解析失败必须作为事件报出去。
+    ///
+    /// 之前 `handle_event` 里是 `if let Ok(ast) = ...`：解析失败时静默保留旧 AST，
+    /// 于是"文件现在是坏的"这件事永远不会被任何人知道——`verseconf watch`
+    /// 会一直显示上一次的成功结果。
+    #[test]
+    fn test_parse_failure_is_reported_not_swallowed() {
+        let test_dir = std::env::temp_dir().join("verseconf_hotreload_failure");
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let test_file = test_dir.join("broken.vcf");
+        std::fs::write(&test_file, "ok = 1\n").unwrap();
+
+        let (mut reloader, events) = HotReloader::with_events(10);
+        reloader.watch(&test_file).unwrap();
+
+        // 写入无法解析的内容
+        std::fs::write(&test_file, "this is not valid {{{\n").unwrap();
+
+        // 不同平台/编辑器的文件系统事件数量不一致，所以循环等到"确实报出失败"为止
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let mut reported_failure = false;
+        while std::time::Instant::now() < deadline {
+            if let Ok(ReloadEvent::Changed { error, .. }) =
+                events.recv_timeout(Duration::from_millis(500))
+            {
+                if error.is_some() {
+                    reported_failure = true;
+                    break;
+                }
+            }
+        }
+
+        assert!(
+            reported_failure,
+            "解析失败必须产生带 error 的事件，而不是静默保留旧 AST"
+        );
+
+        let _ = std::fs::remove_dir_all(&test_dir);
+    }
+
+    /// 成功解析时事件里的 error 必须是 None，避免把正常改动报成错误
+    #[test]
+    fn test_successful_reload_reports_no_error() {
+        let test_dir = std::env::temp_dir().join("verseconf_hotreload_success");
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+
+        let test_file = test_dir.join("ok.vcf");
+        std::fs::write(&test_file, "ok = 1\n").unwrap();
+
+        let (mut reloader, events) = HotReloader::with_events(10);
+        reloader.watch(&test_file).unwrap();
+
+        std::fs::write(&test_file, "ok = 2\n").unwrap();
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let mut saw_success = false;
+        while std::time::Instant::now() < deadline {
+            if let Ok(ReloadEvent::Changed { error, .. }) =
+                events.recv_timeout(Duration::from_millis(500))
+            {
+                if error.is_none() {
+                    saw_success = true;
+                    break;
+                }
+            }
+        }
+
+        assert!(saw_success, "正常改动必须产生 error 为 None 的事件");
+
+        let _ = std::fs::remove_dir_all(&test_dir);
+    }
 
     #[test]
     fn test_hot_reload_basic() {

@@ -106,6 +106,43 @@ enum Commands {
         #[arg(short, long, default_value = "text")]
         format: String,
     },
+    /// Schema utilities
+    #[command(subcommand)]
+    Schema(SchemaCommands),
+    /// Apply an edit-intent plan, locating the target across @include files
+    Edit {
+        /// Path to the entry configuration file
+        file: String,
+        /// Path to the edit plan JSON
+        #[arg(long)]
+        plan: String,
+        /// Write the change to disk (default: print the result only)
+        #[arg(long)]
+        write: bool,
+        /// Allow --write when the merged effective configuration could not be validated
+        #[arg(long)]
+        allow_unvalidated: bool,
+    },
+    /// Watch a configuration file and re-validate it on every change
+    Watch {
+        /// Path to the configuration file
+        file: String,
+        /// Exit after this many changes (0 = run until interrupted)
+        #[arg(long, default_value_t = 0)]
+        max_events: usize,
+    },
+}
+
+#[derive(clap::Subcommand)]
+enum SchemaCommands {
+    /// Infer a #@schema block from an existing configuration file
+    Generate {
+        /// Path to the configuration file
+        file: String,
+        /// Write the inferred schema into the file (default: print to stdout)
+        #[arg(long)]
+        write: bool,
+    },
 }
 
 #[derive(clap::Subcommand)]
@@ -441,6 +478,22 @@ fn main() -> anyhow::Result<()> {
         },
         Commands::Audit { file, format } => {
             commands::audit::run_audit(&file, &format)?;
+        }
+        Commands::Schema(schema_cmd) => match schema_cmd {
+            SchemaCommands::Generate { file, write } => {
+                commands::schema::generate(&file, write)?;
+            }
+        },
+        Commands::Watch { file, max_events } => {
+            commands::watch::execute(&file, max_events)?;
+        }
+        Commands::Edit {
+            file,
+            plan,
+            write,
+            allow_unvalidated,
+        } => {
+            commands::edit::execute(&file, &plan, write, allow_unvalidated)?;
         }
     }
 

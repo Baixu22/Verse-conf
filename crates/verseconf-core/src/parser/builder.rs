@@ -122,6 +122,26 @@ impl AstBuilder {
 
             // Parse schema field
             if let Token::BareKey(key) = &tokens[*pos].0 {
+                // `version` / `description` / `strict` 既是 schema 自身的属性名，
+                // 也可能只是用户配置里真的有一个同名字段。靠紧随其后的记号区分：
+                //
+                //   version = "1.0"   → schema 属性（后面是 `=`）
+                //   version { ... }   → 名为 version 的字段（后面是 `{`）
+                //
+                // 之前这里无条件按属性处理，于是任何含有名为 `version` 字段的
+                // schema 都会被解析错位：该字段被吞掉，块在错误的位置提前结束，
+                // 连带把后面的文档内容也解析坏（表现为"缺少必填字段"）。
+                let is_schema_property = matches!(
+                    tokens.get(*pos + 1).map(|(token, _)| token),
+                    Some(Token::Assign)
+                );
+
+                if !is_schema_property {
+                    let field = self.parse_schema_field(tokens, pos)?;
+                    fields.push(field);
+                    continue;
+                }
+
                 match key.as_str() {
                     "version" => {
                         *pos += 1;

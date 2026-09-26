@@ -9,10 +9,12 @@ use crate::edit::value::EditValue;
 use crate::edit::{
     describe_path, EditExpectation, EditIntent, EditOp, EditPlan, PathSegment, PlanViolation,
 };
-use crate::engine::audit::{AuditEngine, AuditReport, AuditSeverity};
+use crate::engine::audit::{
+    high_risk_instances, introduced_high_risk_instances, render_risk_instance, AuditEngine,
+};
 use crate::engine::pretty_printer::render_value;
 use crate::lexer::{Lexer, Token};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 /// 拒绝原因。每一条都对应「失败即拒绝」的一个具体情形。
 #[derive(Debug, Clone, PartialEq)]
@@ -37,8 +39,25 @@ pub enum EditRefusal {
     UnsupportedTarget { path: String, reason: String },
     /// 改动后的配置未通过结构或 schema 校验
     ValidationFailed { path: String, message: String },
-    /// 改动引入了新的高危安全问题
-    SecurityRejected { path: String, findings: Vec<String> },
+    /// 改动引入了新的高危安全问题。
+    ///
+    /// `findings` 是去重后的规则码（机器可读、稳定），`instances` 是
+    /// 「规则 @ 位置」形式的风险实例（可定位到具体字段）。
+    SecurityRejected {
+        path: String,
+        findings: Vec<String>,
+        instances: Vec<String>,
+    },
+    /// 跨 `@include` 编辑时，目标在多个文件里都能定位到，无法确定该改哪一个
+    TargetAmbiguousAcrossFiles { path: String, files: Vec<String> },
+    /// 跨 `@include` 编辑时，目标在任何被搜索到的文件里都不存在
+    TargetNotFoundAcrossFiles { path: String, files: Vec<String> },
+    /// 跨 `@include` 编辑时，include 图超过搜索上限，无法证明目标唯一
+    SearchIncomplete {
+        path: String,
+        files: Vec<String>,
+        limit: usize,
+    },
 }
 
 impl std::fmt::Display for EditRefusal {
@@ -59,6 +78,31 @@ impl std::fmt::Display for EditRefusal {
                 "目标有歧义：{} 命中了 {} 个元素，必须唯一命中",
                 path, matches
             ),
+            EditRefusal::TargetAmbiguousAcrossFiles { path, files } => write!(
+                f,
+                "目标有歧义：{} 在 {} 个文件里都能定位到（{}），必须唯一命中；请指明要改哪个文件",
+                path,
+                files.len(),
+                files.join(", ")
+            ),
+            EditRefusal::TargetNotFoundAcrossFiles { path, files } => write!(
+                f,
+                "目标不存在：{} 在被包含的 {} 个文件里都没有找到（{}）",
+                path,
+                files.len(),
+                files.join(", ")
+            ),
+            EditRefusal::SearchIncomplete {
+                path,
+                files,
+                limit,
+            } => write!(
+                f,
+                "搜索不完整：{} 的 include 图超过上限 {}，只扫描了 {} 个文件，无法证明目标唯一；请显式指明目标文件",
+                path,
+                limit,
+                files.len()
+            ),
             EditRefusal::TargetAlreadyExists { path } => {
                 write!(f, "目标已存在：{}，如需覆盖请使用 set", path)
             }
@@ -77,11 +121,13 @@ impl std::fmt::Display for EditRefusal {
             EditRefusal::ValidationFailed { path, message } => {
                 write!(f, "改动后校验失败：{}（{}）", path, message)
             }
-            EditRefusal::SecurityRejected { path, findings } => write!(
+            EditRefusal::SecurityRejected {
+                path, instances, ..
+            } => write!(
                 f,
                 "改动引入新的安全风险：{}（{}）",
                 path,
-                findings.join(", ")
+                instances.join(", ")
             ),
         }
     }
@@ -96,7 +142,10 @@ impl EditRefusal {
             EditRefusal::InvalidPlan(_) => "invalid_plan",
             EditRefusal::ParseFailed(_) => "parse_failed",
             EditRefusal::TargetNotFound { .. } => "target_not_found",
-            EditRefusal::TargetAmbiguous { .. } => "target_ambiguous",
+            EditRefusal::TargetAmbiguous { .. }
+            | EditRefusal::TargetAmbiguousAcrossFiles { .. } => "target_ambiguous",
+            EditRefusal::TargetNotFoundAcrossFiles { .. } => "target_not_found",
+            EditRefusal::SearchIncomplete { .. } => "search_incomplete",
             EditRefusal::TargetAlreadyExists { .. } => "target_already_exists",
             EditRefusal::ExpectationMismatch { .. } => "expectation_mismatch",
             EditRefusal::UnsupportedTarget { .. } => "unsupported_target",
@@ -125,6 +174,18 @@ impl EditRefusal {
             EditRefusal::TargetAmbiguous { path, matches } => {
                 serde_json::json!({ "path": path, "matches": matches })
             }
+            EditRefusal::TargetAmbiguousAcrossFiles { path, files } => {
+                serde_json::json!({ "path": path, "files": files })
+            }
+            EditRefusal::TargetNotFoundAcrossFiles { path, files } => {
+                serde_json::json!({ "path": path, "files": files })
+            }
+            EditRefusal::SearchIncomplete { path, files, limit } => serde_json::json!({
+                "path": path,
+                "files": files,
+                "limit": limit,
+                "scanned": files.len(),
+            }),
             EditRefusal::ExpectationMismatch {
                 path,
                 expected,
@@ -133,9 +194,15 @@ impl EditRefusal {
             EditRefusal::ValidationFailed { path, message } => {
                 serde_json::json!({ "path": path, "message": message })
             }
-            EditRefusal::SecurityRejected { path, findings } => {
-                serde_json::json!({ "path": path, "findings": findings })
-            }
+            EditRefusal::SecurityRejected {
+                path,
+                findings,
+                instances,
+            } => serde_json::json!({
+                "path": path,
+                "findings": findings,
+                "instances": instances,
+            }),
         }
     }
 }
@@ -270,7 +337,7 @@ pub fn value_span_for_path(
 
 /// 写入前的双重校验：结构/schema 必须合法，且没有引入新的高危安全问题。
 fn finalize_edit(source: &str, candidate: String) -> Result<String, EditRefusal> {
-    let baseline = high_risk_rules(&AuditEngine::new().audit_source(source));
+    let baseline = high_risk_instances(&AuditEngine::new().audit_source(source));
 
     let ast = crate::parse(&candidate).map_err(|error| EditRefusal::ValidationFailed {
         path: "<result>".to_string(),
@@ -283,31 +350,21 @@ fn finalize_edit(source: &str, candidate: String) -> Result<String, EditRefusal>
         });
     }
 
-    // 安全审计：只拒绝本次改动新引入的高危项，不因为文件本来就有的问题拒绝
-    let after = high_risk_rules(&AuditEngine::new().audit_source(&candidate));
-    let introduced: Vec<String> = after.difference(&baseline).cloned().collect();
+    // 安全审计：只拒绝本次改动新引入的高危实例，不因为文件本来就有的问题拒绝
+    let after = high_risk_instances(&AuditEngine::new().audit_source(&candidate));
+    let introduced = introduced_high_risk_instances(&baseline, &after);
     if !introduced.is_empty() {
+        let mut findings: Vec<String> = introduced.iter().map(|(rule, _)| rule.clone()).collect();
+        findings.sort();
+        findings.dedup();
         return Err(EditRefusal::SecurityRejected {
             path: "<result>".to_string(),
-            findings: introduced,
+            findings,
+            instances: introduced.iter().map(render_risk_instance).collect(),
         });
     }
 
     Ok(candidate)
-}
-
-fn high_risk_rules(report: &AuditReport) -> BTreeSet<String> {
-    report
-        .findings
-        .iter()
-        .filter(|finding| {
-            matches!(
-                finding.severity,
-                AuditSeverity::Critical | AuditSeverity::High
-            )
-        })
-        .map(|finding| finding.rule_id.clone())
-        .collect()
 }
 
 /// 容器：普通表块，或 `[[key]]` 数组表里的一个元素
@@ -824,6 +881,7 @@ fn indent_level_at(source: &str, offset: usize) -> usize {
 mod tests {
     use super::*;
     use crate::edit::{EditPlan, EDIT_PLAN_VERSION};
+    use std::collections::BTreeSet;
 
     fn plan(json: &str) -> EditPlan {
         EditPlan::from_json(json).expect("测试用计划必须合法")
@@ -1084,7 +1142,7 @@ mod tests {
     fn security_gate_rejects_newly_introduced_high_risk_findings() {
         let source = "ssl_verify = true\n";
         let baseline = AuditEngine::new().audit_source(source);
-        assert_eq!(high_risk_rules(&baseline).len(), 0, "基线不应有高危项");
+        assert_eq!(high_risk_instances(&baseline).len(), 0, "基线不应有高危项");
 
         let edit_plan = plan(
             r#"{"version":"1.0","edits":[{"op":"set","path":["ssl_verify"],"value":false,"reason":"临时关闭校验"}]}"#,
@@ -1105,13 +1163,89 @@ mod tests {
     fn security_gate_does_not_block_edits_for_preexisting_findings() {
         // 文件本来就有高危项，但只要改动没有引入新的高危项就应当放行
         let source = "ssl_verify = false\nport = 8080\n";
-        let baseline = high_risk_rules(&AuditEngine::new().audit_source(source));
-        assert!(baseline.contains("SEC-005"), "基线应已包含 SEC-005");
+        let baseline = high_risk_instances(&AuditEngine::new().audit_source(source));
+        assert!(
+            baseline.keys().any(|(rule, _)| rule == "SEC-005"),
+            "基线应已包含 SEC-005"
+        );
 
         let edit_plan =
             plan(r#"{"version":"1.0","edits":[{"op":"set","path":["port"],"value":9090}]}"#);
         let outcome = apply_edit_plan(source, &edit_plan).expect("不应因既有问题误拒");
         assert_eq!(outcome.source, "ssl_verify = false\nport = 9090\n");
+    }
+
+    #[test]
+    fn security_gate_rejects_a_second_instance_of_an_already_present_rule() {
+        // 回归：只按 rule_id 取集合差时，同一规则在另一个字段新增的风险完全不可见。
+        // 这里高危实例实际从 1 个变成 2 个，旧实现会放行。
+        let source = "primary_ssl_verify = false\nsecondary_ssl_verify = true\n";
+        let baseline = high_risk_instances(&AuditEngine::new().audit_source(source));
+        assert_eq!(baseline.len(), 1, "基线应只有 1 个高危实例");
+
+        let edit_plan = plan(
+            r#"{"version":"1.0","edits":[{"op":"set","path":["secondary_ssl_verify"],"value":false,"reason":"临时关闭校验"}]}"#,
+        );
+        match apply_edit_plan(source, &edit_plan).expect_err("第二个实例必须被拒绝") {
+            EditRefusal::SecurityRejected {
+                findings,
+                instances,
+                ..
+            } => {
+                assert_eq!(findings, vec!["SEC-005".to_string()]);
+                assert_eq!(
+                    instances,
+                    vec!["SEC-005 @ secondary_ssl_verify".to_string()],
+                    "拒绝信息必须指出新增的是哪个实例"
+                );
+            }
+            other => panic!("期望 SecurityRejected，实际 {:?}", other),
+        }
+    }
+
+    #[test]
+    fn security_gate_rejects_every_case_that_adds_a_high_risk_instance() {
+        // 反向覆盖：任何新增的高危实例都必须导致拒绝，而不只是 SEC-005
+        let cases: [(&str, &str); 4] = [
+            (
+                "ssl_verify = true\n",
+                r#"{"op":"set","path":["ssl_verify"],"value":false}"#,
+            ),
+            (
+                "primary_ssl_verify = false\nsecondary_ssl_verify = true\n",
+                r#"{"op":"set","path":["secondary_ssl_verify"],"value":false}"#,
+            ),
+            (
+                "hash = \"sha256\"\n",
+                r#"{"op":"set","path":["hash"],"value":"md5"}"#,
+            ),
+            (
+                "port = 8080\n",
+                r#"{"op":"insert","path":["api_key"],"value":"sk-live-123"}"#,
+            ),
+        ];
+        for (source, edit) in cases {
+            let edit_plan = plan(&format!(r#"{{"version":"1.0","edits":[{edit}]}}"#));
+            let refusal = match apply_edit_plan(source, &edit_plan) {
+                Ok(outcome) => panic!("应拒绝：{source} + {edit}，实际得到 {:?}", outcome.source),
+                Err(refusal) => refusal,
+            };
+            assert!(
+                matches!(refusal, EditRefusal::SecurityRejected { .. }),
+                "应拒绝：{source} + {edit}，实际 {refusal:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn security_gate_allows_replacing_a_value_that_keeps_the_same_instance() {
+        // 既有高危实例仍然存在、但没有新增实例时不能误拒：
+        // md5 改成 sha1 仍然是 SEC-001 @ hash 这一个实例
+        let source = "hash = \"md5\"\nport = 8080\n";
+        let edit_plan =
+            plan(r#"{"version":"1.0","edits":[{"op":"set","path":["hash"],"value":"sha1"}]}"#);
+        let outcome = apply_edit_plan(source, &edit_plan).expect("未新增实例就不应拒绝");
+        assert_eq!(outcome.source, "hash = \"sha1\"\nport = 8080\n");
     }
 
     #[test]
@@ -1135,6 +1269,36 @@ mod tests {
             }
             other => panic!("期望 SecurityRejected，实际 {:?}", other),
         }
+    }
+
+    #[test]
+    fn security_gate_allows_environment_reference_instead_of_a_literal_secret() {
+        // 回归：审计的建议就是「改用环境变量」，把这个建议写进配置反而被阻断是反的
+        let source = "port = 8080\n";
+        let edit_plan = plan(
+            r#"{"version":"1.0","edits":[{"op":"insert","path":["api_key"],"value":"${ENV:API_KEY}"}]}"#,
+        );
+        let outcome = apply_edit_plan(source, &edit_plan).expect("环境变量引用不应被阻断");
+        assert!(
+            outcome.source.contains("api_key"),
+            "实际 {:?}",
+            outcome.source
+        );
+    }
+
+    #[test]
+    fn security_gate_allows_numeric_token_budget() {
+        // 回归：`max_tokens = 4096` 是数量而不是凭据，不能因为键名含 token 就阻断写入
+        let source = "port = 8080\n";
+        let edit_plan = plan(
+            r#"{"version":"1.0","edits":[{"op":"insert","path":["max_tokens"],"value":4096}]}"#,
+        );
+        let outcome = apply_edit_plan(source, &edit_plan).expect("数量字段不应被阻断");
+        assert!(
+            outcome.source.contains("max_tokens") && outcome.source.contains("4096"),
+            "实际 {:?}",
+            outcome.source
+        );
     }
 
     #[test]
@@ -1288,6 +1452,12 @@ mod tests {
             EditRefusal::SecurityRejected {
                 path: "a".to_string(),
                 findings: vec!["SEC-005".to_string()],
+                instances: vec!["SEC-005 @ ssl_verify".to_string()],
+            },
+            EditRefusal::SearchIncomplete {
+                path: "a".to_string(),
+                files: vec!["b".to_string()],
+                limit: 64,
             },
         ];
 
