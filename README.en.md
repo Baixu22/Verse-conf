@@ -322,7 +322,7 @@ cargo test --workspace          # one command builds and tests everything
 
 | Channel | Status |
 |---------|--------|
-| crates.io (four crates) | ✅ v0.1.0 published; `cargo install verseconf-cli` verified in a clean directory |
+| crates.io (four crates) | ✅ **v0.2.0 published.** `cargo install verseconf-cli --version 0.2.0` verified in a clean directory: the `edit` command works and a second instance of an already-present high-risk rule is refused. Do not use 0.1.0 — it predates every fix (its CLI has no `edit`, and its core compares safety findings by rule rather than by instance) |
 | API docs (docs.rs) | ✅ [docs.rs/verseconf-core](https://docs.rs/verseconf-core) |
 | VSCode extension `.vsix` | ⚠️ Produced and uploaded by CI as a build artifact; the repository contains no binary. See [9. Editor support](#9-editor-support) |
 | npm package `verseconf` | ❌ **Publishing abandoned**. The 0.1.0 on the registry does not work (the tarball has no `pkg/` directory, so both `require` and `import` fail); the fixed 0.2.0 is built in-repo and passes packaging checks (12/12), but the publishing account is no longer available, so it will not be published |

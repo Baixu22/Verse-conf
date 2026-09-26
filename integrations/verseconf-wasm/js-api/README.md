@@ -63,7 +63,7 @@ editRange('port = 8080\n', 7, 11, '9090');
 import { tools, serverInfo } from 'verseconf';
 
 tools();        // 五个工具的名称、描述与 inputSchema
-serverInfo();   // { name: 'verseconf', version: '0.1.0', protocolVersion: '2024-11-05' }
+serverInfo();   // { name: 'verseconf', version: '0.2.0', protocolVersion: '2024-11-05' }
 ```
 
 ## 工具协议服务端（stdio）
@@ -129,7 +129,7 @@ parseJson('port = 8080\n');   // { port: 8080 }
 
 - `package.json` 的版本号（本分发层）与 `serverInfo().version` / `getVersion()`
   （内嵌的 Rust 核心）是两个独立版本。0.1.0 的包在真实消费者环境里两条入口都不可用，
-  因此本分发层从 0.2.0 重新起算；核心仍是 0.1.0。
+  因此本分发层从 0.2.0 重新起算；核心现已是 0.2.0。
 - 0.2.0 已在仓库里构建并通过打包验收（`test/package.test.mjs`，12/12，CI 阻塞），
   但**不会发布到 registry**——发布账号已不可用。
 

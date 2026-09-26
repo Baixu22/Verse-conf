@@ -1,6 +1,6 @@
 # VerseConf Language Specification v1.5（目标规范）
 
-> **一句话**：本文档描述 VerseConf 的**目标语言**；当前实现 `verseconf 0.1.0` 只覆盖其中一个子集。
+> **一句话**：本文档描述 VerseConf 的**目标语言**；当前实现 `verseconf 0.2.0` 只覆盖其中一个子集。
 > **带 🚧 的条目照抄进 `.vcf` 文件会被 CLI 拒绝**（`parse` 退出码 1）。
 > 想直接写出能跑通的配置，请看 [0.5 最小可用样例](#05-最小可用样例实测通过) 与 [A.2 实测可解析的完整示例](#a2-实测可解析的完整示例)。
 
@@ -25,7 +25,7 @@
 
 "未实现"只描述**当前版本的行为**，不代表设计被否决：这些条目是路线图，不是现状。
 
-### 0.3 版本对齐（消除 v1.5 / v1.1 / 0.1.0 三处漂移）
+### 0.3 版本对齐（消除 v1.5 / v1.1 / 0.2.0 三处漂移）
 
 仓库里同时存在三个版本号，含义各不相同：
 
@@ -33,10 +33,10 @@
 |----------|-----|------|
 | 本文件标题、页脚 | `1.5` | **目标语言规范**版本（本文档描述的愿望清单） |
 | `Cargo.toml` workspace `description` | `based on VerseConf v1.1 spec` | 实现**自述**的规范基线 |
-| `Cargo.toml` 的 `[workspace.package] version` / `verseconf --version` | `0.1.0` | **软件**版本（实测输出 `verseconf 0.1.0`） |
+| `Cargo.toml` 的 `[workspace.package] version` / `verseconf --version` | `0.2.0` | **软件**版本（实测输出 `verseconf 0.2.0`） |
 | `#@schema { version = "1.0" }` 中的 `version` | `1.0` | **schema 版本**，与语言版本无关 |
 
-**结论**：`v1.5` 是目标，`0.1.0` 是实现，两者不是一回事。
+**结论**：`v1.5` 是目标，`0.2.0` 是实现，两者不是一回事。
 判断某个写法能不能用，**只看状态标记，不看版本号**。
 
 ### 0.4 一页速查
@@ -119,7 +119,7 @@ server {
 
 VerseConf (VCF) is a modern configuration language designed for the AI era. It combines human readability with powerful features like expressions, templates, and schema validation.
 
-> **状态**：以上为**目标定位**。当前 `0.1.0` 实现覆盖的是其中一个子集——表达式与 schema 校验可用，模板不可用（见 [Advanced Features](#advanced-features)）。
+> **状态**：以上为**目标定位**。当前 `0.2.0` 实现覆盖的是其中一个子集——表达式与 schema 校验可用，模板不可用（见 [Advanced Features](#advanced-features)）。
 
 ### Design Principles
 
@@ -1049,7 +1049,7 @@ verseconf parse    <file>            # 退出码 0 = 接受；1 = 拒绝（错�
 verseconf parse    --no-include <f>  # 只检查语法，不读取 @include 指向的文件
 verseconf validate <file>            # 附加 schema 校验
 verseconf validate --strict <file>   # 拒绝未声明字段（需文件内有 #@schema）
-verseconf --version                  # 实测输出 verseconf 0.1.0
+verseconf --version                  # 实测输出 verseconf 0.2.0
 ```
 
 ### D.2 判定摘要
@@ -1069,6 +1069,6 @@ verseconf --version                  # 实测输出 verseconf 0.1.0
 
 ---
 
-**Specification Version**: 1.5（目标规范；实现版本 0.1.0）  
+**Specification Version**: 1.5（目标规范；实现版本 0.2.0）  
 **Last Updated**: 2026-09-23（补充状态标注与实测依据）  
 **Maintainer**: VerseConf Team

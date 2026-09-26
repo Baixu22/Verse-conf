@@ -292,7 +292,7 @@ cargo test --workspace          # 唯一一条命令完成构建与测试
 
 | 形态 | 状态 |
 |------|------|
-| crates.io（四个 crate） | ✅ v0.1.0 已发布，干净环境 `cargo install verseconf-cli` 已复验 |
+| crates.io（四个 crate） | ✅ **v0.2.0 已发布**。干净环境 `cargo install verseconf-cli --version 0.2.0` 已复验：`edit` 命令可用，同规则的新增高危实例会被拒绝。0.1.0 早于全部修复（CLI 没有 `edit`，core 仍按规则而非实例比较安全发现），请勿使用 |
 | 文档（docs.rs） | ✅ [docs.rs/verseconf-core](https://docs.rs/verseconf-core) |
 | VSCode 扩展 `.vsix` | ⚠️ 由 CI 产出并上传为构建产物，仓库内不含二进制；见 [九、编辑器支持](#九编辑器支持) |
 | npm 包 `verseconf` | ❌ **已放弃发布**。registry 上的 0.1.0 不可用（包内缺 `pkg/` 目录，`require` 与 `import` 两条入口都失败）；修复版 0.2.0 已在仓库里构建并通过打包验收（12/12），但发布账号已不可用，不再发布 |
