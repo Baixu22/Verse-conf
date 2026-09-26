@@ -1,0 +1,2502 @@
+{
+  "corpus_sha256": "69b8d6df86be4eba4b89e40798333d6a9fe058df8d8a71f4e941f1552f7f6ac3",
+  "generator": "crates/verseconf-toml/examples/generate_tasks.rs",
+  "named_path_tasks": 7,
+  "rules": {
+    "candidates": "路径可定位且值为单行标量；路径支持普通键与 [[key]] 的按字段匹配元素定位",
+    "gate_neutral": "每个任务都实测过：应用后结果仍然合法，且没有引入新的高危实例",
+    "named_paths": "用 [[key]] 元素定位的任务数",
+    "selection": "按 字符串→整数→布尔→Unicode→行尾注释→带引号的键路径→浮点 各挑一个，再按文档顺序补到 5 个，最多 6 个"
+  },
+  "tasks": [
+    {
+      "before": "setuptools.build_meta",
+      "cluster": "browser-harness",
+      "document": "browser-harness-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"setuptools.build_meta\"`",
+        "string": "原文值 \"setuptools.build_meta\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "browser-harness-build-system-build-backend",
+      "instruction": "把 browser-harness-pyproject.toml 里 build-system.build-backend 的值改成 \"verseconf-probe\"",
+      "path": [
+        "build-system",
+        "build-backend"
+      ],
+      "path_label": "build-system.build-backend",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        63,
+        86
+      ]
+    },
+    {
+      "before": "browser-harness",
+      "cluster": "browser-harness",
+      "document": "browser-harness-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"browser-harness\"`",
+        "string": "原文值 \"browser-harness\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "browser-harness-project-name",
+      "instruction": "把 browser-harness-pyproject.toml 里 project.name 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "name"
+      ],
+      "path_label": "project.name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        108,
+        125
+      ]
+    },
+    {
+      "before": "0.1.0",
+      "cluster": "browser-harness",
+      "document": "browser-harness-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"0.1.0\"`",
+        "string": "原文值 \"0.1.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "browser-harness-project-version",
+      "instruction": "把 browser-harness-pyproject.toml 里 project.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "version"
+      ],
+      "path_label": "project.version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        137,
+        144
+      ]
+    },
+    {
+      "before": "The simplest, thinnest, and most powerful harness to control your real browser with your agent.",
+      "cluster": "browser-harness",
+      "document": "browser-harness-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"The simplest, thinnest, and most powerful harness to control your real browser with your agent.\"`",
+        "string": "原文值 \"The simplest, thinnest, and most powerful harness to control your real browser with your agent.\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "browser-harness-project-description",
+      "instruction": "把 browser-harness-pyproject.toml 里 project.description 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "description"
+      ],
+      "path_label": "project.description",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        160,
+        257
+      ]
+    },
+    {
+      "before": ">=3.11",
+      "cluster": "browser-harness",
+      "document": "browser-harness-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\">=3.11\"`",
+        "string": "原文值 \">=3.11\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "browser-harness-project-requires-python",
+      "instruction": "把 browser-harness-pyproject.toml 里 project.requires-python 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "requires-python"
+      ],
+      "path_label": "project.requires-python",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        277,
+        285
+      ]
+    },
+    {
+      "before": "2024",
+      "cluster": "clap",
+      "document": "clap-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"2024\"`",
+        "string": "原文值 \"2024\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "clap-package-edition",
+      "instruction": "把 clap-Cargo.toml 里 package.edition 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "edition"
+      ],
+      "path_label": "package.edition",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        487,
+        493
+      ]
+    },
+    {
+      "before": 1,
+      "cluster": "clap",
+      "document": "clap-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "integer": "原文值 1 是整数，替换值 4242 同类型",
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：pre-release-replacements[replace=\"{{version}}\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`1`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "clap-package-metadata-release-pre-release-replacements--{{version}}--min",
+      "instruction": "把 clap-Cargo.toml 里 package.metadata.release.pre-release-replacements[replace=\"{{version}}\"].min 的值改成 4242",
+      "path": [
+        "package",
+        "metadata",
+        "release",
+        {
+          "key": "pre-release-replacements",
+          "match": {
+            "replace": "{{version}}"
+          }
+        },
+        "min"
+      ],
+      "path_label": "package.metadata.release.pre-release-replacements[replace=\"{{version}}\"].min",
+      "quoted_key_path": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        1490,
+        1491
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "clap",
+      "document": "clap-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "clap-package-build",
+      "instruction": "把 clap-Cargo.toml 里 package.build 的值改成 true",
+      "path": [
+        "package",
+        "build"
+      ],
+      "path_label": "package.build",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        556,
+        561
+      ]
+    },
+    {
+      "before": "1.85",
+      "cluster": "clap",
+      "document": "clap-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.85\"`",
+        "string": "原文值 \"1.85\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "clap-package-rust-version",
+      "instruction": "把 clap-Cargo.toml 里 package.rust-version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "rust-version"
+      ],
+      "path_label": "package.rust-version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        509,
+        515
+      ]
+    },
+    {
+      "before": "clap",
+      "cluster": "clap",
+      "document": "clap-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"clap\"`",
+        "string": "原文值 \"clap\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "clap-package-name",
+      "instruction": "把 clap-Cargo.toml 里 package.name 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "name"
+      ],
+      "path_label": "package.name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        523,
+        529
+      ]
+    },
+    {
+      "before": "0.35.0",
+      "cluster": "half",
+      "document": "half-Makefile.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"0.35.0\"`",
+        "string": "原文值 \"0.35.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "half-config-min_version",
+      "instruction": "把 half-Makefile.toml 里 config.min_version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "config",
+        "min_version"
+      ],
+      "path_label": "config.min_version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        24,
+        32
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "half",
+      "document": "half-Makefile.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "half-tasks-check-docs-install_crate",
+      "instruction": "把 half-Makefile.toml 里 tasks.check-docs.install_crate 的值改成 true",
+      "path": [
+        "tasks",
+        "check-docs",
+        "install_crate"
+      ],
+      "path_label": "tasks.check-docs.install_crate",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        1024,
+        1029
+      ]
+    },
+    {
+      "before": "Checks docs for errors.",
+      "cluster": "half",
+      "document": "half-Makefile.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"Checks docs for errors.\"`",
+        "string": "原文值 \"Checks docs for errors.\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "half-tasks-check-docs-description",
+      "instruction": "把 half-Makefile.toml 里 tasks.check-docs.description 的值改成 \"verseconf-probe\"",
+      "path": [
+        "tasks",
+        "check-docs",
+        "description"
+      ],
+      "path_label": "tasks.check-docs.description",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        953,
+        978
+      ]
+    },
+    {
+      "before": "Documentation",
+      "cluster": "half",
+      "document": "half-Makefile.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"Documentation\"`",
+        "string": "原文值 \"Documentation\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "half-tasks-check-docs-category",
+      "instruction": "把 half-Makefile.toml 里 tasks.check-docs.category 的值改成 \"verseconf-probe\"",
+      "path": [
+        "tasks",
+        "check-docs",
+        "category"
+      ],
+      "path_label": "tasks.check-docs.category",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        991,
+        1006
+      ]
+    },
+    {
+      "before": "cargo",
+      "cluster": "half",
+      "document": "half-Makefile.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"cargo\"`",
+        "string": "原文值 \"cargo\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "half-tasks-check-docs-command",
+      "instruction": "把 half-Makefile.toml 里 tasks.check-docs.command 的值改成 \"verseconf-probe\"",
+      "path": [
+        "tasks",
+        "check-docs",
+        "command"
+      ],
+      "path_label": "tasks.check-docs.command",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        1081,
+        1088
+      ]
+    },
+    {
+      "before": "setuptools.build_meta",
+      "cluster": "node-gyp",
+      "document": "node-gyp-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"setuptools.build_meta\"`",
+        "string": "原文值 \"setuptools.build_meta\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "node-gyp-build-system-build-backend",
+      "instruction": "把 node-gyp-pyproject.toml 里 build-system.build-backend 的值改成 \"verseconf-probe\"",
+      "path": [
+        "build-system",
+        "build-backend"
+      ],
+      "path_label": "build-system.build-backend",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        65,
+        88
+      ]
+    },
+    {
+      "before": 88,
+      "cluster": "node-gyp",
+      "document": "node-gyp-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "integer": "原文值 88 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`88`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "node-gyp-tool-ruff-line-length",
+      "instruction": "把 node-gyp-pyproject.toml 里 tool.ruff.line-length 的值改成 4242",
+      "path": [
+        "tool",
+        "ruff",
+        "line-length"
+      ],
+      "path_label": "tool.ruff.line-length",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        1168,
+        1170
+      ]
+    },
+    {
+      "before": "https://github.com/nodejs/gyp-next",
+      "cluster": "node-gyp",
+      "document": "node-gyp-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "quoted_key_path": "路径里有带引号的键 `Homepage`，定位必须穿过它",
+        "single_line": "目标值的原文区间是单行：`\"https://github.com/nodejs/gyp-next\"`",
+        "string": "原文值 \"https://github.com/nodejs/gyp-next\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string",
+        "quoted_key_path"
+      ],
+      "id": "node-gyp-project-urls-Homepage",
+      "instruction": "把 node-gyp-pyproject.toml 里 project.urls.Homepage 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "urls",
+        "Homepage"
+      ],
+      "path_label": "project.urls.Homepage",
+      "quoted_key_path": [
+        false,
+        false,
+        true
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        1063,
+        1099
+      ]
+    },
+    {
+      "before": "gyp-next",
+      "cluster": "node-gyp",
+      "document": "node-gyp-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"gyp-next\"`",
+        "string": "原文值 \"gyp-next\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "node-gyp-project-name",
+      "instruction": "把 node-gyp-pyproject.toml 里 project.name 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "name"
+      ],
+      "path_label": "project.name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        110,
+        120
+      ]
+    },
+    {
+      "before": "0.21.1",
+      "cluster": "node-gyp",
+      "document": "node-gyp-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"0.21.1\"`",
+        "string": "原文值 \"0.21.1\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "node-gyp-project-version",
+      "instruction": "把 node-gyp-pyproject.toml 里 project.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "version"
+      ],
+      "path_label": "project.version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        132,
+        140
+      ]
+    },
+    {
+      "before": "2024",
+      "cluster": "opendal",
+      "document": "opendal-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"2024\"`",
+        "string": "原文值 \"2024\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "opendal-package-edition",
+      "instruction": "把 opendal-Cargo.toml 里 package.edition 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "edition"
+      ],
+      "path_label": "package.edition",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        487,
+        493
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "opendal",
+      "document": "opendal-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "opendal-package-build",
+      "instruction": "把 opendal-Cargo.toml 里 package.build 的值改成 true",
+      "path": [
+        "package",
+        "build"
+      ],
+      "path_label": "package.build",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        614,
+        619
+      ]
+    },
+    {
+      "before": "Apache OpenDAL™: One Layer, All Storage.",
+      "cluster": "opendal",
+      "document": "opendal-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"Apache OpenDAL™: One Layer, All Storage.\"`",
+        "string": "原文值 \"Apache OpenDAL™: One Layer, All Storage.\" 是字符串，替换值 \"配置探针\" 同类型",
+        "unicode": "原文值含非 ASCII 字形（\"Apache OpenDAL™: One Layer, All Storage.\"），替换值同样是非 ASCII（\"配置探针\"）"
+      },
+      "features": [
+        "string",
+        "unicode"
+      ],
+      "id": "opendal-package-description",
+      "instruction": "把 opendal-Cargo.toml 里 package.description 的值改成 \"配置探针\"",
+      "path": [
+        "package",
+        "description"
+      ],
+      "path_label": "package.description",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "配置探针",
+      "value_span": [
+        748,
+        792
+      ]
+    },
+    {
+      "before": "1.6",
+      "cluster": "opendal",
+      "document": "opendal-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "quoted_key_path": "路径里有带引号的键 `cfg(target_arch = \"wasm32\")`，定位必须穿过它",
+        "single_line": "目标值的原文区间是单行：`\"1.6\"`",
+        "string": "原文值 \"1.6\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string",
+        "quoted_key_path"
+      ],
+      "id": "opendal-target-cfg(target_arch-=-\"wasm32\")-dependencies-backon-version",
+      "instruction": "把 opendal-Cargo.toml 里 target.cfg(target_arch = \"wasm32\").dependencies.backon.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "target",
+        "cfg(target_arch = \"wasm32\")",
+        "dependencies",
+        "backon",
+        "version"
+      ],
+      "path_label": "target.cfg(target_arch = \"wasm32\").dependencies.backon.version",
+      "quoted_key_path": [
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        11993,
+        11998
+      ]
+    },
+    {
+      "before": "1.85",
+      "cluster": "opendal",
+      "document": "opendal-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.85\"`",
+        "string": "原文值 \"1.85\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "opendal-package-rust-version",
+      "instruction": "把 opendal-Cargo.toml 里 package.rust-version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "rust-version"
+      ],
+      "path_label": "package.rust-version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        509,
+        515
+      ]
+    },
+    {
+      "before": "mesonpy",
+      "cluster": "pandas",
+      "document": "pandas-pyproject.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"mesonpy\"`",
+        "string": "原文值 \"mesonpy\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "pandas-build-system-build-backend",
+      "instruction": "把 pandas-pyproject.toml 里 build-system.build-backend 的值改成 \"verseconf-probe\"",
+      "path": [
+        "build-system",
+        "build-backend"
+      ],
+      "path_label": "build-system.build-backend",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        473,
+        482
+      ]
+    },
+    {
+      "before": 3,
+      "cluster": "pandas",
+      "document": "pandas-pyproject.toml",
+      "ending": "LF",
+      "evidence": {
+        "integer": "原文值 3 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`3`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "pandas-tool-cibuildwheel-build-verbosity",
+      "instruction": "把 pandas-pyproject.toml 里 tool.cibuildwheel.build-verbosity 的值改成 4242",
+      "path": [
+        "tool",
+        "cibuildwheel",
+        "build-verbosity"
+      ],
+      "path_label": "tool.cibuildwheel.build-verbosity",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        4854,
+        4855
+      ]
+    },
+    {
+      "before": true,
+      "cluster": "pandas",
+      "document": "pandas-pyproject.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 true 是布尔，替换值 false 同类型",
+        "single_line": "目标值的原文区间是单行：`true`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "pandas-tool-setuptools-include-package-data",
+      "instruction": "把 pandas-pyproject.toml 里 tool.setuptools.include-package-data 的值改成 false",
+      "path": [
+        "tool",
+        "setuptools",
+        "include-package-data"
+      ],
+      "path_label": "tool.setuptools.include-package-data",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": false,
+      "value_span": [
+        4217,
+        4221
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "pandas",
+      "document": "pandas-pyproject.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`",
+        "trailing_comment": "目标行值之后有行尾注释 `# TODO`，替换值时必须原样保留"
+      },
+      "features": [
+        "boolean",
+        "trailing_comment"
+      ],
+      "id": "pandas-tool-mypy-disallow_any_unimported",
+      "instruction": "把 pandas-pyproject.toml 里 tool.mypy.disallow_any_unimported 的值改成 true",
+      "path": [
+        "tool",
+        "mypy",
+        "disallow_any_unimported"
+      ],
+      "path_label": "tool.mypy.disallow_any_unimported",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "# TODO",
+      "value": true,
+      "value_span": [
+        19682,
+        19687
+      ]
+    },
+    {
+      "before": "pandas:plotting._matplotlib",
+      "cluster": "pandas",
+      "document": "pandas-pyproject.toml",
+      "ending": "LF",
+      "evidence": {
+        "quoted_key_path": "路径里有带引号的键 `pandas_plotting_backends`，定位必须穿过它",
+        "single_line": "目标值的原文区间是单行：`\"pandas:plotting._matplotlib\"`",
+        "string": "原文值 \"pandas:plotting._matplotlib\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string",
+        "quoted_key_path"
+      ],
+      "id": "pandas-project-entry-points-pandas_plotting_backends-matplotlib",
+      "instruction": "把 pandas-pyproject.toml 里 project.entry-points.pandas_plotting_backends.matplotlib 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "entry-points",
+        "pandas_plotting_backends",
+        "matplotlib"
+      ],
+      "path_label": "project.entry-points.pandas_plotting_backends.matplotlib",
+      "quoted_key_path": [
+        false,
+        false,
+        true,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        1963,
+        1992
+      ]
+    },
+    {
+      "before": "invalid-regex-no-crash-100",
+      "cluster": "regex",
+      "document": "regex-regression.toml",
+      "ending": "LF",
+      "evidence": {
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：test[name=\"invalid-regex-no-crash-100\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`\"invalid-regex-no-crash-100\"`",
+        "string": "原文值 \"invalid-regex-no-crash-100\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "regex-test--invalid-regex-no-crash-100--name",
+      "instruction": "把 regex-regression.toml 里 test[name=\"invalid-regex-no-crash-100\"].name 的值改成 \"verseconf-probe\"",
+      "path": [
+        {
+          "key": "test",
+          "match": {
+            "name": "invalid-regex-no-crash-100"
+          }
+        },
+        "name"
+      ],
+      "path_label": "test[name=\"invalid-regex-no-crash-100\"].name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        68,
+        96
+      ]
+    },
+    {
+      "before": 1,
+      "cluster": "regex",
+      "document": "regex-regression.toml",
+      "ending": "LF",
+      "evidence": {
+        "integer": "原文值 1 是整数，替换值 4242 同类型",
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：test[name=\"reverse-suffix-rejected-fallback-prefilter-010\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`1`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "regex-test--reverse-suffix-rejected-fallback-prefilter-010--match-limit",
+      "instruction": "把 regex-regression.toml 里 test[name=\"reverse-suffix-rejected-fallback-prefilter-010\"].match-limit 的值改成 4242",
+      "path": [
+        {
+          "key": "test",
+          "match": {
+            "name": "reverse-suffix-rejected-fallback-prefilter-010"
+          }
+        },
+        "match-limit"
+      ],
+      "path_label": "test[name=\"reverse-suffix-rejected-fallback-prefilter-010\"].match-limit",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        11987,
+        11988
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "regex",
+      "document": "regex-regression.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：test[name=\"invalid-regex-no-crash-100\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "regex-test--invalid-regex-no-crash-100--compiles",
+      "instruction": "把 regex-regression.toml 里 test[name=\"invalid-regex-no-crash-100\"].compiles 的值改成 true",
+      "path": [
+        {
+          "key": "test",
+          "match": {
+            "name": "invalid-regex-no-crash-100"
+          }
+        },
+        "compiles"
+      ],
+      "path_label": "test[name=\"invalid-regex-no-crash-100\"].compiles",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        149,
+        154
+      ]
+    },
+    {
+      "before": "ΛΘΓΔα",
+      "cluster": "regex",
+      "document": "regex-regression.toml",
+      "ending": "LF",
+      "evidence": {
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：test[name=\"unicode-case-lower-nocase-flag\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`\"ΛΘΓΔα\"`",
+        "string": "原文值 \"ΛΘΓΔα\" 是字符串，替换值 \"配置探针\" 同类型",
+        "unicode": "原文值含非 ASCII 字形（\"ΛΘΓΔα\"），替换值同样是非 ASCII（\"配置探针\"）"
+      },
+      "features": [
+        "string",
+        "unicode"
+      ],
+      "id": "regex-test--unicode-case-lower-nocase-flag--haystack",
+      "instruction": "把 regex-regression.toml 里 test[name=\"unicode-case-lower-nocase-flag\"].haystack 的值改成 \"配置探针\"",
+      "path": [
+        {
+          "key": "test",
+          "match": {
+            "name": "unicode-case-lower-nocase-flag"
+          }
+        },
+        "haystack"
+      ],
+      "path_label": "test[name=\"unicode-case-lower-nocase-flag\"].haystack",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "配置探针",
+      "value_span": [
+        1068,
+        1080
+      ]
+    },
+    {
+      "before": "(*)",
+      "cluster": "regex",
+      "document": "regex-regression.toml",
+      "ending": "LF",
+      "evidence": {
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：test[name=\"invalid-regex-no-crash-100\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`'(*)'`",
+        "string": "原文值 \"(*)\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "regex-test--invalid-regex-no-crash-100--regex",
+      "instruction": "把 regex-regression.toml 里 test[name=\"invalid-regex-no-crash-100\"].regex 的值改成 \"verseconf-probe\"",
+      "path": [
+        {
+          "key": "test",
+          "match": {
+            "name": "invalid-regex-no-crash-100"
+          }
+        },
+        "regex"
+      ],
+      "path_label": "test[name=\"invalid-regex-no-crash-100\"].regex",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        105,
+        110
+      ]
+    },
+    {
+      "before": "2021",
+      "cluster": "reqwest",
+      "document": "reqwest-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"2021\"`",
+        "string": "原文值 \"2021\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "reqwest-package-edition",
+      "instruction": "把 reqwest-Cargo.toml 里 package.edition 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "edition"
+      ],
+      "path_label": "package.edition",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        487,
+        493
+      ]
+    },
+    {
+      "before": 0,
+      "cluster": "reqwest",
+      "document": "reqwest-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "integer": "原文值 0 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`0`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "reqwest-lints-rust-unexpected_cfgs-priority",
+      "instruction": "把 reqwest-Cargo.toml 里 lints.rust.unexpected_cfgs.priority 的值改成 4242",
+      "path": [
+        "lints",
+        "rust",
+        "unexpected_cfgs",
+        "priority"
+      ],
+      "path_label": "lints.rust.unexpected_cfgs.priority",
+      "quoted_key_path": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        13089,
+        13090
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "reqwest",
+      "document": "reqwest-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "reqwest-package-build",
+      "instruction": "把 reqwest-Cargo.toml 里 package.build 的值改成 true",
+      "path": [
+        "package",
+        "build"
+      ],
+      "path_label": "package.build",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        613,
+        618
+      ]
+    },
+    {
+      "before": "0.3.77",
+      "cluster": "reqwest",
+      "document": "reqwest-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "quoted_key_path": "路径里有带引号的键 `cfg(all(target_arch = \"wasm32\", any(target_os = \"unknown\", target_os = \"none\")))`，定位必须穿过它",
+        "single_line": "目标值的原文区间是单行：`\"0.3.77\"`",
+        "string": "原文值 \"0.3.77\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string",
+        "quoted_key_path"
+      ],
+      "id": "reqwest-target-cfg(all(target_arch-=-\"wasm32\",-any(target_os-=-\"unknown\",-target_os-=-\"none\")))-dependencies-js-sys-version",
+      "instruction": "把 reqwest-Cargo.toml 里 target.cfg(all(target_arch = \"wasm32\", any(target_os = \"unknown\", target_os = \"none\"))).dependencies.js-sys.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "target",
+        "cfg(all(target_arch = \"wasm32\", any(target_os = \"unknown\", target_os = \"none\")))",
+        "dependencies",
+        "js-sys",
+        "version"
+      ],
+      "path_label": "target.cfg(all(target_arch = \"wasm32\", any(target_os = \"unknown\", target_os = \"none\"))).dependencies.js-sys.version",
+      "quoted_key_path": [
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        4617,
+        4625
+      ]
+    },
+    {
+      "before": "1.85.0",
+      "cluster": "reqwest",
+      "document": "reqwest-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.85.0\"`",
+        "string": "原文值 \"1.85.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "reqwest-package-rust-version",
+      "instruction": "把 reqwest-Cargo.toml 里 package.rust-version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "rust-version"
+      ],
+      "path_label": "package.rust-version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        509,
+        517
+      ]
+    },
+    {
+      "before": "1.1",
+      "cluster": "terminal-bench",
+      "document": "terminal-bench-task.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.1\"`",
+        "string": "原文值 \"1.1\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "terminal-bench-schema_version",
+      "instruction": "把 terminal-bench-task.toml 里 schema_version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "schema_version"
+      ],
+      "path_label": "schema_version",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        17,
+        22
+      ]
+    },
+    {
+      "before": 1,
+      "cluster": "terminal-bench",
+      "document": "terminal-bench-task.toml",
+      "ending": "LF",
+      "evidence": {
+        "integer": "原文值 1 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`1`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "terminal-bench-environment-cpus",
+      "instruction": "把 terminal-bench-task.toml 里 environment.cpus 的值改成 4242",
+      "path": [
+        "environment",
+        "cpus"
+      ],
+      "path_label": "environment.cpus",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        850,
+        851
+      ]
+    },
+    {
+      "before": true,
+      "cluster": "terminal-bench",
+      "document": "terminal-bench-task.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 true 是布尔，替换值 false 同类型",
+        "single_line": "目标值的原文区间是单行：`true`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "terminal-bench-environment-allow_internet",
+      "instruction": "把 terminal-bench-task.toml 里 environment.allow_internet 的值改成 false",
+      "path": [
+        "environment",
+        "allow_internet"
+      ],
+      "path_label": "environment.allow_internet",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": false,
+      "value_span": [
+        914,
+        918
+      ]
+    },
+    {
+      "before": 15.0,
+      "cluster": "terminal-bench",
+      "document": "terminal-bench-task.toml",
+      "ending": "LF",
+      "evidence": {
+        "float": "原文值 15.0 是浮点，替换值 42.5 同类型",
+        "single_line": "目标值的原文区间是单行：`15.0`"
+      },
+      "features": [
+        "float"
+      ],
+      "id": "terminal-bench-metadata-expert_time_estimate_min",
+      "instruction": "把 terminal-bench-task.toml 里 metadata.expert_time_estimate_min 的值改成 42.5",
+      "path": [
+        "metadata",
+        "expert_time_estimate_min"
+      ],
+      "path_label": "metadata.expert_time_estimate_min",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 42.5,
+      "value_span": [
+        653,
+        657
+      ]
+    },
+    {
+      "before": "terminal-bench/kv-store-grpc",
+      "cluster": "terminal-bench",
+      "document": "terminal-bench-task.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"terminal-bench/kv-store-grpc\"`",
+        "string": "原文值 \"terminal-bench/kv-store-grpc\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "terminal-bench-task-name",
+      "instruction": "把 terminal-bench-task.toml 里 task.name 的值改成 \"verseconf-probe\"",
+      "path": [
+        "task",
+        "name"
+      ],
+      "path_label": "task.name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        53,
+        83
+      ]
+    },
+    {
+      "before": "2018",
+      "cluster": "tinyvec",
+      "document": "tinyvec-rustfmt.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"2018\"`",
+        "string": "原文值 \"2018\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "tinyvec-edition",
+      "instruction": "把 tinyvec-rustfmt.toml 里 edition 的值改成 \"verseconf-probe\"",
+      "path": [
+        "edition"
+      ],
+      "path_label": "edition",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        22,
+        28
+      ]
+    },
+    {
+      "before": 80,
+      "cluster": "tinyvec",
+      "document": "tinyvec-rustfmt.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "integer": "原文值 80 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`80`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "tinyvec-max_width",
+      "instruction": "把 tinyvec-rustfmt.toml 里 max_width 的值改成 4242",
+      "path": [
+        "max_width"
+      ],
+      "path_label": "max_width",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        73,
+        75
+      ]
+    },
+    {
+      "before": true,
+      "cluster": "tinyvec",
+      "document": "tinyvec-rustfmt.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 true 是布尔，替换值 false 同类型",
+        "single_line": "目标值的原文区间是单行：`true`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "tinyvec-use_field_init_shorthand",
+      "instruction": "把 tinyvec-rustfmt.toml 里 use_field_init_shorthand 的值改成 false",
+      "path": [
+        "use_field_init_shorthand"
+      ],
+      "path_label": "use_field_init_shorthand",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": false,
+      "value_span": [
+        120,
+        124
+      ]
+    },
+    {
+      "before": "Compressed",
+      "cluster": "tinyvec",
+      "document": "tinyvec-rustfmt.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"Compressed\"`",
+        "string": "原文值 \"Compressed\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "tinyvec-fn_args_layout",
+      "instruction": "把 tinyvec-rustfmt.toml 里 fn_args_layout 的值改成 \"verseconf-probe\"",
+      "path": [
+        "fn_args_layout"
+      ],
+      "path_label": "fn_args_layout",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        47,
+        59
+      ]
+    },
+    {
+      "before": 2,
+      "cluster": "tinyvec",
+      "document": "tinyvec-rustfmt.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "integer": "原文值 2 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`2`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "tinyvec-tab_spaces",
+      "instruction": "把 tinyvec-rustfmt.toml 里 tab_spaces 的值改成 4242",
+      "path": [
+        "tab_spaces"
+      ],
+      "path_label": "tab_spaces",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        90,
+        91
+      ]
+    },
+    {
+      "before": "2021",
+      "cluster": "tokio",
+      "document": "tokio-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"2021\"`",
+        "string": "原文值 \"2021\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "tokio-package-edition",
+      "instruction": "把 tokio-Cargo.toml 里 package.edition 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "edition"
+      ],
+      "path_label": "package.edition",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        487,
+        493
+      ]
+    },
+    {
+      "before": 0,
+      "cluster": "tokio",
+      "document": "tokio-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "integer": "原文值 0 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`0`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "tokio-lints-rust-unexpected_cfgs-priority",
+      "instruction": "把 tokio-Cargo.toml 里 lints.rust.unexpected_cfgs.priority 的值改成 4242",
+      "path": [
+        "lints",
+        "rust",
+        "unexpected_cfgs",
+        "priority"
+      ],
+      "path_label": "lints.rust.unexpected_cfgs.priority",
+      "quoted_key_path": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        17324,
+        17325
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "tokio",
+      "document": "tokio-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "tokio-package-build",
+      "instruction": "把 tokio-Cargo.toml 里 package.build 的值改成 true",
+      "path": [
+        "package",
+        "build"
+      ],
+      "path_label": "package.build",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        607,
+        612
+      ]
+    },
+    {
+      "before": "0.3.0",
+      "cluster": "tokio",
+      "document": "tokio-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "quoted_key_path": "路径里有带引号的键 `cfg(all(target_family = \"wasm\", not(target_os = \"wasi\")))`，定位必须穿过它",
+        "single_line": "目标值的原文区间是单行：`\"0.3.0\"`",
+        "string": "原文值 \"0.3.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string",
+        "quoted_key_path"
+      ],
+      "id": "tokio-target-cfg(all(target_family-=-\"wasm\",-not(target_os-=-\"wasi\")))-dev-dependencies-wasm-bindgen-test-version",
+      "instruction": "把 tokio-Cargo.toml 里 target.cfg(all(target_family = \"wasm\", not(target_os = \"wasi\"))).dev-dependencies.wasm-bindgen-test.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "target",
+        "cfg(all(target_family = \"wasm\", not(target_os = \"wasi\")))",
+        "dev-dependencies",
+        "wasm-bindgen-test",
+        "version"
+      ],
+      "path_label": "target.cfg(all(target_family = \"wasm\", not(target_os = \"wasi\"))).dev-dependencies.wasm-bindgen-test.version",
+      "quoted_key_path": [
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        14809,
+        14816
+      ]
+    },
+    {
+      "before": "1.71",
+      "cluster": "tokio",
+      "document": "tokio-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.71\"`",
+        "string": "原文值 \"1.71\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "tokio-package-rust-version",
+      "instruction": "把 tokio-Cargo.toml 里 package.rust-version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "rust-version"
+      ],
+      "path_label": "package.rust-version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        509,
+        515
+      ]
+    },
+    {
+      "before": "~=2.18.0",
+      "cluster": "typeshed",
+      "document": "typeshed-tensorflow-METADATA.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"~=2.18.0\"`",
+        "string": "原文值 \"~=2.18.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "typeshed-version",
+      "instruction": "把 typeshed-tensorflow-METADATA.toml 里 version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "version"
+      ],
+      "path_label": "version",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        133,
+        143
+      ]
+    },
+    {
+      "before": true,
+      "cluster": "typeshed",
+      "document": "typeshed-tensorflow-METADATA.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 true 是布尔，替换值 false 同类型",
+        "single_line": "目标值的原文区间是单行：`true`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "typeshed-partial-stub",
+      "instruction": "把 typeshed-tensorflow-METADATA.toml 里 partial-stub 的值改成 false",
+      "path": [
+        "partial-stub"
+      ],
+      "path_label": "partial-stub",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": false,
+      "value_span": [
+        523,
+        527
+      ]
+    },
+    {
+      "before": "https://github.com/tensorflow/tensorflow",
+      "cluster": "typeshed",
+      "document": "typeshed-tensorflow-METADATA.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"https://github.com/tensorflow/tensorflow\"`",
+        "string": "原文值 \"https://github.com/tensorflow/tensorflow\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "typeshed-upstream-repository",
+      "instruction": "把 typeshed-tensorflow-METADATA.toml 里 upstream-repository 的值改成 \"verseconf-probe\"",
+      "path": [
+        "upstream-repository"
+      ],
+      "path_label": "upstream-repository",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        167,
+        209
+      ]
+    },
+    {
+      "before": "Partially generated using [mypy-protobuf==3.6.0](https://github.com/nipunn1313/mypy-protobuf/tree/v3.6.0) and libprotoc 27.2 on `tensorflow==2.18.0`.",
+      "cluster": "typeshed",
+      "document": "typeshed-tensorflow-METADATA.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"Partially generated using [mypy-protobuf==3.6.0](https://github.com/nipunn1313/mypy-protobuf/tree/v3.6.0) and libprotoc 27.2 on `tensorflow==2.18.0`.\"`",
+        "string": "原文值 \"Partially generated using [mypy-protobuf==3.6.0](https://github.com/nipunn1313/mypy-protobuf/tree/v3.6.0) and libprotoc 27.2 on `tensorflow==2.18.0`.\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "typeshed-extra-description",
+      "instruction": "把 typeshed-tensorflow-METADATA.toml 里 extra-description 的值改成 \"verseconf-probe\"",
+      "path": [
+        "extra-description"
+      ],
+      "path_label": "extra-description",
+      "quoted_key_path": [
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        355,
+        506
+      ]
+    },
+    {
+      "before": true,
+      "cluster": "typeshed",
+      "document": "typeshed-tensorflow-METADATA.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 true 是布尔，替换值 false 同类型",
+        "single_line": "目标值的原文区间是单行：`true`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "typeshed-tool-stubtest-ignore-missing-stub",
+      "instruction": "把 typeshed-tensorflow-METADATA.toml 里 tool.stubtest.ignore-missing-stub 的值改成 false",
+      "path": [
+        "tool",
+        "stubtest",
+        "ignore-missing-stub"
+      ],
+      "path_label": "tool.stubtest.ignore-missing-stub",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": false,
+      "value_span": [
+        570,
+        574
+      ]
+    },
+    {
+      "before": "jietuba",
+      "cluster": "versepixpin",
+      "document": "versepixpin-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"jietuba\"`",
+        "string": "原文值 \"jietuba\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "versepixpin-project-name",
+      "instruction": "把 versepixpin-pyproject.toml 里 project.name 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "name"
+      ],
+      "path_label": "project.name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        18,
+        27
+      ]
+    },
+    {
+      "before": 120,
+      "cluster": "versepixpin",
+      "document": "versepixpin-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "integer": "原文值 120 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`120`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "versepixpin-tool-ruff-line-length",
+      "instruction": "把 versepixpin-pyproject.toml 里 tool.ruff.line-length 的值改成 4242",
+      "path": [
+        "tool",
+        "ruff",
+        "line-length"
+      ],
+      "path_label": "tool.ruff.line-length",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        859,
+        862
+      ]
+    },
+    {
+      "before": "截图 & 剪切板管理软件 - 基于 PySide6 和 Rust 的 Windows 平台截图和剪贴板管理工具",
+      "cluster": "versepixpin",
+      "document": "versepixpin-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"截图 & 剪切板管理软件 - 基于 PySide6 和 Rust 的 Windows 平台截图和剪贴板管理工具\"`",
+        "string": "原文值 \"截图 & 剪切板管理软件 - 基于 PySide6 和 Rust 的 Windows 平台截图和剪贴板管理工具\" 是字符串，替换值 \"配置探针\" 同类型",
+        "unicode": "原文值含非 ASCII 字形（\"截图 & 剪切板管理软件 - 基于 PySide6 和 Rust 的 Windows 平台截图和剪贴板管理工具\"），替换值同样是非 ASCII（\"配置探针\"）"
+      },
+      "features": [
+        "string",
+        "unicode"
+      ],
+      "id": "versepixpin-project-description",
+      "instruction": "把 versepixpin-pyproject.toml 里 project.description 的值改成 \"配置探针\"",
+      "path": [
+        "project",
+        "description"
+      ],
+      "path_label": "project.description",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "配置探针",
+      "value_span": [
+        62,
+        169
+      ]
+    },
+    {
+      "before": "1.0.0",
+      "cluster": "versepixpin",
+      "document": "versepixpin-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.0.0\"`",
+        "string": "原文值 \"1.0.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "versepixpin-project-version",
+      "instruction": "把 versepixpin-pyproject.toml 里 project.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "version"
+      ],
+      "path_label": "project.version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        39,
+        46
+      ]
+    },
+    {
+      "before": "==3.11.*",
+      "cluster": "versepixpin",
+      "document": "versepixpin-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"==3.11.*\"`",
+        "string": "原文值 \"==3.11.*\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "versepixpin-project-requires-python",
+      "instruction": "把 versepixpin-pyproject.toml 里 project.requires-python 的值改成 \"verseconf-probe\"",
+      "path": [
+        "project",
+        "requires-python"
+      ],
+      "path_label": "project.requires-python",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        189,
+        199
+      ]
+    },
+    {
+      "before": "verseshell",
+      "cluster": "verseshell",
+      "document": "verseshell-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"verseshell\"`",
+        "string": "原文值 \"verseshell\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "verseshell-package-name",
+      "instruction": "把 verseshell-Cargo.toml 里 package.name 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "name"
+      ],
+      "path_label": "package.name",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        49,
+        61
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "verseshell",
+      "document": "verseshell-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "named_path": "路径用 [[key]] 元素的字段匹配定位：bench[name=\"builtin_performance\"]；定位必须唯一命中一个元素",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "verseshell-bench--builtin_performance--harness",
+      "instruction": "把 verseshell-Cargo.toml 里 bench[name=\"builtin_performance\"].harness 的值改成 true",
+      "path": [
+        {
+          "key": "bench",
+          "match": {
+            "name": "builtin_performance"
+          }
+        },
+        "harness"
+      ],
+      "path_label": "bench[name=\"builtin_performance\"].harness",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        2604,
+        2609
+      ]
+    },
+    {
+      "before": "0.2",
+      "cluster": "verseshell",
+      "document": "verseshell-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "quoted_key_path": "路径里有带引号的键 `cfg(unix)`，定位必须穿过它",
+        "single_line": "目标值的原文区间是单行：`\"0.2\"`",
+        "string": "原文值 \"0.2\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string",
+        "quoted_key_path"
+      ],
+      "id": "verseshell-target-cfg(unix)-dependencies-libc",
+      "instruction": "把 verseshell-Cargo.toml 里 target.cfg(unix).dependencies.libc 的值改成 \"verseconf-probe\"",
+      "path": [
+        "target",
+        "cfg(unix)",
+        "dependencies",
+        "libc"
+      ],
+      "path_label": "target.cfg(unix).dependencies.libc",
+      "quoted_key_path": [
+        false,
+        true,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        2158,
+        2163
+      ]
+    },
+    {
+      "before": "1.0.0",
+      "cluster": "verseshell",
+      "document": "verseshell-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"1.0.0\"`",
+        "string": "原文值 \"1.0.0\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "verseshell-package-version",
+      "instruction": "把 verseshell-Cargo.toml 里 package.version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "version"
+      ],
+      "path_label": "package.version",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        72,
+        79
+      ]
+    },
+    {
+      "before": "2021",
+      "cluster": "verseshell",
+      "document": "verseshell-Cargo.toml",
+      "ending": "LF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"2021\"`",
+        "string": "原文值 \"2021\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "verseshell-package-edition",
+      "instruction": "把 verseshell-Cargo.toml 里 package.edition 的值改成 \"verseconf-probe\"",
+      "path": [
+        "package",
+        "edition"
+      ],
+      "path_label": "package.edition",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        90,
+        96
+      ]
+    },
+    {
+      "before": "py38",
+      "cluster": "vscode-python",
+      "document": "vscode-python-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"py38\"`",
+        "string": "原文值 \"py38\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "vscode-python-tool-ruff-target-version",
+      "instruction": "把 vscode-python-pyproject.toml 里 tool.ruff.target-version 的值改成 \"verseconf-probe\"",
+      "path": [
+        "tool",
+        "ruff",
+        "target-version"
+      ],
+      "path_label": "tool.ruff.target-version",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        914,
+        920
+      ]
+    },
+    {
+      "before": 100,
+      "cluster": "vscode-python",
+      "document": "vscode-python-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "integer": "原文值 100 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`100`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "vscode-python-tool-ruff-line-length",
+      "instruction": "把 vscode-python-pyproject.toml 里 tool.ruff.line-length 的值改成 4242",
+      "path": [
+        "tool",
+        "ruff",
+        "line-length"
+      ],
+      "path_label": "tool.ruff.line-length",
+      "quoted_key_path": [
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        892,
+        895
+      ]
+    },
+    {
+      "before": true,
+      "cluster": "vscode-python",
+      "document": "vscode-python-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 true 是布尔，替换值 false 同类型",
+        "single_line": "目标值的原文区间是单行：`true`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "vscode-python-tool-ruff-format-docstring-code-format",
+      "instruction": "把 vscode-python-pyproject.toml 里 tool.ruff.format.docstring-code-format 的值改成 false",
+      "path": [
+        "tool",
+        "ruff",
+        "format",
+        "docstring-code-format"
+      ],
+      "path_label": "tool.ruff.format.docstring-code-format",
+      "quoted_key_path": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": false,
+      "value_span": [
+        1013,
+        1017
+      ]
+    },
+    {
+      "before": "pep257",
+      "cluster": "vscode-python",
+      "document": "vscode-python-pyproject.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"pep257\"`",
+        "string": "原文值 \"pep257\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "vscode-python-tool-ruff-lint-pydocstyle-convention",
+      "instruction": "把 vscode-python-pyproject.toml 里 tool.ruff.lint.pydocstyle.convention 的值改成 \"verseconf-probe\"",
+      "path": [
+        "tool",
+        "ruff",
+        "lint",
+        "pydocstyle",
+        "convention"
+      ],
+      "path_label": "tool.ruff.lint.pydocstyle.convention",
+      "quoted_key_path": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        2610,
+        2618
+      ]
+    },
+    {
+      "before": "warn",
+      "cluster": "which",
+      "document": "which-deny.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "single_line": "目标值的原文区间是单行：`\"warn\"`",
+        "string": "原文值 \"warn\" 是字符串，替换值 \"verseconf-probe\" 同类型"
+      },
+      "features": [
+        "string"
+      ],
+      "id": "which-bans-multiple-versions",
+      "instruction": "把 which-deny.toml 里 bans.multiple-versions 的值改成 \"verseconf-probe\"",
+      "path": [
+        "bans",
+        "multiple-versions"
+      ],
+      "path_label": "bans.multiple-versions",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": "verseconf-probe",
+      "value_span": [
+        7495,
+        7501
+      ]
+    },
+    {
+      "before": 1,
+      "cluster": "which",
+      "document": "which-deny.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "integer": "原文值 1 是整数，替换值 4242 同类型",
+        "single_line": "目标值的原文区间是单行：`1`"
+      },
+      "features": [
+        "integer"
+      ],
+      "id": "which-output-feature-depth",
+      "instruction": "把 which-deny.toml 里 output.feature-depth 的值改成 4242",
+      "path": [
+        "output",
+        "feature-depth"
+      ],
+      "path_label": "output.feature-depth",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 4242,
+      "value_span": [
+        3439,
+        3440
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "which",
+      "document": "which-deny.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "which-graph-all-features",
+      "instruction": "把 which-deny.toml 里 graph.all-features 的值改成 true",
+      "path": [
+        "graph",
+        "all-features"
+      ],
+      "path_label": "graph.all-features",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        2616,
+        2621
+      ]
+    },
+    {
+      "before": 0.8,
+      "cluster": "which",
+      "document": "which-deny.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "float": "原文值 0.8 是浮点，替换值 42.5 同类型",
+        "single_line": "目标值的原文区间是单行：`0.8`"
+      },
+      "features": [
+        "float"
+      ],
+      "id": "which-licenses-confidence-threshold",
+      "instruction": "把 which-deny.toml 里 licenses.confidence-threshold 的值改成 42.5",
+      "path": [
+        "licenses",
+        "confidence-threshold"
+      ],
+      "path_label": "licenses.confidence-threshold",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": 42.5,
+      "value_span": [
+        5449,
+        5452
+      ]
+    },
+    {
+      "before": false,
+      "cluster": "which",
+      "document": "which-deny.toml",
+      "ending": "CRLF",
+      "evidence": {
+        "boolean": "原文值 false 是布尔，替换值 true 同类型",
+        "single_line": "目标值的原文区间是单行：`false`"
+      },
+      "features": [
+        "boolean"
+      ],
+      "id": "which-graph-no-default-features",
+      "instruction": "把 which-deny.toml 里 graph.no-default-features 的值改成 true",
+      "path": [
+        "graph",
+        "no-default-features"
+      ],
+      "path_label": "graph.no-default-features",
+      "quoted_key_path": [
+        false,
+        false
+      ],
+      "trailing_comment": "",
+      "value": true,
+      "value_span": [
+        2761,
+        2766
+      ]
+    }
+  ],
+  "version": 1
+}

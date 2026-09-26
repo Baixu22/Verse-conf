@@ -1,0 +1,115 @@
+{
+  "version": "2.0",
+  "note": "真实消费者试点：宿主是 Codex CLI，格式是 TOML。任务只声明「改哪个键、改成什么」，不含配置内容；运行时按 documents 里的路径读取，全部操作副本。section 是路径段数组（null 表示根表），因为 TOML 的 [a.b] 是两层表而不是一个叫 a.b 的键。",
+  "documents": {
+    "codex": "~/.codex/config.toml",
+    "starship": "~/.config/starship.toml",
+    "rtk": "%APPDATA%/rtk/config.toml"
+  },
+  "tasks": [
+    {
+      "id": "codex-root-string-model",
+      "document": "codex",
+      "section": null,
+      "key": "model",
+      "value": "gpt-5-codex-pilot",
+      "instruction": "把配置文件里顶层键 model 的值改成 gpt-5-codex-pilot"
+    },
+    {
+      "id": "codex-root-integer-context-window",
+      "document": "codex",
+      "section": null,
+      "key": "model_context_window",
+      "value": 123456,
+      "instruction": "把配置文件里顶层键 model_context_window 的值改成 123456"
+    },
+    {
+      "id": "codex-table-boolean-multi-agent",
+      "document": "codex",
+      "section": ["features"],
+      "key": "multi_agent",
+      "value": false,
+      "instruction": "把 [features] 表里的 multi_agent 改成 false"
+    },
+    {
+      "id": "codex-nested-boolean-requires-openai-auth",
+      "document": "codex",
+      "section": ["model_providers", "custom"],
+      "key": "requires_openai_auth",
+      "value": false,
+      "instruction": "把 [model_providers.custom] 表里的 requires_openai_auth 改成 false"
+    },
+    {
+      "id": "codex-root-string-reasoning-effort",
+      "document": "codex",
+      "section": null,
+      "key": "model_reasoning_effort",
+      "value": "medium",
+      "instruction": "把配置文件里顶层键 model_reasoning_effort 的值改成 medium"
+    },
+    {
+      "id": "starship-integer-truncation-length",
+      "document": "starship",
+      "section": ["directory"],
+      "key": "truncation_length",
+      "value": 5,
+      "instruction": "把 [directory] 表里的 truncation_length 改成 5"
+    },
+    {
+      "id": "starship-string-time-format-with-comment",
+      "document": "starship",
+      "section": ["time"],
+      "key": "time_format",
+      "value": "%H:%M",
+      "instruction": "把 [time] 表里的 time_format 改成 %H:%M"
+    },
+    {
+      "id": "starship-string-git-branch-symbol",
+      "document": "starship",
+      "section": ["git_branch"],
+      "key": "symbol",
+      "value": "git:",
+      "instruction": "把 [git_branch] 表里的 symbol 改成 git:"
+    },
+    {
+      "id": "starship-string-rust-symbol",
+      "document": "starship",
+      "section": ["rust"],
+      "key": "symbol",
+      "value": "rs:",
+      "instruction": "把 [rust] 表里的 symbol 改成 rs:"
+    },
+    {
+      "id": "rtk-integer-history-days",
+      "document": "rtk",
+      "section": ["tracking"],
+      "key": "history_days",
+      "value": 30,
+      "instruction": "把 [tracking] 表里的 history_days 改成 30"
+    },
+    {
+      "id": "rtk-integer-max-width",
+      "document": "rtk",
+      "section": ["display"],
+      "key": "max_width",
+      "value": 100,
+      "instruction": "把 [display] 表里的 max_width 改成 100"
+    },
+    {
+      "id": "rtk-boolean-emoji",
+      "document": "rtk",
+      "section": ["display"],
+      "key": "emoji",
+      "value": false,
+      "instruction": "把 [display] 表里的 emoji 改成 false"
+    },
+    {
+      "id": "rtk-integer-tee-max-files",
+      "document": "rtk",
+      "section": ["tee"],
+      "key": "max_files",
+      "value": 10,
+      "instruction": "把 [tee] 表里的 max_files 改成 10"
+    }
+  ]
+}

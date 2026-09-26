@@ -1,0 +1,24 @@
+{
+  "frozen_at": "2026-09-26T08:45:23.687Z",
+  "corpus_sha256": "69b8d6df86be4eba4b89e40798333d6a9fe058df8d8a71f4e941f1552f7f6ac3",
+  "tasks_sha256": "f5b48836a2a27a2249dd25b565d791df8fff67c7de981d2055d0ff1f1d3a685d",
+  "generator_sha256": "28a3e46eb501a5fca39c5e753a1ad2386e42de218f273540dc9cfffe7b2b92a7",
+  "weights_sha256": "f2a69c1426467ef8bfa1885e1d965a657fa616d0c09f92ade5c16e43080a11e6",
+  "preregistration_sha256": "a13c3b75c25f9295bd54c521ed2872f7fca17c4ce94995ebdf09f0b590f0875c",
+  "task_count": 79,
+  "document_count": 16,
+  "named_path_tasks": 7,
+  "feature_coverage": {
+    "boolean": 16,
+    "float": 2,
+    "integer": 12,
+    "quoted_key_path": 6,
+    "string": 49,
+    "trailing_comment": 1,
+    "unicode": 3
+  },
+  "weights": {
+    "LF": 0.9,
+    "CRLF": 0.1
+  }
+}
