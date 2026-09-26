@@ -11,6 +11,7 @@ use verseconf_core::{
     validate_ast, AppliedEdit, AuditEngine, EditPlan, EditRefusal, EffectiveView, SchemaValidator,
     VerseconfError, WriteGuard, EDIT_PLAN_JSON_SCHEMA,
 };
+use verseconf_toml::{check_write_toml_with, TomlGuard};
 
 /// `plan` 字段的 schema：把仓库里已有的编辑计划 schema 原样内联进工具发现结果。
 ///
@@ -229,7 +230,8 @@ pub fn tool_descriptors() -> Vec<ToolDescriptor> {
                 "properties": {
                     "baseline": { "type": "string", "description": "改动前的配置文本（用于建立风险基线）" },
                     "candidate": { "type": "string", "description": "准备落盘的配置文本" },
-                    "schema": { "type": "string", "description": "可选的旁挂 schema（`#@schema { ... }` 文本）。候选文本自己没有 schema 时用它做校验" }
+                    "schema": { "type": "string", "description": "可选的旁挂 schema（`#@schema { ... }` 文本）。候选文本自己没有 schema 时用它做校验" },
+                    "format": { "type": "string", "enum": ["vcf", "toml"], "description": "候选文本的格式，默认 vcf。TOML 的 schema 只能旁挂传入（TOML 没有内联 schema 语法）" }
                 }
             }),
         },
@@ -424,20 +426,49 @@ fn audit(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
 fn check_write_tool(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
     let baseline = required_str(arguments, "baseline")?;
     let candidate = required_str(arguments, "candidate")?;
-    let guard = match arguments.get("schema") {
-        Some(Value::String(schema)) => WriteGuard::with_schema(schema),
-        _ => WriteGuard::default(),
+    let schema = match arguments.get("schema") {
+        Some(Value::String(schema)) => Some(schema.as_str()),
+        None => None,
+        Some(_) => return Err(ToolFailure::invalid_arguments("参数 'schema' 必须是字符串")),
+    };
+    // 格式由调用方声明，不由本层猜：猜错格式会把一份合法配置报成 parse_failed，
+    // 而门禁的拒绝必须是可归因的。
+    let format = match arguments.get("format") {
+        Some(Value::String(format)) => format.as_str(),
+        None => "vcf",
+        Some(_) => return Err(ToolFailure::invalid_arguments("参数 'format' 必须是字符串")),
     };
 
-    check_write_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+    match format {
+        "vcf" => {
+            let guard = match schema {
+                Some(schema) => WriteGuard::with_schema(schema),
+                None => WriteGuard::default(),
+            };
+            check_write_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+        }
+        "toml" => {
+            let guard = match schema {
+                Some(schema) => TomlGuard::with_schema(schema),
+                None => TomlGuard::default(),
+            };
+            check_write_toml_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+        }
+        other => {
+            return Err(ToolFailure::invalid_arguments(format!(
+                "不支持的 format '{other}'：目前支持 vcf 与 toml"
+            )))
+        }
+    }
 
     Ok(ToolOutcome {
         structured: json!({
             "allowed": true,
+            "format": format,
             "baseline_bytes": baseline.len(),
             "candidate_bytes": candidate.len(),
         }),
-        summary: "写前检查通过：改动未引入新的高危安全实例，且结果仍然合法。".to_string(),
+        summary: format!("写前检查通过（{format}）：改动未引入新的高危安全实例，且结果仍然合法。"),
     })
 }
 
@@ -747,6 +778,62 @@ mod tests {
         )
         .expect_err("类型漂移必须被 schema 拒绝");
         assert_eq!(refusal.code, "validation_failed");
+    }
+
+    #[test]
+    fn check_write_serves_toml_when_the_caller_declares_the_format() {
+        // 门禁此前只对无人使用的 .vcf 可达。这一组证明它对真实 TOML 也可达，
+        // 且候选文本完全不含编辑计划协议。
+        let dangerous = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": "tls_verify = true\nport = 8080\n",
+                "candidate": "tls_verify = false\nport = 8080\n",
+                "format": "toml",
+            }),
+        )
+        .expect_err("TOML 上关掉证书校验必须被拒绝");
+        assert_eq!(dangerous.code, "security_rejected");
+
+        let safe = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": "tls_verify = true\nport = 8080\n",
+                "candidate": "tls_verify = true\nport = 9090\n",
+                "format": "toml",
+            }),
+        )
+        .expect("TOML 上与安全无关的改动必须放行");
+        assert_eq!(safe.structured["allowed"], json!(true));
+        assert_eq!(safe.structured["format"], json!("toml"));
+    }
+
+    #[test]
+    fn check_write_toml_accepts_a_sidecar_schema() {
+        // TOML 没有内联 schema 语法，旁挂是它唯一的 schema 入口
+        let refusal = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": "tab_spaces = 4242\n",
+                "candidate": "tab_spaces = \"4242\"\n",
+                "schema": "#@schema {\n  tab_spaces {\n    type = \"integer\"\n  }\n}\n",
+                "format": "toml",
+            }),
+        )
+        .expect_err("TOML 上的类型漂移必须被旁挂 schema 拒绝");
+        assert_eq!(refusal.code, "validation_failed");
+    }
+
+    #[test]
+    fn an_unknown_format_is_rejected_instead_of_guessed() {
+        // 猜格式会把一份合法配置报成 parse_failed，而拒绝必须可归因
+        let failure = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({ "baseline": "a = 1\n", "candidate": "a = 2\n", "format": "yaml" }),
+        )
+        .expect_err("未知格式必须明确拒绝");
+        assert_eq!(failure.code, "invalid_arguments");
+        assert!(failure.message.contains("yaml"));
     }
 
     #[test]

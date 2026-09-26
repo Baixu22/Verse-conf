@@ -16,6 +16,9 @@ name = "verseconf-mcp"
 path = "src/main.rs"
 
 [dependencies]
-verseconf-core = { version = "0.2.0", path = "../verseconf-core" }
+verseconf-core = { version = "0.3.0", path = "../verseconf-core" }
+# 写前检查要能服务真实格式：唯一被测出正收益的能力此前只对无人使用的 .vcf 可达。
+# 两条分发路径共用同一份实现，所以这个依赖对 wasm 目标同样成立。
+verseconf-toml = { version = "0.3.0", path = "../verseconf-toml" }
 serde.workspace = true
 serde_json.workspace = true

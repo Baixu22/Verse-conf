@@ -84,6 +84,15 @@ function assertToolSurface(api, label) {
   assert.equal(gate.isError, true, `${label}: 关闭证书校验必须拒绝`);
   assert.equal(gate.structuredContent.code, 'security_rejected');
 
+  // TOML 才是真实配置的形态；门禁必须对它同样可达，
+  // 否则「护城河」只对无人使用的格式成立。
+  const tomlOk = api.checkWrite('port = 8080\n', 'port = 9090\n', { format: 'toml' });
+  assert.equal(tomlOk.structuredContent.allowed, true, `${label}: TOML 良性改动必须放行`);
+  assert.equal(tomlOk.structuredContent.format, 'toml');
+  const tomlGate = api.checkWrite('tls_verify = true\n', 'tls_verify = false\n', { format: 'toml' });
+  assert.equal(tomlGate.isError, true, `${label}: TOML 上关闭证书校验必须拒绝`);
+  assert.equal(tomlGate.structuredContent.code, 'security_rejected');
+
   assert.equal(api.tools().length, 5, `${label}: 必须暴露五个工具`);
   assert.equal(api.serverInfo().name, 'verseconf');
 }

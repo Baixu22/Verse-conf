@@ -123,6 +123,7 @@ export interface EditRangeResult {
 
 export interface CheckWriteResult {
   allowed: true;
+  format: 'vcf' | 'toml';
   baseline_bytes: number;
   candidate_bytes: number;
 }
@@ -174,12 +175,13 @@ export function editRange(
 export function checkWrite(
   baseline: string,
   candidate: string,
-  options: { schema?: string } = {}
+  options: { schema?: string; format?: 'vcf' | 'toml' } = {}
 ): ToolResult<CheckWriteResult> {
   return callTool<CheckWriteResult>(TOOL_CHECK_WRITE, {
     baseline,
     candidate,
     ...(options.schema === undefined ? {} : { schema: options.schema }),
+    ...(options.format === undefined ? {} : { format: options.format }),
   });
 }
 
