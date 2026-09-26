@@ -11,6 +11,7 @@ pub use ast::*;
 pub use edit::apply::{
     apply_edit_plan, replace_range, value_span_for_path, AppliedEdit, EditOutcome, EditRefusal,
 };
+pub use edit::guard::{check_write, check_write_with, WriteGuard};
 pub use edit::multi_file::{
     apply_edit_plan_in_files, apply_edit_plan_in_files_with, EffectiveView, FileEdit,
     MultiFileOutcome,

@@ -4,10 +4,12 @@
 //! 目标无法唯一定位、前置条件不符或校验不通过时一律拒绝，绝不猜测。
 
 pub mod apply;
+pub mod guard;
 pub mod multi_file;
 pub mod value;
 
 pub use apply::*;
+pub use guard::*;
 pub use multi_file::*;
 pub use value::*;
 
