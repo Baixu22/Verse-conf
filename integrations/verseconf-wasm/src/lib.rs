@@ -16,6 +16,9 @@ pub struct VerseConf {
     ast: Ast,
     tables: HashMap<String, TableBlock>,
     flat_keys: HashMap<String, ScalarValue>,
+    /// 原始配置文本。校验与审计需要重新走一遍完整管线，
+    /// 而 AST 已经丢掉了「能否解析」这个信息（能构造出 VerseConf 就说明解析过了）。
+    source: String,
 }
 
 #[wasm_bindgen]
@@ -32,6 +35,7 @@ impl VerseConf {
                     ast,
                     tables,
                     flat_keys,
+                    source: source.to_string(),
                 }
             })
             .map_err(|e| JsValue::from_str(&e.to_string()))
@@ -159,8 +163,30 @@ impl VerseConf {
         }
     }
 
+    /// 校验这份配置。
+    ///
+    /// 之前这里是 `true` 硬编码桩：任何输入都返回"合法"，包括完全无法解析的
+    /// 文本。它虽然不在这条分发路径的主干上（宿主走 `call_tool_json` 调用
+    /// 共享工具层），但它是**公开导出**的，直接调用会得到假阳性结论。
+    /// 现在改为复用 MCP 工具层的同一份校验实现，与 CLI / wasm / 原生服务端一致。
     pub fn validate(&self) -> bool {
-        true
+        let result = crate::mcp::call_tool_json(
+            "verseconf_validate",
+            &serde_json::json!({ "source": self.source }).to_string(),
+        );
+
+        match result {
+            Ok(json) => serde_json::from_str::<serde_json::Value>(&json)
+                .ok()
+                .and_then(|value| {
+                    value
+                        .get("structuredContent")
+                        .and_then(|sc| sc.get("valid"))
+                        .and_then(|valid| valid.as_bool())
+                })
+                .unwrap_or(false),
+            Err(_) => false,
+        }
     }
 }
 
@@ -180,6 +206,7 @@ pub fn parse_config(source: &str) -> Result<JsValue, JsValue> {
                 ast,
                 tables: HashMap::new(),
                 flat_keys: HashMap::new(),
+                source: source.to_string(),
             });
             Ok(JsValue::from_str(&conf.to_json()))
         }
