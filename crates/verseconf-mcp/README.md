@@ -18,7 +18,7 @@
 cargo install verseconf-mcp
 ```
 
-## 四个工具
+## 五个工具
 
 | 工具 | 作用 |
 |---|---|
@@ -26,6 +26,7 @@ cargo install verseconf-mcp
 | `verseconf_audit` | 安全审计（通配绑定、明文口令等），返回稳定错误码 |
 | `verseconf_apply_edit` | 按编辑计划做字符区间最小改动，写入前双重校验 |
 | `verseconf_edit_range` | 直接替换指定字符区间（更底层的入口） |
+| `verseconf_check_write` | 写前检查：给定原文与候选文本，判断这次改动是否允许落盘；不关心候选怎么产生 |
 
 失败时返回**结构化的拒绝原因**，而不是一段自然语言。
 

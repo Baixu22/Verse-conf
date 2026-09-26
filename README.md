@@ -203,7 +203,7 @@ cargo run -p verseconf-bench --release -- --check # 门禁模式（CI 用）
 
 ## 四、接入方式
 
-`verseconf-mcp` 把四个能力暴露成宿主可直接发现与调用的工具：
+`verseconf-mcp` 把五个能力暴露成宿主可直接发现与调用的工具：
 
 | 工具 | 作用 |
 |------|------|
@@ -211,6 +211,7 @@ cargo run -p verseconf-bench --release -- --check # 门禁模式（CI 用）
 | `verseconf_audit` | 安全审计，返回稳定规则码 |
 | `verseconf_apply_edit` | 按编辑计划做字符区间最小改动，写入前双重校验；给 `path` 时在 `include` 图里定位目标，响应里带出被改动的文件与合并视图的校验状态 |
 | `verseconf_edit_range` | 直接替换指定字符区间（更底层的入口） |
+| `verseconf_check_write` | **写前检查**：给定原文与候选文本，判断这次改动是否允许落盘。不关心候选怎么产生——宿主可以保留自己的编辑方式，只在写盘前过这一道 |
 
 失败时返回**结构化的拒绝原因**，而不是一段自然语言（错误码见 [2.2](#22-拒绝路径)）。
 

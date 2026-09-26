@@ -1,6 +1,6 @@
 # VerseConf 工具协议服务（MCP 风格）
 
-`verseconf-mcp` 把 VerseConf 的四个能力暴露成 Agent 宿主可直接发现与调用的工具。
+`verseconf-mcp` 把 VerseConf 的五个能力暴露成 Agent 宿主可直接发现与调用的工具。
 宿主不需要更换配置格式，也不需要理解 VerseConf 语法细节。
 
 ## 为什么是工具而不是格式
@@ -74,7 +74,7 @@ npm run test:parity     # 与本机 verseconf（CLI）/ verseconf-mcp 逐项比�
 
 `test:parity` 会检查：仓库全部示例的 `validate` 退出码与 wasm `valid` 一致、
 `audit --format json` 的 summary 与 rule_id 集合一致，以及 13 条 JSON-RPC 请求
-（握手、工具发现、四个工具的成败路径、未知方法、协议错误）的响应逐字节相同。
+（握手、工具发现、五个工具的成败路径、未知方法、协议错误）的响应逐字节相同。
 
 浏览器与打包器使用 `pkg-web/`（wasm-bindgen 的 web 目标）：
 
@@ -90,11 +90,11 @@ JSON.parse(call_tool_json('verseconf_audit', JSON.stringify({ source })));
 | --- | --- |
 | `initialize` | 握手，返回 `capabilities.tools` 与 `serverInfo` |
 | `notifications/initialized` | 通知，无响应 |
-| `tools/list` | 返回四个工具的名称、描述与 `inputSchema` |
+| `tools/list` | 返回五个工具的名称、描述与 `inputSchema` |
 | `tools/call` | 调用工具，参数 `{ name, arguments }` |
 | `ping` | 连通性检查 |
 
-## 四个工具
+## 五个工具
 
 ### `verseconf_validate`
 
@@ -167,6 +167,21 @@ JSON.parse(call_tool_json('verseconf_audit', JSON.stringify({ source })));
 
 这是给编辑意图契约无法表达的改动准备的底层原语，走完全相同的写入前校验。
 越界、切断多字节字符或改动后不再合法时拒绝。
+
+### `verseconf_check_write`
+
+输入 `{ "baseline": string, "candidate": string, "schema"?: string }`，
+通过时输出 `{ "allowed": true, "baseline_bytes": integer, "candidate_bytes": integer }`；
+拒绝时按失败模型返回与编辑路径同一套稳定错误码。
+
+**它不产生改动，只裁决改动。** `candidate` 是怎么来的与它无关——字符串替换、
+字符区间替换、整文件重写都可以，宿主因此不需要改用自己的编辑方式，
+模型也不需要理解编辑计划协议（成本侧不增加 token）。
+
+`baseline` 用于建立风险基线；只拒绝本次改动**新引入**的高危安全实例
+（按规则 + 位置比较），文件本来就有的问题不会让这次改动背锅。
+`candidate` 无法解析、破坏 schema 或引入新高危实例时拒绝。
+不给 `schema` 时只用 `candidate` 自己声明的 `#@schema`，与编辑路径口径一致。
 
 ## 失败模型
 

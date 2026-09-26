@@ -31,7 +31,7 @@ const { validate, audit, applyEdit, editRange } = require('verseconf');
 import { validate, audit, applyEdit, editRange } from 'verseconf';
 ```
 
-## 四个能力
+## 五个能力
 
 所有函数返回同一个信封形状：`{ content, structuredContent, isError }`。
 失败不是异常，而是 `isError: true` 加稳定的结构化原因。
@@ -62,7 +62,7 @@ editRange('port = 8080\n', 7, 11, '9090');
 ```js
 import { tools, serverInfo } from 'verseconf';
 
-tools();        // 四个工具的名称、描述与 inputSchema
+tools();        // 五个工具的名称、描述与 inputSchema
 serverInfo();   // { name: 'verseconf', version: '0.1.0', protocolVersion: '2024-11-05' }
 ```
 

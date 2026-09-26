@@ -229,7 +229,7 @@ Methodology and scope limits: [benchmark/README.md](benchmark/README.md).
 
 ## 4. Integration
 
-`verseconf-mcp` exposes four capabilities as tools a host can discover and call:
+`verseconf-mcp` exposes five capabilities as tools a host can discover and call:
 
 | Tool | Purpose |
 |------|---------|
@@ -237,6 +237,7 @@ Methodology and scope limits: [benchmark/README.md](benchmark/README.md).
 | `verseconf_audit` | Security audit with stable rule codes |
 | `verseconf_apply_edit` | Byte-range minimal edit from an edit plan, validated twice before writing |
 | `verseconf_edit_range` | Replace an explicit character range (a lower-level entry point) |
+| `verseconf_check_write` | **Pre-write check**: given the original and candidate text, decide whether the change may be written. It does not care how the candidate was produced, so a host keeps its own editing method and only adds this gate before writing |
 
 Failures return **structured refusal reasons**, not a paragraph of prose (see
 [2.2](#22-the-refusal-paths) for the codes).

@@ -20,7 +20,7 @@ a human, and makes failures explicitly refused rather than guessed at.
 cargo install verseconf-mcp
 ```
 
-## The four tools
+## The five tools
 
 | Tool | Purpose |
 |---|---|
@@ -28,6 +28,7 @@ cargo install verseconf-mcp
 | `verseconf_audit` | Security audit (wildcard binds, plaintext credentials, …) with stable error codes |
 | `verseconf_apply_edit` | Byte-range minimal edit from an edit plan, validated twice before writing |
 | `verseconf_edit_range` | Replace an explicit character range (a lower-level entry point) |
+| `verseconf_check_write` | Pre-write check: given the original and candidate text, decide whether the change may be written; it does not care how the candidate was produced |
 
 Failures return **structured refusal reasons**, not a paragraph of prose.
 
