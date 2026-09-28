@@ -1,0 +1,32 @@
+{
+  "kind": "closeout-maintenance-amendment",
+  "date": "2026-09-28",
+  "reason": "Build the native MCP binary before the historical classifier replay in a clean CI job.",
+  "base_snapshot_sha256": "f31d1c1549b347c1b129929b58542195e3981befc55230c143d5829fdd3dd813",
+  "failed_run": "https://github.com/Baixu22/Verse-conf/actions/runs/36417285214",
+  "changes": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "before_sha256": "b68aa24b5bd05b874a83bfef374ad370f6d7fd55f10fc55846162812e20d4e5d",
+      "before_bytes": 1153,
+      "preserved_path": "docs/archive/2026-09-28-ci-prerequisite/.github/workflows/ci.yml.txt",
+      "sha256": "396d5c60a6487ee9b9db3d13cf2cba3639629b3aa18faa48084dc8ffb612aff7",
+      "bytes": 1449
+    },
+    {
+      "path": "benchmark/verify-closeout.mjs",
+      "before_sha256": "a8f52733ff5bea4526247ef75bef44384951fa3224d9170249d04bbc8f8004f3",
+      "before_bytes": 2673,
+      "preserved_path": "docs/archive/2026-09-28-ci-prerequisite/benchmark/verify-closeout.mjs.txt",
+      "sha256": "69f19118984e8b6c87b5816aa3ba92f6ccffd38ffd6e1a0f1b5996269a54ad98",
+      "bytes": 4093
+    }
+  ],
+  "additions": [
+    {
+      "path": "docs/CLOSEOUT-REMOTE.md",
+      "sha256": "07bb2e0ef58a31f4c11e20c91d26b40ae506b9e5a09f2ee8865f1be680cc898d",
+      "bytes": 2165
+    }
+  ]
+}

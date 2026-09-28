@@ -15,33 +15,9 @@ if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
   throw new Error('The closeout snapshot must contain files.');
 }
 
-const amendment = JSON.parse(readFileSync(resolve(root, 'benchmark/closeout-amendment-2026-09-28-ci.json'), 'utf8'));
-if (amendment.kind !== 'closeout-maintenance-amendment' ||
-    amendment.base_snapshot_sha256 !== sha256(readFileSync(resolve(root, 'benchmark/closeout-snapshot.json')))) {
-  throw new Error('The maintenance amendment must bind the unchanged closeout snapshot.');
-}
-const allowedChanges = new Set(['.github/workflows/ci.yml', 'benchmark/verify-closeout.mjs']);
-const replacements = new Map();
-const preserved = [];
-for (const change of amendment.changes) {
-  const original = manifest.files.find((file) => file.path === change.path);
-  if (!allowedChanges.has(change.path) || replacements.has(change.path) || !original ||
-      original.sha256 !== change.before_sha256 || original.bytes !== change.before_bytes ||
-      change.preserved_path !== `docs/archive/2026-09-28-ci-prerequisite/${change.path}.txt`) {
-    throw new Error(`Invalid maintenance amendment: ${change.path}`);
-  }
-  replacements.set(change.path, { path: change.path, bytes: change.bytes, sha256: change.sha256 });
-  preserved.push({ ...original, path: change.preserved_path });
-}
-if (replacements.size !== allowedChanges.size) throw new Error('Incomplete CI prerequisite amendment.');
-const files = [
-  ...manifest.files.map((file) => replacements.get(file.path) ?? file),
-  ...preserved,
-  ...amendment.additions,
-];
 const failures = [];
 const seen = new Set();
-for (const file of files) {
+for (const file of manifest.files) {
   if (typeof file.path !== 'string' || seen.has(file.path)) {
     failures.push(`Invalid or duplicate path: ${file.path}`);
     continue;
@@ -68,7 +44,7 @@ if (failures.length > 0) {
   console.error('Preserved evidence differs. Do not overwrite the snapshot to hide a change.');
   process.exit(1);
 }
-console.log(`Closeout snapshot and documented CI amendment match: ${files.length} file checks (${manifest.date}).`);
+console.log(`Closeout snapshot matches: ${manifest.files.length} files (${manifest.date}).`);
 console.log('This proves closeout-time integrity, not which binaries ran historical experiments.');
 
 const checks = [
