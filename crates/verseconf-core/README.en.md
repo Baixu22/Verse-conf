@@ -1,15 +1,17 @@
 # verseconf-core
 
+> **Frozen (2026-09-28)**: Independent product development has stopped; no further releases or ongoing maintenance are promised. The content below is historical source reference only. See [CLOSEOUT.md](../../docs/CLOSEOUT.md) for security boundaries and the final decision.
+
 [简体中文](README.md) | **English**
 
 The core library for the VerseConf configuration language: parsing, AST, validation,
 security audit, and a **byte-range minimal edit** engine.
 
-This project is not another attempt at inventing a configuration syntax. It is a
-**deterministic execution layer for agents editing configuration**: the model supplies
-only semantic intent (which field, what value, why), deterministic code resolves and
-replaces the byte range, schema validation and a security audit run before anything is
-written, and **when it cannot be certain it refuses instead of guessing**.
+Its historical aim was a **deterministic execution layer for agents editing configuration**:
+models supplied semantic intent (which field, what value, why), and deterministic code
+resolved and replaced byte ranges. Schema validation is optional and security auditing
+uses heuristic rules; passing these checks does not establish safety or guarantee refusal
+of every uncertain case. Existing evidence has not demonstrated a net benefit in real use.
 
 ## Install
 
@@ -56,9 +58,10 @@ assert!(outcome.source.contains("# production port")); // the trailing comment s
 assert!(outcome.source.contains("127.0.0.1"));       // bytes outside the range are untouched
 ```
 
-When a precondition does not hold, the target is ambiguous, or the edit would break the
-schema or introduce a new security risk, `apply_edit_plan` returns `EditRefusal` rather
-than guessing — and the caller must not write any file.
+When a precondition fails, the target is ambiguous, an enabled schema check fails, or
+heuristic auditing flags a newly introduced high-risk instance, `apply_edit_plan` returns
+`EditRefusal`; callers must not write a refused result. Problems outside those rules can
+still pass.
 
 A complete runnable version:
 [`crates/verseconf-core/examples/deterministic_edit.rs`](https://github.com/Baixu22/Verse-conf/blob/main/crates/verseconf-core/examples/deterministic_edit.rs).

@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["target","cfg(unix)","dependencies","libc"],"value":"verseconf-probe"}]}

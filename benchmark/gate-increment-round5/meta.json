@@ -1,0 +1,23 @@
+{
+  "frozen_for": "TF-0099 任务集 / TF-0100 预登记",
+  "tasks_sha256": "71a9270731d30704ddd9e6df5decb3d11961cacc0f9e43e19e3c027bf6f4c48a",
+  "preregistration_sha256": "4d3ece808b08c34081544fb0fb84e8af5f36e31e8f6db0312643b88a32228218",
+  "corpus_fingerprint": "a1a8bd1dca1e38c7de6c99a2b36edd9d5dee5b29c05adc66601d7cfdbbdd9739",
+  "documents": {
+    "clap-Cargo.toml": "4c4829a1a916d2c47e3299ca4c3e607721fc62998d2d3628afc10a85f0a8169a",
+    "pandas-pyproject.toml": "3aa456a088d5137273c410cf04d340b7303bfdadc850a8d1f7009a3d7adf8ed1",
+    "opendal-Cargo.toml": "5269c287882d9bb1401bccbd1679af16ef0b29c2b051040be353645cb8236408",
+    "regex-regression.toml": "0203facd366c50adb2120d87ea5da3a4d3effcb7cdd446c0d3f08ea472c64989",
+    "reqwest-Cargo.toml": "e8b4f877a9c0e7c7c22d95671e97b4b8ed84c793d218b65c5503505f9789e6a4",
+    "verseshell-Cargo.toml": "d49679a726c368babae6302b3dbe97bcc99eefc4fdf533aeb5a6f67a22521b6d",
+    "tokio-Cargo.toml": "e0194904acf8d55946b949cacca2b266051bb2a99844c606829fb0159c39cfb1",
+    "terminal-bench-task.toml": "6ff0f30a526bfff86a67b0b53439b9965229c0f368167dc1a5d05f34d82299a3"
+  },
+  "counts": {
+    "tasks": 12,
+    "documents": 8,
+    "clusters": 8,
+    "blocking": 9,
+    "advisory": 3
+  }
+}

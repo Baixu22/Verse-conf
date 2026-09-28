@@ -1,5 +1,9 @@
 # VerseConf Tutorial
 
+> **Frozen (2026-09-28)**: Independent product development has stopped; no further releases or ongoing maintenance are promised. The content below is historical source reference only. See [CLOSEOUT.md](CLOSEOUT.md) for security boundaries and the final decision.
+>
+> **Historical examples, not an implementation guide**: This tutorial retains unimplemented syntax, including block comments, raw/multiline strings, negative/hex literals and bare expressions. Use the status annotations in [SPECIFICATION.md](SPECIFICATION.md) as the authority; do not assume these examples run unchanged.
+
 Learn VerseConf from basics to advanced features in 15 minutes.
 
 ## Table of Contents
@@ -20,9 +24,6 @@ Learn VerseConf from basics to advanced features in 15 minutes.
 ```bash
 # 从克隆的仓库安装（可执行文件叫 verseconf）
 cargo install --path crates/verseconf-cli
-
-# 或：crates 发布到 crates.io 之后
-# cargo install verseconf-cli
 
 # Verify installation
 verseconf --version
@@ -401,7 +402,8 @@ verseconf audit app.vcf
 
 ## Complete Example
 
-Here's a production-ready configuration:
+Here is a historical design example, not a production-ready configuration. It contains
+unimplemented syntax; consult [SPECIFICATION.md](SPECIFICATION.md) for implementation status.
 
 ```vcf
 ###

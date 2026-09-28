@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["tool","mypy","disallow_any_unimported"],"value":true}]}

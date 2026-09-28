@@ -1,7 +1,10 @@
 # VerseConf 工具协议服务（MCP 风格）
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](CLOSEOUT.md)。
+
 `verseconf-mcp` 把 VerseConf 的五个能力暴露成 Agent 宿主可直接发现与调用的工具。
-宿主不需要更换配置格式，也不需要理解 VerseConf 语法细节。
+**只有 `verseconf_check_write` 接受多格式输入**（VCF / TOML / JSON / JSONC）；
+其余四个旧工具仍只接受 VCF。JSON / JSONC 能力仅在当前源码中，未发布，不能据此推断已发布包的能力。
 
 ## 为什么是工具而不是格式
 
@@ -50,14 +53,14 @@ node bin/verseconf-mcp-wasm.mjs --call verseconf_validate '{"source":"port = 808
 node bin/verseconf-mcp-wasm.mjs            # 逐行 JSON-RPC over stdio
 ```
 
-宿主接入配置：
+宿主接入配置（先完成本地构建，将示意绝对路径替换为自己的构建目录）：
 
 ```json
 {
   "mcpServers": {
     "verseconf": {
-      "command": "npx",
-      "args": ["-y", "verseconf-mcp-wasm"]
+      "command": "node",
+      "args": ["/absolute/path/to/verse-conf/integrations/verseconf-wasm/js-api/bin/verseconf-mcp-wasm.mjs"]
     }
   }
 }
@@ -170,9 +173,29 @@ JSON.parse(call_tool_json('verseconf_audit', JSON.stringify({ source })));
 
 ### `verseconf_check_write`
 
-输入 `{ "baseline": string, "candidate": string, "schema"?: string, "format"?: "vcf" | "toml" }`，
-通过时输出 `{ "allowed": true, "format": string, "baseline_bytes": integer, "candidate_bytes": integer }`；
+输入：
+
+```json
+{
+  "baseline": "string", "candidate": "string",
+  "format"?: "vcf" | "toml" | "json" | "jsonc",
+  "schema"?: "string",
+  "schema_format"?: "vcf" | "json-schema",
+  "schema_draft"?: "auto" | "draft-07" | "2020-12",
+  "schema_from_config"?: true,
+  "base_dir"?: "string",
+  "schema_url_map"?: { "<$schema URL>": "<本地 schema 文件路径>" },
+  "allow_unresolved_schema"?: false
+}
+```
+
+通过时输出 `{ "allowed": true, "format": string, "baseline_bytes": integer, "candidate_bytes": integer, "schema": string, "schema_source": string | null, "schema_skipped": string | null, "schema_declared_unused": string | null }`；
 拒绝时按失败模型返回与编辑路径同一套稳定错误码。
+
+工具契约声明了 `additionalProperties: false`，**并且真的执行**：传了未声明的参数
+（例如把 `schema_format` 写成 `schemaFormat`）会返回 `invalid_arguments` 并列出可用参数。
+声明与行为不一致比不声明更糟——宿主会以为拼错的参数会被指出来，而工具其实静默按
+默认值跑了一遍，结果看起来像「检查过了」。
 
 **它不产生改动，只裁决改动。** `candidate` 是怎么来的与它无关——字符串替换、
 字符区间替换、整文件重写都可以，宿主因此不需要改用自己的编辑方式，
@@ -183,11 +206,86 @@ JSON.parse(call_tool_json('verseconf_audit', JSON.stringify({ source })));
 `candidate` 无法解析、破坏 schema 或引入新高危实例时拒绝。
 不给 `schema` 时只用 `candidate` 自己声明的 `#@schema`，与编辑路径口径一致。
 
+审计会递归到嵌套容器：数组、数组里的数组、数组元素里的表、内联表都算，
+位置标识形如 `list[0][1].tls_verify`。候选必须是一份合法文档，所以空文档或
+只有注释的候选会被拒绝（JSON 要求有顶层值）；但合法且只是「被删空」的文档
+（如 `{}`）仍然放行——门禁保证的是「仍然合法且没引入新的高危实例」，
+不承诺拦住破坏性改动。
+
 `format` 默认 `vcf`，**由调用方声明而不是由本层猜**：猜错格式会把一份合法配置
 报成 `parse_failed`，而拒绝必须是可归因的。`format: "toml"` 走 TOML 适配层，
-校验与审计与 `.vcf` 路径**同源**（同一份 `AuditEngine`、同一份实例级比较、同一套拒绝码）。
-TOML 没有内联 schema 语法，所以它的 schema 只能旁挂传入。未知的 `format` 返回
+`format: "json"` / `"jsonc"` 走 JSON 适配层，校验与审计都与 `.vcf` 路径**同源**
+（同一份 `AuditEngine`、同一份实例级比较、同一套拒绝码）。TOML 与 JSON 都没有
+内联 schema 语法，所以它们的 schema 只能旁挂传入。未知的 `format` 返回
 `invalid_arguments`，不会静默退回默认值。
+
+`json` 与 `jsonc` 的区别是**门禁拒绝什么**，不是一个宽容度旋钮：
+
+| `format` | 注释 | 尾随逗号 | 单引号 | 缺逗号 |
+| --- | --- | --- | --- | --- |
+| `json` | 拒绝 | 拒绝 | 拒绝 | 拒绝 |
+| `jsonc` | 接受 | 接受 | 接受 | **拒绝** |
+
+缺逗号在两种语法下都拒绝：`{"a":1 "b":2}` 会让两条键悄悄粘成一个语义不同的
+文档，接受它等于门禁对一份坏配置说 `allowed`。因为 `settings.json` 这类文件
+普遍带注释，按 `.json` 后缀直接判严格语法会把合法配置报成 `parse_failed`，
+所以后缀推断（`JsonFlavor::from_path`）只在调用方没有显式给 `format` 时使用。
+
+#### schema：两种语言，以及按配置自己的 `$schema` 取
+
+`schema_format` 决定旁挂的 `schema` 用哪种语言，默认 `vcf`：
+
+| `schema_format` | 语言 | 谁在校验 | 支持程度 |
+| --- | --- | --- | --- |
+| `vcf`（默认） | `#@schema { ... }`，与 `.vcf` / TOML 同源 | `verseconf-core` | 完整 |
+| `json-schema` | 标准 JSON Schema | `jsonschema`（成熟实现） | draft-07 与 2020-12 |
+
+**不必先学一门自建 DSL**：使用方本来就有的 `tsconfig.json` / `settings.json`
+里的 `$schema` 可以直接用。`schema_format: "json-schema"` 只对
+`format: "json" | "jsonc"` 生效——对 `.vcf` / TOML 用它返回 `invalid_arguments`，
+而不是悄悄按另一门语言解释。`schema_draft` 默认 `auto`（按 schema 自己的
+`$schema` 认，没有声明时按 2020-12）。
+
+标准 JSON Schema 路径下有几条与规范不同的**有意**行为：
+
+- 不认识的关键字（例如拼错的 `requierd`）返回 `unsupported_schema` 并逐条列出。
+  规范要求实现忽略未知关键字，但对门禁那等于「约束没生效、门禁却说允许落盘」；
+- **注解与扩展不算「不认识」**：`title`/`description`/`examples`/`deprecated`、
+  `x-` 前缀的扩展，以及 `markdownDescription` / `x-intellij-*` / `tsType` /
+  `allowTrailingCommas` 这类编辑器扩展都不约束实例，直接放行。把它们和拼错的关键字
+  一起判死，等于门禁对 SchemaStore 上最真实的那批配置说「不受支持」；
+- 两个方言的关键字取**并集**：2020-12 文档里写 `definitions`、draft-07 里写 `$defs`，
+  校验器都能解析、`$ref` 的约束都会被执行，没有理由判死；
+- 不支持的方言（例如 draft-04）、调用方指定方言与 schema 自身声明的冲突、
+  未知的必需 `$vocabulary` 仍然返回 `unsupported_schema`。
+
+`format` 在这个路径上是**真的**被校验的（规范把 `format` 定为注解还是断言取决于
+方言，门禁显式打开了断言）：`date-time`/`uri`/`uri-reference`/`duration`/`uuid`
+等标准 format 写坏都会被拦住，实现不认识的 format 名会被报告。
+
+`schema_from_config: true` 时不使用 `schema` 参数，而是按配置里顶层 `$schema`
+的声明去取 schema：
+
+- 支持本地相对路径（按 `base_dir`）、绝对路径与 `file://` URL（含标准的
+  `file:///C:/...` 与带 authority 的写法）；**不抓网络**；
+- 想用 SchemaStore 的宿主自己把 schema 下载好，用 `schema_url_map` 把 URL 映射到
+  本地文件即可。未命中的 URL 返回 `schema_unavailable`，不静默放行；
+- 取不到时返回 `schema_unavailable`：配置里没有 `$schema`、路径读不到、
+  `$schema` 不是字符串，理由里都会写清下一步该做什么；
+- 基线决定用哪份 schema——候选可能正是「把 `$schema` 删掉」的那次改动，
+  那时不该把检查降级成放行；
+- 配置自己声明了 `$schema` 而这次调用没要求按它校验时，结果里用
+  `schema_declared_unused` 如实报出来（此时 `schema` 是 `"none"`），
+  免得读结果的人以为 schema 检查过。
+
+离线场景的降级是**显式**的：`allow_unresolved_schema: true` 时，取不到 schema
+不再拒绝，而是跳过 schema 那一层、照旧做结构与安全审计，并在结果里如实报告
+（`schema: "skipped"` + `schema_skipped: "<原因>"`，摘要里也会写「schema **未检查**」）。
+默认 `false`——门禁最不该做的事是「没能检查却说允许」，所以降级必须由调用方选择，
+而不是门禁自己决定。
+
+`schema_from_config` 只对 `format: "json" | "jsonc"` 生效；与 `schema` 同时给
+返回 `invalid_arguments`（一个是旁挂文本，一个是按配置取，不能都要）。
 
 ## 失败模型
 

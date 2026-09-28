@@ -1,6 +1,8 @@
 # integrations/verseconf-wasm
 
-VerseConf 的 WebAssembly 分发层。**这里只有一条被支持的分发路径。**
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
+VerseConf 的历史 WebAssembly 构建层。以下保留本地构建路径，不代表仍受支持的分发渠道。
 
 ## 目录
 
@@ -35,20 +37,20 @@ VerseConf 的 WebAssembly 分发层。**这里只有一条被支持的分发路�
 正确做法是**从 wasm-bindgen 的接口出发重新生成绑定**（或用 `wasm-bindgen-cli`
 为目标语言生成胶水），而不是恢复这些文件。
 
-## 唯一被支持的两条目标
+## 历史构建的两个目标
 
 | 目标 | 构建命令 | 产物 | 面向 |
 |------|----------|------|------|
 | nodejs | `wasm-pack build --target nodejs --out-dir js-api/pkg` | `js-api/pkg/` | Node、Electron、VS Code 扩展宿主 |
 | web | `wasm-pack build --target web --out-dir js-api/pkg-web` | `js-api/pkg-web/` | 浏览器、打包器（`init()` / `initSync`） |
 
-wasm 侧**不重新实现任何能力**：`src/mcp.rs` 直接复用 `verseconf-mcp` 的工具层，
-所以本机二进制与 wasm 模块返回逐字节相同的 JSON。一致性由
-`js-api/test/parity.mjs` 断言，并在 CI 的 `wasm-distribution` 作业里阻塞。
+wasm 侧**不重新实现任何能力**：`src/mcp.rs` 直接复用 `verseconf-mcp` 的工具层。
+历史一致性检查由 `js-api/test/parity.mjs` 逐字节比较 JSON，曾作为 CI 的
+`wasm-distribution` 作业阻塞项；冻结后不再自动运行，也不构成持续兼容承诺。
 
 ## 发布状态
 
-npm 包 **已放弃发布**（发布账号不可用）。修复版已在仓库里构建并通过打包验收
-（`js-api/test/package.test.mjs`，12/12，CI 的 `wasm-distribution` 作业阻塞），
+npm 包 **已放弃发布**（发布账号不可用）。修复版曾在仓库里构建并通过打包验收
+（`js-api/test/package.test.mjs`，12/12，历史 CI 阻塞项；冻结后不再自动运行），
 但不会再发布到 registry。registry 上现有的 `0.1.0` 不可用（包内缺 `pkg/` 目录，
 `require` 与 `import` 两条入口都失败）——详见仓库根 README 的安装状态表。

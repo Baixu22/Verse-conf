@@ -39,6 +39,23 @@ pub enum EditRefusal {
     UnsupportedTarget { path: String, reason: String },
     /// 改动后的配置未通过结构或 schema 校验
     ValidationFailed { path: String, message: String },
+    /// schema 本身不受支持：用了本层不保证执行的方言或关键字。
+    ///
+    /// 与 [`EditRefusal::ValidationFailed`] 分开是有意的：那条说的是「这次改动违反了
+    /// schema」，这条说的是「这份 schema 我们没能力按它说的执行」。两者都要拒绝，
+    /// 但宿主该做的事完全不同——后者要去掉/改写那些关键字，或者换一份 schema。
+    /// 静默忽略未实现的关键字会让用户以为约束生效了，而这正是要避免的。
+    UnsupportedSchema {
+        path: String,
+        /// 不受支持的方言（`$schema` URI）或关键字，逐条列出，便于定位
+        unsupported: Vec<String>,
+    },
+    /// schema 取不到：`$schema` 指向的位置无法解析（离线、路径不存在、未注册的 URL）。
+    ///
+    /// 单独成码而不是并进 `validation_failed`：拒绝的理由是「没能检查」，
+    /// 不是「检查发现有问题」。宿主可以据此选择先补 schema 再重试，
+    /// 而不是把这次改动当成有缺陷。
+    SchemaUnavailable { path: String, reason: String },
     /// 改动引入了新的高危安全问题。
     ///
     /// `findings` 是去重后的规则码（机器可读、稳定），`instances` 是
@@ -121,6 +138,15 @@ impl std::fmt::Display for EditRefusal {
             EditRefusal::ValidationFailed { path, message } => {
                 write!(f, "改动后校验失败：{}（{}）", path, message)
             }
+            EditRefusal::UnsupportedSchema { path, unsupported } => write!(
+                f,
+                "schema 不受支持：{}（{}）",
+                path,
+                unsupported.join(", ")
+            ),
+            EditRefusal::SchemaUnavailable { path, reason } => {
+                write!(f, "schema 取不到：{}（{}）", path, reason)
+            }
             EditRefusal::SecurityRejected {
                 path, instances, ..
             } => write!(
@@ -150,6 +176,8 @@ impl EditRefusal {
             EditRefusal::ExpectationMismatch { .. } => "expectation_mismatch",
             EditRefusal::UnsupportedTarget { .. } => "unsupported_target",
             EditRefusal::ValidationFailed { .. } => "validation_failed",
+            EditRefusal::UnsupportedSchema { .. } => "unsupported_schema",
+            EditRefusal::SchemaUnavailable { .. } => "schema_unavailable",
             EditRefusal::SecurityRejected { .. } => "security_rejected",
         }
     }
@@ -193,6 +221,12 @@ impl EditRefusal {
             } => serde_json::json!({ "path": path, "expected": expected, "actual": actual }),
             EditRefusal::ValidationFailed { path, message } => {
                 serde_json::json!({ "path": path, "message": message })
+            }
+            EditRefusal::UnsupportedSchema { path, unsupported } => {
+                serde_json::json!({ "path": path, "unsupported": unsupported })
+            }
+            EditRefusal::SchemaUnavailable { path, reason } => {
+                serde_json::json!({ "path": path, "reason": reason })
             }
             EditRefusal::SecurityRejected {
                 path,
@@ -1448,6 +1482,14 @@ mod tests {
             EditRefusal::ValidationFailed {
                 path: "a".to_string(),
                 message: "m".to_string(),
+            },
+            EditRefusal::UnsupportedSchema {
+                path: "<schema>".to_string(),
+                unsupported: vec!["draft-04".to_string()],
+            },
+            EditRefusal::SchemaUnavailable {
+                path: "<schema>".to_string(),
+                reason: "离线".to_string(),
             },
             EditRefusal::SecurityRejected {
                 path: "a".to_string(),

@@ -1,0 +1,19 @@
+# getrandom 0.3 在 wasm32-unknown-unknown 上不再猜后端：它要求构建时显式声明
+# 用哪个实现，否则直接 compile_error。
+#
+# 这条配置是本仓库引入标准 JSON Schema 校验（TF-0092）之后才需要的：
+# `jsonschema` → `ahash` → `getrandom` 这条链上的 ahash 用 getrandom 生成哈希
+# 随机状态种子，于是 wasm 分发路径也被牵进来了。
+#
+# 选 `wasm_js`：浏览器与 Node 下走 Web Crypto 的 `crypto.getRandomValues`，
+# 这是 wasm32-unknown-unknown 上没有操作系统熵源时的标准做法。
+# 真正的依赖声明在 integrations/verseconf-wasm/Cargo.toml（谁做 wasm 分发谁选后端）。
+#
+# 只影响本 workspace 里针对 wasm32-unknown-unknown 的构建。下游消费者自己构建
+# wasm 时也需要同样一条 cfg——这是 getrandom 0.3 的设计，不是本仓库的额外要求。
+#
+# 注意：`rustflags` 会被环境变量 `RUSTFLAGS` 覆盖。CI 里如果哪天全局导出了
+# RUSTFLAGS，这条 cfg 就会消失，wasm 作业会以 getrandom 的 compile_error 失败。
+# 那时要么把这条 cfg 并进 RUSTFLAGS，要么改用不带 wasm 目标随机源的依赖组合。
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']

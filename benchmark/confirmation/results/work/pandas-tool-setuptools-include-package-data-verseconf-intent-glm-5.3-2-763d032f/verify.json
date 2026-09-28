@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["tool","setuptools","include-package-data"],"value":false,"expect":{"value":false}}]}

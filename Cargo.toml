@@ -7,6 +7,7 @@ members = [
     "crates/verseconf-mcp",
     "crates/verseconf-bench",
     "crates/verseconf-toml",
+    "crates/verseconf-json",
     "compare",
     "integrations/verseconf-wasm",
 ]
@@ -33,6 +34,17 @@ toml = "0.8"
 toml_edit = "0.22"
 serde_json = "1.0"
 notify = "6.1"
+# JSON/JSONC 适配层：解析、注释、键序与位置区间都交给成熟实现，不自写解析器。
+# `cst` 打开后可变更的 CST（保真编辑用）；`serde_json` 打开后 AST 可直接转成
+# `serde_json::Value`（标准 JSON Schema 校验需要它当实例）。
+jsonc-parser = { version = "0.32", features = ["cst", "serde_json"] }
+# 标准 JSON Schema 校验（TF-0092）：draft-07 与 2020-12 由成熟实现负责。
+#
+# 两个默认 feature 都关掉：`resolve-http` 会把 reqwest 与 tokio 拖进依赖树，
+# 而 `resolve-file` 在 wasm32 上是**明确不支持**的（上游直接 compile_error）。
+# 关掉之后，跨文件 `$ref` 的抓取由调用方负责——本层的 `$schema` 解析本来就是
+# 自己读文件、把文本交给校验器，所以不需要上游的文件解析能力。
+jsonschema = { version = "0.33", default-features = false }
 
 # CLI dependencies
 clap = { version = "4.4", features = ["derive"] }

@@ -1,5 +1,7 @@
 # verseconf-lsp
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
 **简体中文** | [English](README.en.md)
 
 VerseConf 的语言服务器（Language Server Protocol），为编辑器提供 `.vcf` 文件的
@@ -27,8 +29,9 @@ cargo install verseconf-lsp
 
 ## 编辑器集成
 
-VS Code 扩展随主仓库发布（`.vsix` 由 CI 按平台构建语言服务器后打包），
-它同时处理了按平台解析服务端路径、非 Windows 平台的执行位等问题。
+历史设计由 CI 按平台构建语言服务器后打包 VS Code 扩展 `.vsix`，
+并处理按平台解析服务端路径、非 Windows 平台的执行位等问题。
+分发已停止，旧 artifact 不保证仍可下载；本地构建需自行准备语言服务器二进制。
 
 ## 相关
 

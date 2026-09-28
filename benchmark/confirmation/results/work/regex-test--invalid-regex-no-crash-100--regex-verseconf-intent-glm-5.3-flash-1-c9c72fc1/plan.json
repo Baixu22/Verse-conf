@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["test[name=\"invalid-regex-no-crash-100\"]","regex"],"value":"verseconf-probe"}]}

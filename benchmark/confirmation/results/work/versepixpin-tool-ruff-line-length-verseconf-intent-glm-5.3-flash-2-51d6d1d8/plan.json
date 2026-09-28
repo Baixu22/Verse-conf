@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["tool","ruff","line-length"],"value":"4242"}]}

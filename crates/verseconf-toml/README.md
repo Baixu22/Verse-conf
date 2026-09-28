@@ -1,5 +1,7 @@
 # verseconf-toml
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
 把 VerseConf 的**编辑意图契约**与**写入前校验**用到真实 TOML 配置上。
 
 解析、定位与渲染都交给 [`toml_edit`](https://crates.io/crates/toml_edit)（成熟 CST 库，保留注释、空白与键序）；

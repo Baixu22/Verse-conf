@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["target","cfg(all(target_arch = \"wasm32\", any(target_os = \"unknown\", target_os = \"none\")))","dependencies","js-sys","version"],"value":"verseconf-probe"}]}

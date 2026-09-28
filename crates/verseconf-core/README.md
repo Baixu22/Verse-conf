@@ -1,12 +1,15 @@
 # verseconf-core
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
 **简体中文** | [English](README.en.md)
 
 VerseConf 配置语言的核心库：解析、AST、校验、安全审计，以及**字符区间级最小改动**的编辑引擎。
 
-这个项目不是「再发明一种配置语法」。它的定位是 **Agent 编辑配置的确定性执行层**：
-模型只给出语义意图（改哪个字段、改成什么、为什么改），由确定性代码定位并替换字节区间，
-写入前做 schema 与安全双重校验，**无法确定时拒绝而不是猜测**。
+历史定位是 **Agent 编辑配置的确定性执行层**：模型给出语义意图
+（改哪个字段、改成什么、为什么改），由确定性代码定位并替换字节区间。
+Schema 校验是可选的，安全审计是启发式规则检查；通过检查不代表改动安全，
+也不保证所有不确定情况都会被拒绝。现有证据尚未证明这一层在真实使用中的净收益。
 
 ## 安装
 
@@ -52,8 +55,9 @@ assert!(outcome.source.contains("# 生产端口"));       // 行尾注释保留
 assert!(outcome.source.contains("127.0.0.1"));       // 区间之外的字节零变化
 ```
 
-前置条件不符、目标有歧义、改动会破坏 schema 或引入新的安全风险时，
-`apply_edit_plan` 返回 `EditRefusal` 而不是猜一个结果——调用方不应写入任何文件。
+前置条件不符、目标有歧义、改动未通过已启用的 schema 校验，或被启发式审计判为
+引入新高危实例时，`apply_edit_plan` 返回 `EditRefusal`；调用方不应写入被拒绝的结果。
+未被规则覆盖的问题仍可能放行。
 
 完整可运行版本：[`crates/verseconf-core/examples/deterministic_edit.rs`](https://github.com/Baixu22/Verse-conf/blob/main/crates/verseconf-core/examples/deterministic_edit.rs)。
 它同时是 `cargo test --workspace` 的一部分，所以 README 里的示例不会和实现漂移。

@@ -99,6 +99,106 @@ fn the_candidate_is_never_returned_on_refusal() {
 }
 
 #[test]
+fn a_credential_embedded_in_a_url_value_is_refused() {
+    // 决定性实验里模型自发的 11 次高危改动中有 5 次是这个形态（45%）：键名无害
+    // （`index`），凭据在值里。规则原先只看键名，所以这一整类都不被看见。
+    //
+    // 这里用**真实凭据形态**：原本写的 `username:password` 本身就是模板，
+    // 在新判据下属于占位（见下面放行列表），拿它当"必须被拒"的样例是错的。
+    let baseline = "[registries]\nname = \"mirror\"\n";
+    let candidate = "[registries]\nname = \"mirror\"\nindex = \"https://cargo-user:cargo-password@internal-mirror.example.com/crates.io-index\"\n";
+
+    let refusal = check_write_toml(baseline, candidate).expect_err("URL 内嵌凭据必须被拒绝");
+    assert_eq!(refusal.code(), "security_rejected");
+    assert!(
+        refusal.details()["findings"]
+            .to_string()
+            .contains("SEC-SENS-002"),
+        "必须指名新规则，实际 {}",
+        refusal.details()["findings"]
+    );
+
+    // 反向：不含凭据的镜像地址、只带用户名、端口写法、`${...}` 引用，
+    // 以及**占位模板**（`username:password`、`YOUR_USERNAME:YOUR_PASSWORD`）都要放行。
+    for safe in [
+        "[registries]\nname = \"mirror\"\nindex = \"https://mirror.example.com/crates.io-index\"\n",
+        "[registries]\nname = \"mirror\"\nindex = \"https://user@mirror.example.com/index\"\n",
+        "[registries]\nname = \"mirror\"\nindex = \"https://mirror.example.com:8443/index\"\n",
+        "[registries]\nname = \"mirror\"\nindex = \"https://${REGISTRY_USER}:${REGISTRY_PASSWORD}@mirror.example.com/index\"\n",
+        "[registries]\nname = \"mirror\"\nindex = \"https://username:password@mirror.example.com/index\"\n",
+        "[registries]\nname = \"mirror\"\nindex = \"sparse+https://YOUR_USERNAME:YOUR_PASSWORD@mirror.example.com/index/\"\n",
+    ] {
+        check_write_toml(baseline, safe).unwrap_or_else(|refusal| {
+            panic!("不含真实凭据的 URL 不该被拒（{}）：{safe}", refusal.code())
+        });
+    }
+}
+
+#[test]
+fn a_placeholder_credential_is_not_refused() {
+    // 第三类假阳性：值写着「请替换」时不是秘密。这类形态在四轮实验的真实拒绝里占大头
+    // （`your-password`、`ci-REPLACE_WITH_REAL_TOKEN`、`YOUR_API_KEY` 等），
+    // 由确定性分类器回顾性统计发现。
+    let baseline = "[registries]\nname = \"mirror\"\n";
+    for placeholder in [
+        "[registries]\nname = \"mirror\"\npassword = \"your-password\"\n",
+        "[registries]\nname = \"mirror\"\ntoken = \"ci-REPLACE_WITH_REAL_TOKEN\"\n",
+        "[registries]\nname = \"mirror\"\napi_key = \"YOUR_API_KEY\"\n",
+        "[registries]\nname = \"mirror\"\ntoken = \"<token>\"\n",
+    ] {
+        check_write_toml(baseline, placeholder).unwrap_or_else(|refusal| {
+            panic!("占位文案不该阻断（{}）：{placeholder}", refusal.code())
+        });
+    }
+
+    // 反向：同样是敏感键，写真实凭据仍然必须被拒——包括含 `example`/`user` 子串的形态
+    for literal in [
+        "[registries]\nname = \"mirror\"\ntoken = \"ghp_internal_upload_9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e\"\n",
+        "[registries]\nname = \"mirror\"\ntoken = \"AKIAIOSFODNN7EXAMPLE\"\n",
+        "[registries]\nname = \"mirror\"\npassword = \"cargo-password\"\n",
+    ] {
+        let refusal = check_write_toml(baseline, literal).expect_err("真实凭据必须被拒");
+        assert_eq!(refusal.code(), "security_rejected", "候选：{literal}");
+    }
+}
+
+#[test]
+fn an_env_var_name_is_not_a_hardcoded_credential() {
+    // 裁决文档里那一次误拒的原文：值是指向环境变量的**名字**，正是审计建议的写法。
+    // 它仍然告警（键名像敏感字段），但不能阻断——否则正常的安全写法会被拦下来。
+    let baseline = "[tool.internal-upload]\nurl = \"https://upload.internal/\"\n";
+    let candidate = "[tool.internal-upload]\nurl = \"https://upload.internal/\"\ntoken-env = \"PANDAS_INTERNAL_UPLOAD_TOKEN\"\n";
+
+    check_write_toml(baseline, candidate).expect("指向环境变量的名字不是硬编码凭据，不该阻断");
+
+    // 反向：同一位置写真实 token 仍然必须被拒
+    let literal =
+        "[tool.internal-upload]\nurl = \"https://upload.internal/\"\ntoken = \"pypi_live_9c1d4e\"\n";
+    let refusal = check_write_toml(baseline, literal).expect_err("真 token 必须被拒");
+    assert_eq!(refusal.code(), "security_rejected");
+}
+
+#[test]
+fn a_credential_mechanism_name_is_not_refused() {
+    // 第二轮实验里那一次确凿误拒：`credential-provider = "cargo:token"` 说的是
+    // 「用哪个提供者」，是 Cargo 文档推荐的写法；同一段里真正的凭据写成 `${...}` 引用。
+    let baseline =
+        "[registries.private-registry]\nindex = \"sparse+https://registry.example.com/index/\"\n";
+    let candidate = "[registries.private-registry]\nindex = \"sparse+https://registry.example.com/index/\"\ncredential-provider = \"cargo:token\"\ntoken = \"${CARGO_REGISTRIES_PRIVATE_REGISTRY_TOKEN}\"\n";
+
+    check_write_toml(baseline, candidate).expect("指向凭据机制的写法不是硬编码凭据，不该阻断");
+
+    // 反向：同位置写真实凭据仍然必须被拒（换键、或值变成秘密形态）
+    for literal in [
+        "[registries.private-registry]\nindex = \"sparse+https://registry.example.com/index/\"\ncredential = \"user:hunter2\"\n",
+        "[registries.private-registry]\nindex = \"sparse+https://registry.example.com/index/\"\ncredential-provider = \"sk-live-9c1d4e\"\n",
+    ] {
+        let refusal = check_write_toml(baseline, literal).expect_err("真实凭据必须被拒");
+        assert_eq!(refusal.code(), "security_rejected", "候选：{literal}");
+    }
+}
+
+#[test]
 fn the_gate_agrees_with_the_edit_path() {
     // 门禁不是第二套规则：同一对 (baseline, candidate) 在编辑路径上被拒绝时，
     // 独立门禁也必须拒绝——否则「写入前双重校验」会对两种用法给出不同答案。
