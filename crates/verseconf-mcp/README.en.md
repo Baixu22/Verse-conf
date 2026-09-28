@@ -1,12 +1,15 @@
 # verseconf-mcp
 
+> **Frozen (2026-09-28)**: Independent product development has stopped; no further releases or ongoing maintenance are promised. The content below is historical source reference only. See [CLOSEOUT.md](../../docs/CLOSEOUT.md) for security boundaries and the final decision.
+
 [简体中文](README.md) | **English**
 
 Exposes VerseConf's validation, audit and deterministic editing capabilities to agent
 hosts over a **tool protocol** (Model Context Protocol style).
 
-The host does not have to switch configuration formats or understand VerseConf syntax —
-it only has to call tools.
+**Only `verseconf_check_write` accepts multiple formats** (VCF / TOML / JSON / JSONC).
+The other four legacy tools still accept VCF only. JSON / JSONC support exists only in
+the current source and is unpublished; do not assume published packages include it.
 
 ## Why tools, and not another format
 

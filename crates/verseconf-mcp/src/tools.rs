@@ -3,13 +3,18 @@
 //! 工具只接受文本与结构化意图，返回结构化结果；失败时返回稳定的错误码，
 //! 宿主不需要解析人类可读文案来判断失败原因。
 
-use std::path::Path;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 use verseconf_core::{
     apply_edit_plan, apply_edit_plan_in_files, check_write_with, parse, replace_range,
     validate_ast, AppliedEdit, AuditEngine, EditPlan, EditRefusal, EffectiveView, SchemaValidator,
     VerseconfError, WriteGuard, EDIT_PLAN_JSON_SCHEMA,
+};
+use verseconf_json::{
+    check_write_json_with, check_write_json_with_document_schema, declared_schema, DocumentSchema,
+    JsonFlavor, JsonGuard, JsonSchemaDraft, SchemaFormat,
 };
 use verseconf_toml::{check_write_toml_with, TomlGuard};
 
@@ -222,7 +227,7 @@ pub fn tool_descriptors() -> Vec<ToolDescriptor> {
         },
         ToolDescriptor {
             name: TOOL_CHECK_WRITE,
-            description: "写前检查：给定改动前的文本 baseline 与准备落盘的文本 candidate，判断这次改动是否允许写入。它不关心 candidate 是怎么产生的——宿主可以用自己的编辑方式（字符串替换、区间替换、整文件重写），只在落盘前过这一道。只拒绝本次改动**新引入**的高危安全实例（按规则+位置比较），不因文件本来就有的问题拒绝；候选不合法或破坏 schema 时同样拒绝。通过返回 allowed=true；拒绝返回与编辑路径同一套稳定错误码。",
+            description: "写前检查：给定改动前的文本 baseline 与准备落盘的文本 candidate，判断这次改动是否允许写入。它不关心 candidate 是怎么产生的——宿主可以用自己的编辑方式（字符串替换、区间替换、整文件重写），只在落盘前过这一道。只拒绝本次改动**新引入**的高危安全实例（按规则+位置比较），不因文件本来就有的问题拒绝；候选不合法或破坏 schema 时同样拒绝。通过返回 allowed=true；拒绝返回与编辑路径同一套稳定错误码。schema 可以旁挂（`#@schema` 语言或标准 JSON Schema），也可以让本工具按配置自己的 `$schema` 去取（schema_from_config）。",
             input_schema: json!({
                 "type": "object",
                 "additionalProperties": false,
@@ -230,8 +235,14 @@ pub fn tool_descriptors() -> Vec<ToolDescriptor> {
                 "properties": {
                     "baseline": { "type": "string", "description": "改动前的配置文本（用于建立风险基线）" },
                     "candidate": { "type": "string", "description": "准备落盘的配置文本" },
-                    "schema": { "type": "string", "description": "可选的旁挂 schema（`#@schema { ... }` 文本）。候选文本自己没有 schema 时用它做校验" },
-                    "format": { "type": "string", "enum": ["vcf", "toml"], "description": "候选文本的格式，默认 vcf。TOML 的 schema 只能旁挂传入（TOML 没有内联 schema 语法）" }
+                    "schema": { "type": "string", "description": "可选的旁挂 schema 文本。默认按 #@schema { ... } 语言解释；schema_format=json-schema 时按标准 JSON Schema 解释" },
+                    "schema_format": { "type": "string", "enum": ["vcf", "json-schema"], "description": "旁挂 schema 用的是哪种语言，默认 vcf（自建 #@schema DSL，与 .vcf / TOML 同源）。json-schema 只对 format=json/jsonc 生效；不受支持的关键字与方言会返回 unsupported_schema，而不是被静默忽略" },
+                    "schema_draft": { "type": "string", "enum": ["auto", "draft-07", "2020-12"], "description": "JSON Schema 的方言，默认 auto（按 schema 自己的 $schema 认；没有声明时按 2020-12）" },
+                    "schema_from_config": { "type": "boolean", "description": "为 true 时不使用 schema 参数，而是按配置里顶层 $schema 声明去取 schema（默认 false）。支持本地相对/绝对路径与 file://；网络 URL 不会被抓取，取不到时返回 schema_unavailable，不会静默放行" },
+                    "base_dir": { "type": "string", "description": "$schema 是相对路径时的基准目录（通常是配置文件所在目录）。schema_from_config 时使用" },
+                    "allow_unresolved_schema": { "type": "boolean", "description": "schema_from_config 取不到 schema 时是否降级为「只做结构与安全校验」，默认 false（返回 schema_unavailable 拒绝写入）。设为 true 是调用方显式承担「这次没按 schema 检查」的后果：结果里 schema 会报成 skipped 并带上原因" },
+                    "schema_url_map": { "type": "object", "description": "$schema URL → 本地 schema 文件的映射（值都是字符串路径）。宿主侧下载好 SchemaStore 的 schema 后用这个指过来；本工具自己不抓网络，未命中的 URL 返回 schema_unavailable" },
+                    "format": { "type": "string", "enum": ["vcf", "toml", "json", "jsonc"], "description": "候选文本的格式，默认 vcf。TOML 与 JSON/JSONC 的 schema 只能旁挂传入（它们没有内联 schema 语法）。json 严格（拒绝注释与尾随逗号），jsonc 允许注释、尾随逗号与单引号字符串；两者都拒绝缺逗号" }
                 }
             }),
         },
@@ -240,6 +251,8 @@ pub fn tool_descriptors() -> Vec<ToolDescriptor> {
 
 /// 调用工具
 pub fn call_tool(name: &str, arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
+    reject_unknown_arguments(name, arguments)?;
+
     match name {
         TOOL_VALIDATE => validate(arguments),
         TOOL_AUDIT => audit(arguments),
@@ -248,6 +261,67 @@ pub fn call_tool(name: &str, arguments: &Value) -> Result<ToolOutcome, ToolFailu
         TOOL_CHECK_WRITE => check_write_tool(arguments),
         other => Err(ToolFailure::unknown_tool(other)),
     }
+}
+
+/// 在某个目标上被**刻意**从工具契约里去掉的参数。
+///
+/// 同一条 Rust 代码在不同目标上能力不同：`apply_edit` 的 `path` 在 wasm 上做不到
+/// （没有文件系统），所以它不在那条路径的契约里。但传进来的 `path` 不是「不认识的
+/// 参数」——它是**认识的、这个目标不支持的**参数，必须由工具自己回
+/// `unsupported_on_platform`，而不是在参数校验这一层被当成拼错。
+/// 两条分发路径的逐字节一致性（tests/parity.mjs）正是钉在这里的。
+const PLATFORM_OMITTED_ARGUMENTS: &[(&str, &[&str])] = &[(TOOL_APPLY_EDIT, &["path"])];
+
+/// 工具契约声明了 `additionalProperties: false`，那就必须真的拒。
+///
+/// 声明与行为不一致比不声明更糟：宿主相信写错的参数名会被指出来，于是把
+/// `schema_format` 拼成 `schemaFormat` 之后，门禁**静默按默认值**跑了一遍，
+/// 结果看起来是「检查过了」。独立复核把这条报成了 MAJOR，理由就是这个。
+///
+/// 未知工具名不在这里报：那是 [`ToolFailure::unknown_tool`] 的职责。
+fn reject_unknown_arguments(name: &str, arguments: &Value) -> Result<(), ToolFailure> {
+    let Value::Object(arguments) = arguments else {
+        return Ok(());
+    };
+    let Some(descriptor) = tool_descriptors()
+        .into_iter()
+        .find(|descriptor| descriptor.name == name)
+    else {
+        return Ok(());
+    };
+    let Some(properties) = descriptor
+        .input_schema
+        .get("properties")
+        .and_then(Value::as_object)
+    else {
+        return Ok(());
+    };
+
+    let omitted = PLATFORM_OMITTED_ARGUMENTS
+        .iter()
+        .find(|(tool, _)| *tool == name)
+        .map(|(_, keys)| *keys)
+        .unwrap_or(&[]);
+
+    let mut unknown: Vec<&str> = arguments
+        .keys()
+        .filter(|key| !properties.contains_key(key.as_str()) && !omitted.contains(&key.as_str()))
+        .map(String::as_str)
+        .collect();
+    if unknown.is_empty() {
+        return Ok(());
+    }
+    unknown.sort_unstable();
+
+    let mut known: Vec<&str> = properties.keys().map(String::as_str).collect();
+    known.extend_from_slice(omitted);
+    known.sort_unstable();
+    Err(ToolFailure::invalid_arguments(format!(
+        "不认识的参数：{}（{} 可用参数：{}）",
+        unknown.join(", "),
+        name,
+        known.join(", ")
+    )))
 }
 
 /// `tools/list` 的结果信封。
@@ -431,6 +505,89 @@ fn check_write_tool(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
         None => None,
         Some(_) => return Err(ToolFailure::invalid_arguments("参数 'schema' 必须是字符串")),
     };
+    // schema 的语言同样由调用方声明：自建 DSL 与标准 JSON Schema 形状不同，
+    // 猜错会把一份合法 schema 报成 parse_failed。
+    let schema_format = match arguments.get("schema_format") {
+        Some(Value::String(text)) => SchemaFormat::parse(text).ok_or_else(|| {
+            ToolFailure::invalid_arguments(format!(
+                "不支持的 schema_format '{text}'：目前支持 vcf 与 json-schema"
+            ))
+        })?,
+        None => SchemaFormat::VcfDsl,
+        Some(_) => {
+            return Err(ToolFailure::invalid_arguments(
+                "参数 'schema_format' 必须是字符串",
+            ))
+        }
+    };
+    let schema_draft = match arguments.get("schema_draft") {
+        Some(Value::String(text)) => match text.as_str() {
+            "auto" => JsonSchemaDraft::Auto,
+            "draft-07" | "draft7" => JsonSchemaDraft::Draft7,
+            "2020-12" | "draft2020-12" => JsonSchemaDraft::Draft202012,
+            other => {
+                return Err(ToolFailure::invalid_arguments(format!(
+                    "不支持的 schema_draft '{other}'：目前支持 auto、draft-07 与 2020-12"
+                )))
+            }
+        },
+        None => JsonSchemaDraft::Auto,
+        Some(_) => {
+            return Err(ToolFailure::invalid_arguments(
+                "参数 'schema_draft' 必须是字符串",
+            ))
+        }
+    };
+    let schema_from_config = match arguments.get("schema_from_config") {
+        Some(Value::Bool(flag)) => *flag,
+        None => false,
+        Some(_) => {
+            return Err(ToolFailure::invalid_arguments(
+                "参数 'schema_from_config' 必须是布尔值",
+            ))
+        }
+    };
+    let base_dir = match arguments.get("base_dir") {
+        Some(Value::String(dir)) => Some(dir.as_str()),
+        None => None,
+        Some(_) => {
+            return Err(ToolFailure::invalid_arguments(
+                "参数 'base_dir' 必须是字符串",
+            ))
+        }
+    };
+    // 取不到 schema 时是否允许降级为「只做结构与安全校验」。默认 false（拒绝）。
+    let allow_unresolved_schema = match arguments.get("allow_unresolved_schema") {
+        Some(Value::Bool(flag)) => *flag,
+        None => false,
+        Some(_) => {
+            return Err(ToolFailure::invalid_arguments(
+                "参数 'allow_unresolved_schema' 必须是布尔值",
+            ))
+        }
+    };
+    // SchemaStore 之类的 URL → 本地 schema 文件。宿主侧下载、这里映射，
+    // 于是「按 $schema 解析」对真实配置可达，而门禁自己不需要网络能力。
+    let schema_url_map = match arguments.get("schema_url_map") {
+        Some(Value::Object(map)) => {
+            let mut out = BTreeMap::new();
+            for (url, path) in map {
+                let Some(path) = path.as_str() else {
+                    return Err(ToolFailure::invalid_arguments(
+                        "参数 'schema_url_map' 的值必须是本地文件路径字符串",
+                    ));
+                };
+                out.insert(url.clone(), PathBuf::from(path));
+            }
+            out
+        }
+        None => BTreeMap::new(),
+        Some(_) => {
+            return Err(ToolFailure::invalid_arguments(
+                "参数 'schema_url_map' 必须是对象（URL → 本地路径）",
+            ))
+        }
+    };
     // 格式由调用方声明，不由本层猜：猜错格式会把一份合法配置报成 parse_failed，
     // 而门禁的拒绝必须是可归因的。
     let format = match arguments.get("format") {
@@ -439,27 +596,130 @@ fn check_write_tool(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
         Some(_) => return Err(ToolFailure::invalid_arguments("参数 'format' 必须是字符串")),
     };
 
+    // 用配置里的 `$schema` 时，把它报告回去：调用方需要知道这次到底按哪份 schema 检查的，
+    // 以及（在显式降级时）这次根本没检查 schema
+    let mut schema_source: Option<String> = None;
+    let mut schema_skipped: Option<String> = None;
+    // 配置自己声明了 `$schema`、但这次调用没要求按它校验：如实报出来，
+    // 免得读结果的人以为 schema 检查过
+    let mut schema_declared_unused: Option<String> = None;
+
     match format {
-        "vcf" => {
-            let guard = match schema {
-                Some(schema) => WriteGuard::with_schema(schema),
-                None => WriteGuard::default(),
-            };
-            check_write_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+        "vcf" | "toml" => {
+            if schema_from_config || schema_format == SchemaFormat::JsonSchema {
+                return Err(ToolFailure::invalid_arguments(
+                    "schema_from_config 与 schema_format=json-schema 只对 JSON/JSONC 生效：\
+                     .vcf 与 TOML 里没有 $schema 声明，它们的 schema 只能是 #@schema 语言的旁挂文本",
+                ));
+            }
+            if format == "vcf" {
+                let guard = match schema {
+                    Some(schema) => WriteGuard::with_schema(schema),
+                    None => WriteGuard::default(),
+                };
+                check_write_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+            } else {
+                let guard = match schema {
+                    Some(schema) => TomlGuard::with_schema(schema),
+                    None => TomlGuard::default(),
+                };
+                check_write_toml_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+            }
         }
-        "toml" => {
-            let guard = match schema {
-                Some(schema) => TomlGuard::with_schema(schema),
-                None => TomlGuard::default(),
+        "json" | "jsonc" => {
+            // 宽严由调用方声明，不由本层猜：缺逗号这类写法只在 jsonc 下成立，
+            // 用宽松语法去读一份 .json 等于对坏文件说 allowed。
+            let flavor = if format == "json" {
+                JsonFlavor::Json
+            } else {
+                JsonFlavor::Jsonc
             };
-            check_write_toml_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+            let guard = JsonGuard {
+                flavor,
+                schema_draft,
+                ..JsonGuard::default()
+            };
+
+            if schema_from_config {
+                if schema.is_some() {
+                    return Err(ToolFailure::invalid_arguments(
+                        "schema 与 schema_from_config 只能给一个：前者是旁挂文本，\
+                         后者要求按配置自己的 $schema 取",
+                    ));
+                }
+                let document = DocumentSchema {
+                    base_dir: base_dir.map(PathBuf::from),
+                    url_map: schema_url_map.clone(),
+                    draft: schema_draft,
+                    allow_unresolved: allow_unresolved_schema,
+                };
+                let outcome =
+                    check_write_json_with_document_schema(baseline, candidate, &guard, &document)
+                        .map_err(refusal_failure)?;
+                schema_source = outcome.declared;
+                schema_skipped = outcome.skipped;
+            } else {
+                let guard = match (schema, schema_format) {
+                    (Some(text), SchemaFormat::VcfDsl) => {
+                        // 常见误用：把一份标准 JSON Schema 当自建 DSL 传进来，
+                        // 得到的是一句含糊的 parse_failed。自建 DSL 以 `#@schema`
+                        // 开头，而以 `{` 开头又能当 JSON 解析的文本必然不是它，
+                        // 所以这里可以明确告诉调用方该怎么办。
+                        if text.trim_start().starts_with('{')
+                            && serde_json::from_str::<Value>(text).is_ok()
+                        {
+                            return Err(ToolFailure::invalid_arguments(
+                                "schema 看起来是一份标准 JSON Schema，但 schema_format 默认是 vcf\
+                                 （自建 #@schema 语言）。要按标准 JSON Schema 校验请传 schema_format=json-schema",
+                            ));
+                        }
+                        JsonGuard {
+                            schema: Some(text),
+                            ..guard
+                        }
+                    }
+                    (Some(text), SchemaFormat::JsonSchema) => JsonGuard {
+                        schema: Some(text),
+                        schema_format: SchemaFormat::JsonSchema,
+                        ..guard
+                    },
+                    (None, _) => {
+                        // 配置自己声明了 $schema 却没让本层用它：如实报出来
+                        schema_declared_unused = declared_schema(baseline, flavor)
+                            .ok()
+                            .flatten()
+                            .or_else(|| declared_schema(candidate, flavor).ok().flatten());
+                        guard
+                    }
+                };
+                check_write_json_with(baseline, candidate, &guard).map_err(refusal_failure)?;
+            }
         }
         other => {
             return Err(ToolFailure::invalid_arguments(format!(
-                "不支持的 format '{other}'：目前支持 vcf 与 toml"
+                "不支持的 format '{other}'：目前支持 vcf、toml、json 与 jsonc"
             )))
         }
     }
+
+    let used_schema = if schema_skipped.is_some() {
+        // 降级跳过了 schema 那一层时不能报成「按 schema 检查过」
+        "skipped"
+    } else if schema_source.is_some() {
+        "json-schema"
+    } else if schema.is_some() {
+        schema_format.as_str()
+    } else {
+        "none"
+    };
+
+    // 跳过了 schema 就不能说「检查通过」了事——那句话会被读成「包括 schema 都过了」
+    let summary = match &schema_skipped {
+        Some(reason) => {
+            format!("写前检查通过（{format}）：结构与安全审计已过；schema **未检查**（{reason}）")
+        }
+        None => format!("写前检查通过（{format}）：改动未引入新的高危安全实例，且结果仍然合法。"),
+    };
 
     Ok(ToolOutcome {
         structured: json!({
@@ -467,8 +727,12 @@ fn check_write_tool(arguments: &Value) -> Result<ToolOutcome, ToolFailure> {
             "format": format,
             "baseline_bytes": baseline.len(),
             "candidate_bytes": candidate.len(),
+            "schema": used_schema,
+            "schema_source": schema_source,
+            "schema_skipped": schema_skipped,
+            "schema_declared_unused": schema_declared_unused,
         }),
-        summary: format!("写前检查通过（{format}）：改动未引入新的高危安全实例，且结果仍然合法。"),
+        summary,
     })
 }
 
@@ -822,6 +1086,405 @@ mod tests {
         )
         .expect_err("TOML 上的类型漂移必须被旁挂 schema 拒绝");
         assert_eq!(refusal.code, "validation_failed");
+    }
+
+    #[test]
+    fn check_write_serves_json_when_the_caller_declares_the_format() {
+        // agent 宿主的设置类配置以 JSON/JSONC 为主。这一组证明门禁对它也可达，
+        // 且候选文本完全不含编辑计划协议。
+        let dangerous = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"tls_verify": true, "port": 8080}"#,
+                "candidate": r#"{"tls_verify": false, "port": 8080}"#,
+                "format": "json",
+            }),
+        )
+        .expect_err("JSON 上关掉证书校验必须被拒绝");
+        assert_eq!(dangerous.code, "security_rejected");
+
+        let safe = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"tls_verify": true, "port": 8080}"#,
+                "candidate": r#"{"tls_verify": true, "port": 9090}"#,
+                "format": "json",
+            }),
+        )
+        .expect("JSON 上与安全无关的改动必须放行");
+        assert_eq!(safe.structured["allowed"], json!(true));
+        assert_eq!(safe.structured["format"], json!("json"));
+    }
+
+    #[test]
+    fn check_write_json_accepts_a_sidecar_schema() {
+        // JSON 没有内联 schema 语法，旁挂是它唯一的 schema 入口
+        let refusal = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"tab_spaces": 4242}"#,
+                "candidate": r#"{"tab_spaces": "4242"}"#,
+                "schema": "#@schema {\n  tab_spaces {\n    type = \"integer\"\n  }\n}\n",
+                "format": "json",
+            }),
+        )
+        .expect_err("JSON 上的类型漂移必须被旁挂 schema 拒绝");
+        assert_eq!(refusal.code, "validation_failed");
+    }
+
+    #[test]
+    fn check_write_jsonc_accepts_commented_configs_that_strict_json_refuses() {
+        let baseline = "{\n  // 传输层\n  \"tls_verify\": true,\n}\n";
+        let candidate = "{\n  // 传输层\n  \"tls_verify\": true,\n  \"port\": 9090,\n}\n";
+
+        let jsonc = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({ "baseline": baseline, "candidate": candidate, "format": "jsonc" }),
+        )
+        .expect("JSONC 的注释与尾随逗号是合法输入");
+        assert_eq!(jsonc.structured["allowed"], json!(true));
+        assert_eq!(jsonc.structured["format"], json!("jsonc"));
+
+        let strict = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({ "baseline": baseline, "candidate": candidate, "format": "json" }),
+        )
+        .expect_err("严格 JSON 必须拒绝注释与尾随逗号");
+        assert_eq!(strict.code, "validation_failed");
+    }
+
+    #[test]
+    fn check_write_jsonc_still_refuses_a_missing_comma() {
+        // 宽严只在注释与尾随逗号上放行；缺逗号会把两条键粘成一个语义不同的文档
+        let failure = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"a": 1, "b": 2}"#,
+                "candidate": r#"{"a": 1 "b": 2}"#,
+                "format": "jsonc",
+            }),
+        )
+        .expect_err("缺逗号必须被拒绝");
+        assert_eq!(failure.code, "validation_failed");
+    }
+
+    #[test]
+    fn check_write_accepts_a_standard_json_schema() {
+        // TF-0092：门禁直接吃标准 JSON Schema，不需要使用方手写自建 DSL
+        let schema = r#"{
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": { "tab_spaces": { "type": "integer" } }
+        }"#;
+
+        let refusal = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"tab_spaces": 4242}"#,
+                "candidate": r#"{"tab_spaces": "4242"}"#,
+                "schema": schema,
+                "schema_format": "json-schema",
+                "format": "json",
+            }),
+        )
+        .expect_err("2020-12 下类型漂移必须被拒绝");
+        assert_eq!(refusal.code, "validation_failed");
+
+        let allowed = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"tab_spaces": 4242}"#,
+                "candidate": r#"{"tab_spaces": 2}"#,
+                "schema": schema,
+                "schema_format": "json-schema",
+                "format": "json",
+                "schema_draft": "2020-12",
+            }),
+        )
+        .expect("良性改动必须放行");
+        assert_eq!(allowed.structured["allowed"], json!(true));
+        assert_eq!(allowed.structured["schema"], json!("json-schema"));
+    }
+
+    #[test]
+    fn check_write_reports_an_unsupported_schema_instead_of_ignoring_it() {
+        // 规范要求忽略不认识的关键字；门禁不能那样做，否则用户以为约束生效了
+        let misspelled = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"port": 1}"#,
+                "candidate": r#"{"port": 2}"#,
+                "schema": r#"{"type": "object", "requierd": ["port"]}"#,
+                "schema_format": "json-schema",
+                "format": "json",
+            }),
+        )
+        .expect_err("拼错的关键字必须被报告");
+        assert_eq!(misspelled.code, "unsupported_schema");
+        assert!(misspelled.message.contains("requierd"));
+
+        let wrong_draft = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"port": 1}"#,
+                "candidate": r#"{"port": 2}"#,
+                "schema": r#"{"$schema": "http://json-schema.org/draft-04/schema#"}"#,
+                "schema_format": "json-schema",
+                "format": "json",
+            }),
+        )
+        .expect_err("不支持的方言必须被报告");
+        assert_eq!(wrong_draft.code, "unsupported_schema");
+    }
+
+    #[test]
+    fn a_json_schema_is_refused_for_formats_it_cannot_check() {
+        // JSON Schema 校验的是 JSON 实例；对 .vcf / TOML 用它是没意义的，
+        // 明确报错比「悄悄按另一门语言解释」好
+        let failure = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": "port = 1\n",
+                "candidate": "port = 2\n",
+                "schema": r#"{"type": "object"}"#,
+                "schema_format": "json-schema",
+                "format": "toml",
+            }),
+        )
+        .expect_err("TOML 上不能用 JSON Schema");
+        assert_eq!(failure.code, "invalid_arguments");
+
+        let unknown = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"a": 1}"#,
+                "candidate": r#"{"a": 2}"#,
+                "schema": "{}",
+                "schema_format": "yaml-schema",
+                "format": "json",
+            }),
+        )
+        .expect_err("未知的 schema_format 必须明确拒绝");
+        assert_eq!(unknown.code, "invalid_arguments");
+        assert!(unknown.message.contains("yaml-schema"));
+    }
+
+    #[test]
+    fn check_write_can_resolve_the_schema_from_the_config_itself() {
+        // TF-0093：按配置里已有的 $schema 取 schema，并且取不到时明确拒绝
+        let mut path = std::env::temp_dir();
+        path.push(format!("verseconf-mcp-test-{}.json", std::process::id()));
+        let schema = r#"{
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": { "tab_spaces": { "type": "integer" } }
+        }"#;
+        std::fs::write(&path, schema).expect("应当能写临时 schema");
+        let base = path
+            .parent()
+            .expect("有父目录")
+            .to_string_lossy()
+            .to_string();
+        let name = path
+            .file_name()
+            .expect("有文件名")
+            .to_string_lossy()
+            .to_string();
+
+        let baseline = format!(r#"{{"$schema": "{name}", "tab_spaces": 4242}}"#);
+        let candidate = format!(r#"{{"$schema": "{name}", "tab_spaces": "4242"}}"#);
+
+        let refusal = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": baseline,
+                "candidate": candidate,
+                "schema_from_config": true,
+                "base_dir": base,
+                "format": "json",
+            }),
+        )
+        .expect_err("按 $schema 取到的 schema 必须真的被用上");
+        assert_eq!(refusal.code, "validation_failed");
+
+        let allowed = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": baseline,
+                "candidate": format!(r#"{{"$schema": "{name}", "tab_spaces": 2}}"#),
+                "schema_from_config": true,
+                "base_dir": base,
+                "format": "json",
+            }),
+        )
+        .expect("良性改动必须放行");
+        assert_eq!(allowed.structured["schema_source"], json!(name));
+
+        // 取不到时明确报告，而不是静默放行
+        let unavailable = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"$schema": "https://json.schemastore.org/example.json", "port": 1}"#,
+                "candidate": r#"{"$schema": "https://json.schemastore.org/example.json", "port": 2}"#,
+                "schema_from_config": true,
+                "format": "json",
+            }),
+        )
+        .expect_err("取不到 schema 时不能静默放行");
+        assert_eq!(unavailable.code, "schema_unavailable");
+
+        // 显式降级：调用方承担「这次没按 schema 检查」的后果，结果里如实报告
+        let downgraded = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"$schema": "https://json.schemastore.org/example.json", "port": 1}"#,
+                "candidate": r#"{"$schema": "https://json.schemastore.org/example.json", "port": 2}"#,
+                "schema_from_config": true,
+                "allow_unresolved_schema": true,
+                "format": "json",
+            }),
+        )
+        .expect("显式降级时应当按较弱的保证放行");
+        assert_eq!(downgraded.structured["schema"], json!("skipped"));
+        assert!(
+            downgraded.structured["schema_skipped"]
+                .as_str()
+                .unwrap_or("")
+                .contains("url_map"),
+            "必须带出跳过原因，实际：{}",
+            downgraded.structured["schema_skipped"]
+        );
+        assert!(
+            downgraded.summary.contains("未检查"),
+            "摘要不能让调用方以为 schema 也检查过了"
+        );
+
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn unknown_arguments_are_rejected_because_the_contract_says_so() {
+        // 工具契约声明了 additionalProperties: false，那就必须真的拒。
+        // 声明与行为不一致更糟：宿主以为 `schemaFormat` 会被指出来，而门禁
+        // 已经静默按默认值跑了一遍，结果看起来像「检查过了」。
+        let failure = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"a": 1}"#,
+                "candidate": r#"{"a": 2}"#,
+                "format": "json",
+                "schemaFormat": "json-schema",
+            }),
+        )
+        .expect_err("拼错的参数名必须被指出来");
+        assert_eq!(failure.code, "invalid_arguments");
+        assert!(
+            failure.message.contains("schemaFormat"),
+            "实际：{}",
+            failure.message
+        );
+        assert!(
+            failure.message.contains("schema_format"),
+            "错误信息要列出可用参数，实际：{}",
+            failure.message
+        );
+
+        // 其它工具同样适用（用真正未声明的键；`strict` 是 validate 的合法参数）
+        let failure = call_tool(
+            TOOL_VALIDATE,
+            &json!({ "source": "port = 1\n", "strictMode": true }),
+        )
+        .expect_err("validate 也不接受未声明的参数");
+        assert_eq!(failure.code, "invalid_arguments");
+        assert!(failure.message.contains("strictMode"));
+
+        // 缺必填参数仍然报缺参数（这条检查只拦「不认识」，不抢必填校验）
+        let failure = call_tool(TOOL_VALIDATE, &json!({})).expect_err("缺少必填参数必须报错");
+        assert_eq!(failure.code, "invalid_arguments");
+    }
+
+    #[test]
+    fn a_standard_json_schema_sent_without_the_format_hint_says_so() {
+        // 把 JSON Schema 当自建 DSL 传进来时，之前只会得到一句含糊的 parse_failed；
+        // 现在明确告诉调用方该传什么
+        let failure = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"a": 1}"#,
+                "candidate": r#"{"a": 2}"#,
+                "schema": r#"{"type": "object"}"#,
+                "format": "json",
+            }),
+        )
+        .expect_err("应当给出可操作的提示");
+        assert_eq!(failure.code, "invalid_arguments");
+        assert!(failure.message.contains("schema_format=json-schema"));
+    }
+
+    #[test]
+    fn a_schema_url_map_makes_schemastore_urls_reachable() {
+        // TF-0093 的产品面：URL → 本地文件由调用方给，门禁自己不抓网络
+        let mut path = std::env::temp_dir();
+        path.push(format!("verseconf-mcp-urlmap-{}.json", std::process::id()));
+        let schema = r#"{
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": { "tab_spaces": { "type": "integer" } }
+        }"#;
+        std::fs::write(&path, schema).expect("应当能写临时 schema");
+        let url = "https://json.schemastore.org/example.json";
+        let mapped = path.to_string_lossy().to_string();
+
+        let baseline = format!(r#"{{"$schema": "{url}", "tab_spaces": 4242}}"#);
+        let candidate = format!(r#"{{"$schema": "{url}", "tab_spaces": "4242"}}"#);
+
+        let refusal = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": baseline,
+                "candidate": candidate,
+                "schema_from_config": true,
+                "schema_url_map": { url: mapped },
+                "format": "json",
+            }),
+        )
+        .expect_err("映射到的 schema 必须真的被用上");
+        assert_eq!(refusal.code, "validation_failed");
+
+        let allowed = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": baseline,
+                "candidate": format!(r#"{{"$schema": "{url}", "tab_spaces": 2}}"#),
+                "schema_from_config": true,
+                "schema_url_map": { url: mapped },
+                "format": "json",
+            }),
+        )
+        .expect("良性改动必须放行");
+        assert_eq!(allowed.structured["schema_source"], json!(url));
+
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_declared_but_unused_schema_is_reported() {
+        // 配置自己声明了 $schema，而这次调用没要求按它校验：结果里如实报出来，
+        // 免得读的人以为 schema 检查过（schema 仍然是 none）
+        let allowed = call_tool(
+            TOOL_CHECK_WRITE,
+            &json!({
+                "baseline": r#"{"$schema": "https://json.schemastore.org/x.json", "port": 8080}"#,
+                "candidate": r#"{"$schema": "https://json.schemastore.org/x.json", "port": 9090}"#,
+                "format": "json",
+            }),
+        )
+        .expect("没给 schema 时不校验 schema，但改动本身合法");
+        assert_eq!(allowed.structured["schema"], json!("none"));
+        assert_eq!(
+            allowed.structured["schema_declared_unused"],
+            json!("https://json.schemastore.org/x.json")
+        );
     }
 
     #[test]

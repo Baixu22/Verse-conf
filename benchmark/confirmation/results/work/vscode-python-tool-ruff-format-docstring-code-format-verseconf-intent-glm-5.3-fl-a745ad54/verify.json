@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["tool","ruff","format","docstring-code-format"],"value":false,"expect":{"value":false}}]}

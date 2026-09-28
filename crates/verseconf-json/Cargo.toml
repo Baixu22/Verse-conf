@@ -1,0 +1,20 @@
+[package]
+name = "verseconf-json"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "把编辑意图契约与写入前校验用到真实 JSON/JSONC 配置上：复用 jsonc-parser 的 CST 定位与改写，注释与键序不被重排"
+readme = "README.md"
+
+[dependencies]
+verseconf-core = { version = "0.3.0", path = "../verseconf-core" }
+jsonc-parser.workspace = true
+# 标准 JSON Schema 作为门禁输入（TF-0092）：不自写校验器。
+jsonschema.workspace = true
+# 渲染编辑值：契约值 `EditValue` 的序列化形态就是 JSON，复用同一份实现
+serde_json.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

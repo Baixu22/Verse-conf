@@ -107,7 +107,24 @@ impl SchemaValidator {
                     }
                     _ => None,
                 }) {
-                    // Handle TableBlock entry
+                    // 块表也必须过类型检查。`foo { type = "integer" }` 这种在 schema
+                    // 里用 `{ ... }` 形式声明的字段，`field_type` 初值是 Table，只有显式
+                    // 写 `type = ...` 才会被覆盖；而此前这个分支只看 `nested_fields`
+                    // 是否为空，于是**字段类型根本没被查**：「port: 8080 → port: {…}」
+                    // 这种类型漂移被静默放行。
+                    //
+                    // 这不是纸面问题：`verseconf-json` 的桥接层按设计把每个嵌套对象
+                    // 都翻成 `TableBlock`，所以 JSON 侧每一个「把标量改成对象」的改动
+                    // 都会走到这里。TOML 的 `[section]` 同理。
+                    if !matches!(field.field_type, SchemaType::Table) {
+                        self.errors.push(ValidationError::new(
+                            format!(
+                                "type mismatch for field '{}': expected {}, found table (type: table)",
+                                field.name, field.field_type
+                            ),
+                            field.span,
+                        ));
+                    }
                     if !field.nested_fields.is_empty() {
                         self.validate_table_against_schema(tb, &field.nested_fields, strict)?;
                     }
@@ -411,6 +428,48 @@ name = "test"
         assert_eq!(schema.fields.len(), 1);
         assert_eq!(schema.fields[0].name, "name");
         assert!(schema.fields[0].required);
+    }
+
+    #[test]
+    fn test_block_table_must_match_the_declared_field_type() {
+        // 回归（独立对抗性复核发现的 MAJOR）：schema 里用 `foo { type = "integer" }`
+        // 这种形式声明的字段，`field_type` 初值是 Table，只有显式 `type = ...`
+        // 才被覆盖；而块表分支此前只看 `nested_fields`，字段类型根本没被查。
+        // 于是「`port = 8080` → `port { nested = 1 }`」这种类型漂移被静默放行。
+        // 这不是纸面问题：JSON 桥接层按设计把每个嵌套对象都翻成块表，
+        // TOML 的 `[section]` 同理。
+        let drifted = r#"#@schema {
+    port {
+        type = "integer"
+    }
+}
+
+port {
+    nested = 1
+}
+"#;
+        assert!(
+            parse_and_validate(drifted).is_err(),
+            "块表不满足 type = \"integer\"，必须报类型不符"
+        );
+
+        // 反向：正正常常的嵌套字段写法不能被误拒
+        let nested = r#"#@schema {
+    server {
+        port {
+            type = "integer"
+        }
+    }
+}
+
+server {
+    port = 8080
+}
+"#;
+        assert!(
+            parse_and_validate(nested).is_ok(),
+            "带嵌套字段的块表必须仍然通过"
+        );
     }
 
     #[test]

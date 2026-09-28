@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["package","metadata","release","pre-release-replacements","replace=\"{{version}}\"","min"],"value":4242}]}

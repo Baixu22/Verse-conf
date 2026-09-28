@@ -1,5 +1,7 @@
 # verseconf-lsp
 
+> **Frozen (2026-09-28)**: Independent product development has stopped; no further releases or ongoing maintenance are promised. The content below is historical source reference only. See [CLOSEOUT.md](../../docs/CLOSEOUT.md) for security boundaries and the final decision.
+
 [简体中文](README.md) | **English**
 
 The VerseConf language server (Language Server Protocol), providing live diagnostics,
@@ -27,9 +29,10 @@ If you are wiring it up yourself, just launch `verseconf-lsp` over stdio.
 
 ## Editor integration
 
-The VS Code extension ships with the main repository (its `.vsix` is built by CI, which
-compiles the language server per platform first). It also handles resolving the server
-path per platform and restoring the executable bit on non-Windows platforms.
+The historical design used CI to compile the language server per platform and package
+it in a VS Code `.vsix`, with platform-specific path resolution and executable-bit handling.
+Distribution has stopped and old artifacts are not guaranteed to remain available;
+local builds require you to supply the language-server binary yourself.
 
 ## See also
 

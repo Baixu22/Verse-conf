@@ -115,6 +115,60 @@ fn host_can_discover_and_call_all_five_tools_over_stdio() {
 }
 
 #[test]
+fn host_can_reach_the_json_gate_over_stdio() {
+    // 门禁对 JSON/JSONC 可达，走的是真实二进制 + stdio，不是直接调库函数：
+    // 「宿主可以调一次」这件事必须在宿主真正用的那条路径上成立。
+    let baseline = "{\n  // 传输层\n  \"tls_verify\": true,\n  \"port\": 8080,\n}\n";
+    let candidate = "{\n  // 传输层\n  \"tls_verify\": true,\n  \"port\": 9090,\n}\n";
+
+    let jsonc_call = format!(
+        r#"{{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{{"name":"verseconf_check_write","arguments":{{"baseline":{},"candidate":{},"format":"jsonc"}}}}}}"#,
+        serde_json::to_string(baseline).unwrap(),
+        serde_json::to_string(candidate).unwrap()
+    );
+    // 同一份带注释的文本在严格 JSON 下必须被拒绝：宽严由 format 决定
+    let strict_call = format!(
+        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"verseconf_check_write","arguments":{{"baseline":{},"candidate":{},"format":"json"}}}}}}"#,
+        serde_json::to_string(baseline).unwrap(),
+        serde_json::to_string(candidate).unwrap()
+    );
+    // 关掉证书校验必须被拦住，且拒绝信息要指出是哪个实例
+    let dangerous_call = r#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"verseconf_check_write","arguments":{"baseline":"{\"tls_verify\": true}","candidate":"{\"tls_verify\": false}","format":"json"}}}"#;
+
+    let (responses, stderr, status) = run_session(&[&jsonc_call, &strict_call, dangerous_call]);
+    assert_eq!(status, 0, "服务应当正常退出，stderr: {}", stderr);
+    assert_eq!(responses.len(), 3);
+
+    assert_eq!(
+        responses[0]["result"]["structuredContent"]["allowed"],
+        serde_json::json!(true),
+        "JSONC 上的良性改动应当放行"
+    );
+    assert_eq!(
+        responses[0]["result"]["structuredContent"]["format"],
+        serde_json::json!("jsonc")
+    );
+
+    assert_eq!(responses[1]["result"]["isError"], serde_json::json!(true));
+    assert_eq!(
+        responses[1]["result"]["structuredContent"]["code"],
+        serde_json::json!("validation_failed"),
+        "严格 JSON 必须拒绝注释与尾随逗号"
+    );
+
+    assert_eq!(responses[2]["result"]["isError"], serde_json::json!(true));
+    assert_eq!(
+        responses[2]["result"]["structuredContent"]["code"],
+        serde_json::json!("security_rejected")
+    );
+    assert!(
+        responses[2]["result"]["structuredContent"]["details"]["instances"]
+            .to_string()
+            .contains("tls_verify")
+    );
+}
+
+#[test]
 fn tool_failures_return_structured_reasons_not_just_text() {
     let refused = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"verseconf_apply_edit","arguments":{"source":"port = 8080\n","plan":{"version":"1.0","edits":[{"op":"set","path":["missing"],"value":1}]}}}}"#;
     let unknown = r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"verseconf_nope","arguments":{}}}"#;

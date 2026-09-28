@@ -20,5 +20,8 @@ verseconf-core = { version = "0.3.0", path = "../verseconf-core" }
 # 写前检查要能服务真实格式：唯一被测出正收益的能力此前只对无人使用的 .vcf 可达。
 # 两条分发路径共用同一份实现，所以这个依赖对 wasm 目标同样成立。
 verseconf-toml = { version = "0.3.0", path = "../verseconf-toml" }
+# JSON/JSONC 是 agent 宿主设置类配置的主流格式；缺了它，门禁对真实消费者
+# 仍然只有一半可达。
+verseconf-json = { version = "0.3.0", path = "../verseconf-json" }
 serde.workspace = true
 serde_json.workspace = true

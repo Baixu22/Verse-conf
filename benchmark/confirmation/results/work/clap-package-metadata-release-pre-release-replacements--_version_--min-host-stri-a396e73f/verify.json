@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["package","metadata","release",{"key":"pre-release-replacements","match":{"replace":"{{version}}"}},"min"],"value":4242,"expect":{"value":4242}}]}

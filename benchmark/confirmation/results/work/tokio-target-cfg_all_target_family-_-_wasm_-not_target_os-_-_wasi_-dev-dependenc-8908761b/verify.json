@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["target","cfg(all(target_family = \"wasm\", not(target_os = \"wasi\")))","dev-dependencies","wasm-bindgen-test","version"],"value":"verseconf-probe","expect":{"value":"verseconf-probe"}}]}

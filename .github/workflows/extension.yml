@@ -1,120 +1,15 @@
-name: VSCode Extension
+name: VSCode distribution retired
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'extensions/verseconf-vscode/**'
-      - 'crates/verseconf-lsp/**'
-      - 'crates/verseconf-core/**'
-      - '.github/workflows/extension.yml'
-  pull_request:
-    paths:
-      - 'extensions/verseconf-vscode/**'
-      - 'crates/verseconf-lsp/**'
-      - 'crates/verseconf-core/**'
-      - '.github/workflows/extension.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  CARGO_TERM_COLOR: always
-  EXTENSION_DIR: extensions/verseconf-vscode
-
 jobs:
-  # 语言服务器必须按平台构建：扩展包要能在四个主流平台上开箱可用，
-  # 而不是像以前那样只塞一个 Windows 的 .exe。
-  build-language-server:
-    name: language server (${{ matrix.target }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: linux-x64
-            binary: verseconf-lsp
-          - os: windows-latest
-            target: win32-x64
-            binary: verseconf-lsp.exe
-          # macos-13 已于 2025-12-04 被 GitHub 退役，用它排队的作业永远不会启动
-          # （本仓库第一次推送后，这个 job 在队列里挂了 14 小时，另外三个平台早就跑完）。
-          # x86_64 macOS 现在的标签是 macos-15-intel。
-          - os: macos-15-intel
-            target: darwin-x64
-            binary: verseconf-lsp
-          - os: macos-14
-            target: darwin-arm64
-            binary: verseconf-lsp
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Build verseconf-lsp
-        run: cargo build -p verseconf-lsp --release
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}
-          path: target/release/${{ matrix.binary }}
-          if-no-files-found: error
-
-  package-extension:
-    name: package + verify (.vsix)
-    needs: build-language-server
+  retired:
+    name: Distribution is frozen
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Download language server (linux-x64)
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-x64
-          path: ${{ env.EXTENSION_DIR }}/server/bin/linux-x64
-      - name: Download language server (win32-x64)
-        uses: actions/download-artifact@v4
-        with:
-          name: win32-x64
-          path: ${{ env.EXTENSION_DIR }}/server/bin/win32-x64
-      - name: Download language server (darwin-x64)
-        uses: actions/download-artifact@v4
-        with:
-          name: darwin-x64
-          path: ${{ env.EXTENSION_DIR }}/server/bin/darwin-x64
-      - name: Download language server (darwin-arm64)
-        uses: actions/download-artifact@v4
-        with:
-          name: darwin-arm64
-          path: ${{ env.EXTENSION_DIR }}/server/bin/darwin-arm64
-
-      - name: Restore executable bits lost by artifact upload
-        run: find "$EXTENSION_DIR/server/bin" -type f -name 'verseconf-lsp' -exec chmod +x {} \;
-
-      - name: Install extension dependencies
-        working-directory: ${{ env.EXTENSION_DIR }}
-        run: npm install --no-audit --no-fund
-
-      - name: Compile TypeScript and run unit tests
-        working-directory: ${{ env.EXTENSION_DIR }}
-        run: npm test
-
-      - name: Verify package contents and produce .vsix
-        working-directory: ${{ env.EXTENSION_DIR }}
-        run: node scripts/verify-package.mjs --require-server
-
-      - name: Produce versioned .vsix
-        working-directory: ${{ env.EXTENSION_DIR }}
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          npx vsce package --out "verseconf-${VERSION}.vsix"
-          ls -l "verseconf-${VERSION}.vsix"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: verseconf-vsix
-          path: ${{ env.EXTENSION_DIR }}/*.vsix
-          if-no-files-found: error
+      - name: Report retirement
+        run: printf '%s\n' 'VSCode and LSP distribution builds stopped on 2026-09-28. See docs/CLOSEOUT.md. This workflow builds and uploads no artifacts.'

@@ -1,12 +1,14 @@
 # VerseConf VSCode Extension
 
-VerseConf 语言的编辑器支持：语法高亮、实时诊断、格式化，以及通过语言服务器协议
-接入的完整语言能力。
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
+VerseConf 语言的历史编辑器集成：语法高亮、实时语法诊断、格式化，以及通过语言服务器协议
+接入的部分语言能力。
 
 ## Features
 
 - **Syntax Highlighting**：`.vcf` 文件语法高亮
-- **Validation**：实时语法与 schema 诊断（语言服务器提供）
+- **Validation**：实时语法诊断（语言服务器提供，不承诺实时 schema 诊断）
 - **Formatting**：文档格式化（保注释、保 `#@` 元数据）
 - **Hover / Completion**：键与类型的悬停说明与补全
 - **LSP Integration**：完整的语言服务器协议支持
@@ -14,13 +16,14 @@ VerseConf 语言的编辑器支持：语法高亮、实时诊断、格式化，�
 ## Requirements
 
 - VSCode 1.75.0 或更高版本
-- 语言服务器二进制。扩展包按平台自带，无需自行构建（见下）
+- 语言服务器二进制。本地构建需自行准备，并放入对应目录或通过 `verseconf.lsp.serverPath` 指定。
 
 ## 安装
 
 ### 从扩展包安装
 
-扩展包由流水线产出（`.github/workflows/extension.yml`），下载 `verseconf-<版本>.vsix` 后：
+分发已停止。历史流水线（`.github/workflows/extension.yml`）曾用于产出扩展包，
+旧 artifact 不保证仍可下载。若已持有 `verseconf-<版本>.vsix`，可按以下方式安装：
 
 ```bash
 code --install-extension verseconf-0.1.0.vsix
@@ -30,7 +33,8 @@ code --install-extension verseconf-0.1.0.vsix
 
 ### 语言服务器在包内的位置
 
-扩展包按 `<platform>-<arch>` 同时携带多个平台的语言服务器：
+历史打包设计按 `<platform>-<arch>` 放置语言服务器，以下仅为目录布局参考，
+不代表持续支持四个平台或保证包内已有这些二进制：
 
 ```
 extensions/verseconf-vscode/

@@ -1,5 +1,7 @@
 # verseconf-cli
 
+> **Frozen (2026-09-28)**: Independent product development has stopped; no further releases or ongoing maintenance are promised. The content below is historical source reference only. See [CLOSEOUT.md](../../docs/CLOSEOUT.md) for security boundaries and the final decision.
+
 [简体中文](README.md) | **English**
 
 The command-line tool for the VerseConf configuration language.

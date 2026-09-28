@@ -1,5 +1,7 @@
 # verseconf（JavaScript / WebAssembly 分发）
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../../docs/CLOSEOUT.md)。
+
 VerseConf 的 JavaScript 包。它加载的是与本机二进制 `verseconf-mcp` **完全相同**的
 Rust 实现编译出的 WebAssembly 模块，因此：
 
@@ -77,14 +79,14 @@ node bin/verseconf-mcp-wasm.mjs --call verseconf_validate '{"source":"port = 808
 node bin/verseconf-mcp-wasm.mjs            # 逐行 JSON-RPC over stdio
 ```
 
-宿主接入配置（只需要 Node，不需要任何本机二进制）：
+宿主接入配置（先完成本地构建，运行时只需 Node；将示意绝对路径替换为自己的构建目录）：
 
 ```json
 {
   "mcpServers": {
     "verseconf": {
-      "command": "npx",
-      "args": ["-y", "verseconf-mcp-wasm"]
+      "command": "node",
+      "args": ["/absolute/path/to/verse-conf/integrations/verseconf-wasm/js-api/bin/verseconf-mcp-wasm.mjs"]
     }
   }
 }
@@ -130,8 +132,8 @@ parseJson('port = 8080\n');   // { port: 8080 }
 - `package.json` 的版本号（本分发层）与 `serverInfo().version` / `getVersion()`
   （内嵌的 Rust 核心）是两个独立版本。0.1.0 的包在真实消费者环境里两条入口都不可用，
   因此本分发层与核心各自独立计版本；核心现已是 0.3.0。
-- 该修复版已在仓库里构建并通过打包验收（`test/package.test.mjs`，12/12，CI 阻塞），
-  但**不会发布到 registry**——发布账号已不可用。
+- 该修复版曾在仓库里构建并通过打包验收（`test/package.test.mjs`，12/12，历史 CI 阻塞项），
+  冻结后不再自动运行，且**不会发布到 registry**——发布账号已不可用。
 
 ## 从源码构建
 

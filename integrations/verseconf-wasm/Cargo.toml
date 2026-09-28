@@ -6,7 +6,7 @@ authors = ["VerseConf Team"]
 description = "WebAssembly bindings for VerseConf"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Baixu22/Verse-conf"
-# 这个 crate 发布到 npm（integrations/verseconf-wasm/js-api），不发布到 crates.io。
+# 仅保留本地 JS / wasm 构建，不再发布到 npm 或 crates.io。
 publish = false
 
 [lib]
@@ -29,6 +29,15 @@ serde_json.workspace = true
 [dependencies.console_error_panic_hook]
 version = "0.1.7"
 optional = true
+
+# 标准 JSON Schema 校验（jsonschema → ahash → getrandom）在 wasm 上要求显式
+# 声明随机数后端。这里把它打开，配套的 `--cfg getrandom_backend="wasm_js"`
+# 写在工作区根的 .cargo/config.toml 里；两处缺一不可。
+#
+# 放在这个 crate 而不是 verseconf-json：选哪个 wasm 后端是**分发形态**的决定，
+# 不该由适配层替原生消费者拍板。
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.42"

@@ -1,0 +1,257 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: build + test (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build workspace
+        run: cargo build --workspace --all-targets
+      - name: Test workspace
+        run: cargo test --workspace
+
+  format:
+    name: rustfmt (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: clippy (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  examples:
+    name: repository examples parse (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build CLI
+        run: cargo build -p verseconf-cli
+      - name: Parse every example
+        run: |
+          set -e
+          for f in examples/*.vcf; do
+            echo "== $f"
+            ./target/debug/verseconf parse "$f"
+          done
+      - name: Formatting must be idempotent
+        run: |
+          set -e
+          for f in examples/*.vcf; do
+            ./target/debug/verseconf format "$f" -o /tmp/fmt1.vcf
+            ./target/debug/verseconf format /tmp/fmt1.vcf -o /tmp/fmt2.vcf
+            diff -u /tmp/fmt1.vcf /tmp/fmt2.vcf
+          done
+      - name: --fix must not touch a valid file
+        run: |
+          set -e
+          cp examples/basic.vcf /tmp/clean.vcf
+          ./target/debug/verseconf validate /tmp/clean.vcf --fix --write
+          diff -u examples/basic.vcf /tmp/clean.vcf
+
+  # 文档里的第一条安装命令必须真的成立：可执行文件叫 `verseconf`，
+  # 核心库打出来的 tarball 必须能独立编译。
+  distribution:
+    name: CLI install + crate packaging (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Package the core crate and compile it from the tarball
+        run: cargo package -p verseconf-core
+      # 这里刻意**不**加 `cargo package -p verseconf-json`：打包验证会剥掉 path
+      # 依赖、按 registry 上已发布的 verseconf-core 0.3.0 重新编译，而本仓库的
+      # core 已经超过 0.3.0（EditRefusal 多了两个拒绝码），所以这一步在下一个
+      # 版本发布之前必然失败。发布顺序见「把 JSON 适配 crate 纳入发布」：
+      # 先发 core（含新拒绝码），再发 verseconf-json，最后才是 verseconf-mcp。
+      - name: Install the CLI the way the docs say
+        run: cargo install --path crates/verseconf-cli
+      - name: Installed executable is named verseconf and runs
+        run: |
+          set -e
+          verseconf --version
+          verseconf parse examples/basic.vcf
+          verseconf validate examples/basic.vcf
+
+  # 文档诚实性：docs/SPECIFICATION.md 的每条状态标注都必须与实测一致。
+  #
+  # 这份规范曾经把"设计目标"和"已实现能力"混在一起叙述、全文没有状态标注，
+  # 而 README 又声称"标注为未实现的条目请以本节为准"——指向了一份并不存在的标注。
+  # 补上标注之后，真正防止它再次漂移的是这个作业：
+  # 它按 docs/spec-status-probes.json 对每条声明真的跑一次 parse/validate，
+  # 并交叉核对 §0.4 速查表把该写法列在 ✅ 还是 🚧 分区。
+  # 无论"实现了标着未实现的特性"还是"改坏了标着已实现的特性"，这里都会失败。
+  spec-status:
+    name: spec status markers match reality (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Probe every SPEC status claim against the implementation
+        run: cargo test -p verseconf-test --test spec_status
+
+  # 公开基准：语料与判定固定，被测实现必须全对，且任何策略都不许出现不确定结果。
+  fidelity-benchmark:
+    name: edit fidelity benchmark (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run the benchmark with the gate on
+        run: cargo run -p verseconf-bench --release -- --check
+      - name: Rerun must produce byte-identical results
+        run: |
+          set -e
+          cp benchmark/results/latest.json /tmp/bench-first.json
+          cargo run -q -p verseconf-bench --release > /dev/null
+          diff -u /tmp/bench-first.json benchmark/results/latest.json
+
+  # 不确定性报告的分析口径 + 预登记冻结物。
+  #
+  # 上一轮的 195 次运行不是 195 个独立样本：失败集中在唯一一份 CRLF 文件上。
+  # 这个作业钉住两件事：区间必须按**来源**聚类算（同样的通过率，失败集中时
+  # 区间必须显著更宽），以及预登记的任务集/生成器/加权分布没有被改过。
+  # 「每条任务真的命中了它声称的特征」由 cargo test 里的 preregistration 测试管。
+  analysis:
+    name: cluster analysis + preregistration (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cluster-bootstrap analysis tests
+        run: node --test benchmark/analysis/cluster_report.test.mjs
+      - name: Preregistration has not drifted
+        run: node benchmark/confirmation/preregistration.mjs --verify
+
+  # 门禁增量实验的冻结物（TF-0099 / TF-0100）。
+  #
+  # 这一轮问的是「门禁在真实使用中有没有增量」，所以样本必须是真的：
+  # 8 份真实上游文档 + 只写意图的指令。这个作业钉住两件事：
+  # 冻结物没被手改（任务集/判定口径/引用文档的指纹），
+  # 以及每条任务真的测到了它声称的东西（blocking 真的被拒、advisory 与安全写法真的放行）。
+  # 开跑之后改冻结物 = 换了一套样本，必须作废本轮数据——所以这里直接失败。
+  gate-increment:
+    name: gate-increment corpus + preregistration (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Preregistration has not drifted
+        run: node benchmark/gate-increment/verify.mjs --verify
+      - name: Round 2 preregistration has not drifted
+        run: node benchmark/gate-increment/verify.mjs --verify --dir benchmark/gate-increment-round2
+      - name: Round 3 preregistration has not drifted
+        run: node benchmark/gate-increment/verify.mjs --verify --dir benchmark/gate-increment-round3
+      - name: Round 4 preregistration has not drifted
+        run: node benchmark/gate-increment/verify.mjs --verify --dir benchmark/gate-increment-round4
+      - name: Round 5 preregistration has not drifted
+        run: node benchmark/gate-increment/verify.mjs --verify --dir benchmark/gate-increment-round5
+      - name: Every task really exercises the gate
+        run: cargo test -p verseconf-toml --test gate_increment
+      - name: Deterministic refusal classifier self-check
+        run: node --test benchmark/gate-increment/classify.test.mjs
+
+  # 性能数字必须来自真实运行。
+  #
+  # 此前 README 的「比 TOML 快 2.8-4.1 倍」来自 generate_charts.py 里手写的
+  # dict，而基准的数据路径是 CWD 相对的（从 compare/ 里执行会去找
+  # compare/compare/test_data/），读不到数据时输出全 0 并仍然 exit 0。这个作业
+  # 把「数字必须来自真实运行」和「缺数据必须失败」两条都钉住。
+  performance-benchmark:
+    name: performance benchmark (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Generate the comparison datasets
+        run: cargo run -q -p verseconf-compare --bin generate_test_data
+      - name: Run the benchmark and write machine-readable results
+        run: cargo run -q --release -p verseconf-compare --bin benchmark -- --json compare/benchmark_results.json
+      - name: Chart report must regenerate from that file
+        run: python3 compare/generate_charts.py
+      - name: Missing data must fail loudly, not report zeros
+        run: |
+          set -e
+          mv compare/test_data compare/test_data.bak
+          if cargo run -q --release -p verseconf-compare --bin benchmark -- --json /tmp/nope.json; then
+            echo "::error::benchmark succeeded with no data — silent-zero regression" >&2
+            exit 1
+          fi
+          mv compare/test_data.bak compare/test_data
+      - name: Chart script must refuse to invent numbers
+        run: |
+          set -e
+          if python3 compare/generate_charts.py /tmp/definitely-missing.json; then
+            echo "::error::generate_charts.py succeeded without benchmark results" >&2
+            exit 1
+          fi
+
+  # 宿主零安装分发：wasm 产物必须在真实消费者环境里可加载，并且与命令行结果一致。
+  wasm-distribution:
+    name: wasm distribution (blocking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install wasm-pack
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Build npm package (wasm + tsc)
+        working-directory: integrations/verseconf-wasm/js-api
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+      - name: Load smoke tests (CJS / ESM / nodejs / web / stdio server)
+        working-directory: integrations/verseconf-wasm/js-api
+        run: node test/load.test.mjs
+      - name: Package and clean-install tests
+        working-directory: integrations/verseconf-wasm/js-api
+        run: node test/package.test.mjs
+      - name: Build native binaries for the parity check
+        run: cargo build -p verseconf-cli -p verseconf-mcp
+      - name: wasm vs CLI / native binary parity
+        working-directory: integrations/verseconf-wasm/js-api
+        run: node test/parity.mjs
+

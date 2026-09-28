@@ -1,0 +1,1 @@
+{"version":"1.0","edits":[{"op":"set","path":["environment","allow_internet"],"value":false,"expect":{"value":false}}]}

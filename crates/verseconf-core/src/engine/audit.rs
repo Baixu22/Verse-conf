@@ -298,52 +298,146 @@ impl AuditEngine {
             Value::Scalar(scalar) => {
                 let value_str = scalar_to_string(scalar);
                 self.check_sensitive(full_key, &value_str, literal_text, findings);
+                self.check_embedded_credential(full_key, &value_str, literal_text, findings);
                 self.check_insecure(full_key, &value_str, findings);
             }
             Value::Expression(expr) => {
                 if let Ok(scalar) = expr.evaluate() {
                     let value_str = scalar_to_string(&scalar);
                     self.check_sensitive(full_key, &value_str, literal_text, findings);
+                    self.check_embedded_credential(full_key, &value_str, literal_text, findings);
                     self.check_insecure(full_key, &value_str, findings);
                 }
             }
             Value::TableBlock(table) => {
                 self.audit_table_entries(&table.entries, findings, full_key);
             }
+            // 内联表在数据模型上与块表是同一种东西，审计必须一视同仁：
+            // 此前它落在 `_ => {}` 上，`{ tls_verify = false }` 这种内联写法
+            // 完全不被审计（TOML 适配层把内联表翻成这个形状，所以是一条真路径）。
+            Value::InlineTable(table) => {
+                self.audit_inline_entries(&table.entries, findings, full_key);
+            }
             Value::Array(arr) => {
-                for (i, item) in arr.elements.iter().enumerate() {
-                    let item_key = format!("{}[{}]", full_key, i);
-                    let item_literal_text = is_literal_text(item);
-                    match item {
-                        Value::Scalar(scalar) => {
-                            let value_str = scalar_to_string(scalar);
-                            self.check_sensitive(
-                                &item_key,
-                                &value_str,
-                                item_literal_text,
-                                findings,
-                            );
-                        }
-                        Value::Expression(expr) => {
-                            if let Ok(scalar) = expr.evaluate() {
-                                let value_str = scalar_to_string(&scalar);
-                                self.check_sensitive(
-                                    &item_key,
-                                    &value_str,
-                                    item_literal_text,
-                                    findings,
-                                );
-                            }
-                        }
-                        Value::TableBlock(table) => {
-                            self.audit_table_entries(&table.entries, findings, &item_key);
-                        }
-                        _ => {}
+                self.audit_array(&arr.elements, findings, full_key);
+            }
+        }
+    }
+
+    /// 审计一个数组的所有元素。
+    ///
+    /// 抽出来是为了让「数组里的数组」也走同一条路径：此前嵌套数组落在
+    /// `_ => {}` 上，`[[{ "tls_verify": false }]]` 这类更深一层的元素完全不进审计，
+    /// 于是门禁对一份**看起来检查过**的候选回答 allowed——这比报错更危险，
+    /// 因为调用方会以为它检查过了。位置标识继续按 `name[0][1].key` 往下走。
+    ///
+    /// 一处刻意保留的不对称：数组元素的标量只做 `check_sensitive`，
+    /// 不做 `check_insecure`（与改动前一致）。改这一条会同时改变 `.vcf` 与 TOML
+    /// 的分档，属于另一个决定，不该混在「补上递归」里。
+    fn audit_array(&self, elements: &[Value], findings: &mut Vec<AuditFinding>, prefix: &str) {
+        for (index, item) in elements.iter().enumerate() {
+            let item_key = format!("{prefix}[{index}]");
+            let item_literal_text = is_literal_text(item);
+            match item {
+                Value::Scalar(scalar) => {
+                    let value_str = scalar_to_string(scalar);
+                    self.check_sensitive(&item_key, &value_str, item_literal_text, findings);
+                    self.check_embedded_credential(
+                        &item_key,
+                        &value_str,
+                        item_literal_text,
+                        findings,
+                    );
+                }
+                Value::Expression(expr) => {
+                    if let Ok(scalar) = expr.evaluate() {
+                        let value_str = scalar_to_string(&scalar);
+                        self.check_sensitive(&item_key, &value_str, item_literal_text, findings);
+                        self.check_embedded_credential(
+                            &item_key,
+                            &value_str,
+                            item_literal_text,
+                            findings,
+                        );
                     }
                 }
+                Value::TableBlock(table) => {
+                    self.audit_table_entries(&table.entries, findings, &item_key);
+                }
+                Value::InlineTable(table) => {
+                    self.audit_inline_entries(&table.entries, findings, &item_key);
+                }
+                Value::Array(nested) => {
+                    self.audit_array(&nested.elements, findings, &item_key);
+                }
             }
-            _ => {}
         }
+    }
+
+    /// 审计一张内联表。
+    ///
+    /// 内联表的 `entries` 是键值对，不是表条目（`InlineTable` 装不下嵌套的块表），
+    /// 所以它不能走 `audit_table_entries`。位置标识与块表保持同一种写法。
+    fn audit_inline_entries(
+        &self,
+        entries: &[KeyValue],
+        findings: &mut Vec<AuditFinding>,
+        prefix: &str,
+    ) {
+        for kv in entries {
+            let full_key = join_key(prefix, kv.key.as_str());
+            self.audit_key_value(kv, &full_key, findings);
+        }
+    }
+
+    /// 凭据嵌在 URL 值里的形态：`scheme://user:secret@host`。
+    ///
+    /// 这是一次决定性实验实测确认门禁**看不见**的一类风险（TF-0104）：规则原先只在
+    /// **键名**上匹配 password/secret/token/api_key，而模型把镜像源写成
+    /// `index = "https://username:password@internal-mirror.example.com/..."` 时，
+    /// 键是 `index`、凭据在**值**里。在那次运行里，模型自发写出的 11 次高危改动中
+    /// 有 5 次是这个形态——占全部风险的 45%，不是边角。
+    ///
+    /// 分档与 SEC-SENS-001 同一口径：写死的（literal_text）进阻断级，
+    /// 值里是 `${...}` 占位符的不进（那正是建议的写法）。
+    fn check_embedded_credential(
+        &self,
+        key: &str,
+        value: &str,
+        literal_text: bool,
+        findings: &mut Vec<AuditFinding>,
+    ) {
+        if !has_embedded_credential(value) {
+            return;
+        }
+        let (severity, title, description) = if literal_text {
+            (
+                AuditSeverity::Critical,
+                "Credential embedded in a URL value".to_string(),
+                format!(
+                    "The value of '{}' carries a user:password pair inside the URL authority, which is a hardcoded credential",
+                    key
+                ),
+            )
+        } else {
+            (
+                AuditSeverity::Low,
+                "Credential-shaped URL value without a literal secret".to_string(),
+                format!(
+                    "The value of '{}' has a user:password shape inside a URL, but the parts are references rather than literal text, so it is reported for review instead of blocking the edit",
+                    key
+                ),
+            )
+        };
+        findings.push(AuditFinding {
+            category: AuditCategory::SensitiveData,
+            severity,
+            rule_id: "SEC-SENS-002".to_string(),
+            title,
+            description,
+            location: key.to_string(),
+            recommendation: "Keep credentials out of URL values: use environment variables, a credential helper or a secrets manager".to_string(),
+        });
     }
 
     fn check_sensitive(
@@ -358,6 +452,12 @@ impl AuditEngine {
                 // 只有「写死在文件里的文本」才可能真的是硬编码凭据。数字与布尔
                 // 更可能是数量或开关（`max_tokens = 4096`），表达式则往往正是
                 // 审计建议的环境变量引用——这两类都只告警，不阻断写入。
+                //
+                // 还有第三类：值指向**凭据机制**而不是秘密本身。`credential-provider =
+                // "cargo:token"` 说的「用 cargo 的内置 token 提供者」，它是文档推荐的写法
+                // （第二轮实验里模型就是这么写的，却被判成硬编码凭据）。这一类也必须看
+                // 键的语义——见 `looks_like_credential_mechanism`。
+                let literal_text = literal_text && !looks_like_credential_mechanism(key, value);
                 let (severity, title, description) = if literal_text {
                     (
                         AuditSeverity::Critical,
@@ -464,7 +564,14 @@ fn is_literal_text(value: &Value) -> bool {
         _ => return false,
     };
     match scalar {
-        ScalarValue::String(text) => !is_pure_interpolation(text),
+        // `${...}` 引用、`SCREAMING_SNAKE_CASE` 的环境变量名、以及「请替换」的占位文案
+        // 都是**指向**凭据的写法或模板，不是凭据本身；审计的建议正是这么写，
+        // 不能反过来阻断它。
+        ScalarValue::String(text) => {
+            !is_pure_interpolation(text)
+                && !looks_like_env_var_name(text)
+                && !looks_like_placeholder(text)
+        }
         _ => false,
     }
 }
@@ -476,6 +583,202 @@ fn is_literal_text(value: &Value) -> bool {
 fn is_pure_interpolation(text: &str) -> bool {
     let trimmed = text.trim();
     trimmed.starts_with("${") && trimmed.ends_with('}')
+}
+
+/// 值是否是「请替换」的占位文案，而不是真的凭据。
+///
+/// 这是第三类假阳性（前两类是环境变量名与凭据机制名），由确定性分类器对四轮实验
+/// 真实拒绝的回顾性统计发现：被判成「规则说错了」的拒绝几乎全是占位文案——
+/// 模型写的是模板（把你的口令填在这里），门禁把它当成写死的凭据拦下来。
+///
+/// 判据与 `benchmark/gate-increment/classify.mjs` 的 `isPlaceholder` 保持一致
+/// （同一套词表），否则测量与实现会各用一套标准。分两层是为了收得住：
+/// 明确的占位标记可以出现在长串里（`ci-REPLACE_WITH_REAL_TOKEN`），
+/// 而 `example`、`password` 这类通用词只有**整段等于它**时才算占位——
+/// 否则 `AKIAIOSFODNN7EXAMPLE` 与 `cargo-user:cargo-password` 这种真凭据形态
+/// 会因为含子串被误放行（这两条都是写谓词时被测试抓出来的）。
+fn looks_like_placeholder(text: &str) -> bool {
+    const MARKERS: &[&str] = &[
+        "replace",
+        "change_me",
+        "change-me",
+        "changeme",
+        "placeholder",
+        "your_",
+        "your-",
+    ];
+    // 只收**无歧义**的占位词。`secret` / `password` / `token` / `key` 这类通用词不收：
+    // 它们同样是被随手写死的值（既有测试 `db_password = "secret"` 正依赖这一点），
+    // 收进来会把真凭据放行——安全门禁宁可保守。URL 里的角色词另见下一条函数。
+    const WORDS: &[&str] = &[
+        "your",
+        "yours",
+        "replace",
+        "todo",
+        "dummy",
+        "placeholder",
+        "example",
+        "sample",
+        "changeme",
+        "foo",
+        "bar",
+    ];
+
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let lowered = trimmed.to_ascii_lowercase();
+
+    if MARKERS.iter().any(|marker| lowered.contains(marker)) {
+        return true;
+    }
+    // `<token>` 这类尖括号占位
+    if trimmed.contains('<') && trimmed.contains('>') {
+        return true;
+    }
+    if WORDS.contains(&lowered.as_str()) {
+        return true;
+    }
+    // `xxx` / `xxxx` 这类占位
+    if lowered.len() >= 3 && lowered.chars().all(|c| c == 'x') {
+        return true;
+    }
+    false
+}
+
+/// URL 的 userinfo 段里，**角色词**也算占位。
+///
+/// `https://username:password@host` 与 `https://YOUR_USERNAME:YOUR_PASSWORD@host`
+/// 是模板，不是写死的凭据——这类形态在四轮实验里被门禁误拦过。
+/// 判据只在 URL 的这一段生效：裸值写 `username` 仍然算写死的值（fail-closed）。
+fn looks_like_url_role_placeholder(part: &str) -> bool {
+    const ROLES: &[&str] = &[
+        "username", "user", "password", "pass", "passwd", "token", "secret", "key", "apikey",
+        "api_key",
+    ];
+    if looks_like_placeholder(part) {
+        return true;
+    }
+    ROLES.contains(&part.trim().to_ascii_lowercase().as_str())
+}
+
+/// 值形如 `SCREAMING_SNAKE_CASE` 时，它是**指向环境变量的名字**，不是凭据本身。
+///
+/// 这是决定性实验暴露出来的一次误拒（TF-0102 的裁决正是被它推过预算的）：
+/// 模型写下 `token-env = "PANDAS_INTERNAL_UPLOAD_TOKEN"`——审计自己建议的写法——
+/// 而规则看到「键名含 token + 值是字符串」就判成 Critical 硬编码凭据，
+/// 于是用户正常的安全写法被拦下来。
+///
+/// 判据故意收得紧，宁可漏掉「恰好长得像环境变量名的真凭据」，也不放宽到
+/// 把真凭据当引用：全大写 + 至少一个下划线 + 只含大写字母/数字/下划线 + 长度有上限。
+/// `AKIAIOSFODNN7EXAMPLE`（AWS 那种无下划线全大写）与 base64/混合大小写的真凭据
+/// 都不满足，仍然按 Critical 处理。
+fn looks_like_env_var_name(text: &str) -> bool {
+    let trimmed = text.trim();
+    trimmed.len() >= 3
+        && trimmed.len() <= 64
+        && trimmed.contains('_')
+        && trimmed.starts_with(|c: char| c.is_ascii_uppercase())
+        && trimmed
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// 值是否在说「用哪个**凭据机制**」，而不是「秘密是什么」。
+///
+/// 触发这一条的是第二轮实验里的一次确凿误拒：模型写下
+/// `credential-provider = "cargo:token"`（Cargo 文档里的推荐写法，意思是
+/// 「用 cargo 内置的 token 提供者」），`credential` 模式命中键名 + 值是字符串，
+/// 于是被判成 Critical 硬编码凭据。
+///
+/// 豁免故意要**同时**满足两个条件，缺一不可：
+///
+/// 1. **键的语义是机制**——只有一张很短的键名单（`credential-provider` /
+///    `credential-helper` / `auth-method` 等）。`credential = "..."` 这种
+///    「键就是秘密」的写法不在名单里，照旧阻断。
+/// 2. **值的形态是机制名**——可选的 `provider:` 前缀 + 只含小写字母/连字符/下划线的
+///    机制名，不带数字、空白或其它符号。所以 `user:hunter2`、`hunter2`、
+///    `AKIAIOSFODNN7EXAMPLE` 都不满足，仍然按 Critical 处理——即便它们恰好写在
+///    `credential-provider` 这个键下面。
+///
+/// 键可能带路径前缀（`registries.private-registry.credential-provider`），
+/// 所以只看最后一段。
+fn looks_like_credential_mechanism(key: &str, text: &str) -> bool {
+    const MECHANISM_KEYS: &[&str] = &[
+        "credential-provider",
+        "credential_provider",
+        "credential-helper",
+        "credential_helper",
+        "credential-process",
+        "credential_process",
+        "credential-store",
+        "credential_store",
+        "auth-provider",
+        "auth_provider",
+        "auth-method",
+        "auth_method",
+    ];
+
+    let key_lower = key.to_ascii_lowercase();
+    let last_segment = key_lower.rsplit('.').next().unwrap_or(&key_lower);
+    if !MECHANISM_KEYS.contains(&last_segment) {
+        return false;
+    }
+
+    let trimmed = text.trim();
+    if trimmed.is_empty() || trimmed.len() > 64 || trimmed.contains(char::is_whitespace) {
+        return false;
+    }
+
+    let mechanism_part = |part: &str| {
+        !part.is_empty()
+            && part.len() <= 32
+            && part.starts_with(|c: char| c.is_ascii_lowercase())
+            && part
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c == '-' || c == '_')
+    };
+
+    match trimmed.split_once(':') {
+        Some((provider, mechanism)) => mechanism_part(provider) && mechanism_part(mechanism),
+        None => mechanism_part(trimmed),
+    }
+}
+
+/// 值里是否嵌着一对 `user:password`（URL 的 authority 段）。
+///
+/// 只在**字符串值**上判定，且必须同时满足三件事，缺一不可：
+/// authority 里有 `@`（否则 `host:8443` 这种「主机 + 端口」会被误判）、
+/// `@` 之前是 `user:password` 两段、两段都是实打实的文本（含 `${` 按引用处理，
+/// 与 `is_pure_interpolation` 同一族口径）。
+///
+/// `@` 按**最后**一个切分：口令里出现未转义的 `@` 时，标准解析也是这么做的。
+fn has_embedded_credential(text: &str) -> bool {
+    let Some(scheme_end) = text.find("://") else {
+        return false;
+    };
+    let rest = &text[scheme_end + 3..];
+    let authority_end = rest
+        .find(|c: char| c == '/' || c == '?' || c == '#' || c.is_whitespace())
+        .unwrap_or(rest.len());
+    let authority = &rest[..authority_end];
+
+    let Some((userinfo, _host)) = authority.rsplit_once('@') else {
+        // 没有 `@` 就没有 userinfo：`host:8443` 是主机加端口，不是凭据
+        return false;
+    };
+    let Some((user, password)) = userinfo.split_once(':') else {
+        return false;
+    };
+    // 任一段是 `${...}` 引用或「请替换」的占位文案时，这只是模板，不是写死的凭据
+    // （判据与 `looks_like_placeholder` 同一套词表，也与测量侧的 classify.mjs 一致）。
+    !user.is_empty()
+        && !password.is_empty()
+        && !user.contains("${")
+        && !password.contains("${")
+        && !looks_like_url_role_placeholder(user)
+        && !looks_like_url_role_placeholder(password)
 }
 
 /// 把前缀与键名接成位置标识；前缀为空时不要留下开头的点号
@@ -681,6 +984,336 @@ name = "replica"
             sensitive[0].location, "servers[0].password",
             "位置标识必须能定位到具体元素"
         );
+    }
+
+    #[test]
+    fn test_nested_arrays_are_audited() {
+        // 回归（独立复核发现）：数组里的数组以前落进 `_ => {}`，所以
+        // `{"list": [[{"tls_verify": false}]]}` 这种两层数组里的表完全不被审计，
+        // 门禁对一份**看起来检查过**的候选回答 allowed。
+        use crate::ast::{ArrayValue, Key, Span, TableBlock};
+
+        let engine = AuditEngine::new();
+        let leaf = Value::TableBlock(TableBlock {
+            name: None,
+            entries: vec![TableEntry::KeyValue(KeyValue {
+                key: Key::BareKey("tls_verify".to_string()),
+                value: Value::Scalar(ScalarValue::Boolean(false)),
+                metadata: None,
+                comment: None,
+                span: Span::unknown(),
+            })],
+            span: Span::unknown(),
+        });
+        let inner = Value::Array(ArrayValue {
+            elements: vec![leaf],
+            span: Span::unknown(),
+        });
+        let outer = Value::Array(ArrayValue {
+            elements: vec![inner],
+            span: Span::unknown(),
+        });
+        let ast = Ast {
+            root: TableBlock {
+                name: None,
+                entries: vec![TableEntry::KeyValue(KeyValue {
+                    key: Key::BareKey("list".to_string()),
+                    value: outer,
+                    metadata: None,
+                    comment: None,
+                    span: Span::unknown(),
+                })],
+                span: Span::unknown(),
+            },
+            schema: None,
+            source: crate::ast::SourceInfo {
+                path: None,
+                content: String::new(),
+            },
+        };
+
+        let report = engine.audit_ast(&ast);
+        let instances = high_risk_instances(&report);
+        assert!(
+            instances
+                .keys()
+                .any(|(rule, location)| rule == "SEC-005" && location == "list[0][0].tls_verify"),
+            "两层数组里的关证书校验必须被报出来，实际：{:?}",
+            instances.keys().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_inline_table_values_are_audited() {
+        // 回归（同一类洞）：内联表以前也落进 `_ => {}`，
+        // `db = { password = "hunter2" }` 这种写法完全不被审计。
+        use crate::ast::{InlineTable, Key, Span};
+
+        let engine = AuditEngine::new();
+        let ast = Ast {
+            root: crate::ast::TableBlock {
+                name: None,
+                entries: vec![TableEntry::KeyValue(KeyValue {
+                    key: Key::BareKey("db".to_string()),
+                    value: Value::InlineTable(InlineTable {
+                        entries: vec![KeyValue {
+                            key: Key::BareKey("password".to_string()),
+                            value: Value::Scalar(ScalarValue::String("hunter2".to_string())),
+                            metadata: None,
+                            comment: None,
+                            span: Span::unknown(),
+                        }],
+                        span: Span::unknown(),
+                    }),
+                    metadata: None,
+                    comment: None,
+                    span: Span::unknown(),
+                })],
+                span: Span::unknown(),
+            },
+            schema: None,
+            source: crate::ast::SourceInfo {
+                path: None,
+                content: String::new(),
+            },
+        };
+
+        let report = engine.audit_ast(&ast);
+        let instances = high_risk_instances(&report);
+        assert!(
+            instances
+                .keys()
+                .any(|(rule, location)| rule == "SEC-SENS-001" && location == "db.password"),
+            "内联表里的硬编码凭据必须被报出来，实际：{:?}",
+            instances.keys().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_credential_embedded_in_a_url_value_is_blocking() {
+        // 决定性实验实测：模型把镜像源写成 URL 内嵌凭据，而规则原先只看键名，
+        // 于是这一类风险（占那次观测到全部风险的 45%）完全不被看见。
+        //
+        // 注意这里用的是**真实凭据形态**：TF-0104 当时写的 `username:password` 其实
+        // 本身就是模板文案，在新判据下属于「占位」而不是写死的凭据（见下一条测试）。
+        let engine = AuditEngine::new();
+        let source =
+            "index = \"https://cargo-user:cargo-password@internal-mirror.example.com/crates.io-index\"\n";
+        let report = engine.audit_source(source);
+
+        let instances = high_risk_instances(&report);
+        assert!(
+            instances
+                .keys()
+                .any(|(rule, location)| rule == "SEC-SENS-002" && location == "index"),
+            "URL 里的 user:password 必须被报成高危实例，实际：{:?}",
+            instances.keys().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_a_placeholder_url_credential_is_not_blocking() {
+        // `YOUR_USERNAME:YOUR_PASSWORD` / `username:password` 是模板，不是写死的凭据。
+        // 这是第三类假阳性（占位文案），由确定性分类器对四轮实验真实拒绝的
+        // 回顾性统计发现——当时模型写的正是这种模板，却被门禁拦下来。
+        let engine = AuditEngine::new();
+        for source in [
+            "registry = \"sparse+https://YOUR_USERNAME:YOUR_PASSWORD@mirror.example.com/index/\"\n",
+            "registry = \"sparse+https://username:password@mirror.example.com/index/\"\n",
+            "registry = \"https://<user>:<password>@mirror.example.com/index/\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            assert!(
+                high_risk_instances(&report).is_empty(),
+                "{source:?} 是占位模板，不该阻断，实际：{:?}",
+                high_risk_instances(&report).keys().collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn test_placeholder_credentials_are_not_blocking() {
+        // 值写着「请替换」时不是秘密：这类形态在四轮实验的真实拒绝里占了大头。
+        let engine = AuditEngine::new();
+        for source in [
+            "password = \"your-password\"\n",
+            "token = \"ci-REPLACE_WITH_REAL_TOKEN\"\n",
+            "api_key = \"YOUR_API_KEY\"\n",
+            "token = \"<token>\"\n",
+            "secret = \"changeme\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            assert!(
+                high_risk_instances(&report).is_empty(),
+                "{source:?} 是占位文案，不该阻断，实际：{:?}",
+                high_risk_instances(&report).keys().collect::<Vec<_>>()
+            );
+            assert!(
+                report
+                    .findings
+                    .iter()
+                    .any(|finding| finding.rule_id == "SEC-SENS-001"),
+                "{source:?} 仍应低档告警供人工复核"
+            );
+        }
+    }
+
+    #[test]
+    fn test_real_credentials_still_block_next_to_placeholders() {
+        // 反向：占位豁免必须收得住，不能把真凭据形态放过去。
+        // `AKIAIOSFODNN7EXAMPLE` 含 `example`、`cargo-user:cargo-password` 含 `user`
+        // 与 `password`——两条都是写谓词时被测试抓出来的危险子串。
+        let engine = AuditEngine::new();
+        for source in [
+            "upload-token = \"ghp_internal_upload_9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0e\"\n",
+            "token = \"AKIAIOSFODNN7EXAMPLE\"\n",
+            "password = \"cargo-password\"\n",
+            "token = \"pypi_live_9c1d4e\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            let sensitive: Vec<&AuditFinding> = report
+                .findings
+                .iter()
+                .filter(|finding| finding.rule_id == "SEC-SENS-001")
+                .collect();
+            assert!(
+                sensitive
+                    .iter()
+                    .any(|finding| matches!(finding.severity, AuditSeverity::Critical)),
+                "{source:?} 是真凭据形态，必须仍然是阻断级"
+            );
+        }
+    }
+
+    #[test]
+    fn test_a_url_without_a_credential_stays_clean() {
+        let engine = AuditEngine::new();
+        for source in [
+            "index = \"https://mirror.example.com/crates.io-index\"\n",
+            "index = \"https://user@mirror.example.com/crates.io-index\"\n",
+            "index = \"https://mirror.example.com:8443/crates.io-index\"\n",
+            "homepage = \"https://example.com/a:b@c\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            assert!(
+                high_risk_instances(&report).is_empty(),
+                "{source:?} 不含凭据，不该产生高危实例，实际：{:?}",
+                high_risk_instances(&report).keys().collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn test_a_url_with_placeholder_credentials_is_not_blocking() {
+        // 两段都是 `${...}` 引用时，它是**建议的写法**，只告警不阻断
+        let engine = AuditEngine::new();
+        let source =
+            "index = \"https://${REGISTRY_USER}:${REGISTRY_PASSWORD}@mirror.example.com/\"\n";
+        let report = engine.audit_source(source);
+        assert!(
+            high_risk_instances(&report).is_empty(),
+            "占位符凭据不该阻断，实际：{:?}",
+            high_risk_instances(&report).keys().collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_env_var_name_is_not_a_hardcoded_credential() {
+        // 裁决文档里那一次误拒的原文：值是指向环境变量的**名字**，正是审计建议的写法。
+        // 它仍然要告警（键名像敏感字段），但不能进阻断档。
+        let engine = AuditEngine::new();
+        let source = "token-env = \"PANDAS_INTERNAL_UPLOAD_TOKEN\"\n";
+        let report = engine.audit_source(source);
+
+        assert!(
+            high_risk_instances(&report).is_empty(),
+            "指向环境变量的名字不是硬编码凭据，不该阻断，实际：{:?}",
+            high_risk_instances(&report).keys().collect::<Vec<_>>()
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.rule_id == "SEC-SENS-001"),
+            "仍应告警以便人工复核"
+        );
+    }
+
+    #[test]
+    fn test_a_real_secret_still_blocks_after_the_env_name_exemption() {
+        // 反向：豁免必须收得紧，不能把真凭据也放过去
+        let engine = AuditEngine::new();
+        for source in [
+            // 混合大小写 + 下划线的真 token
+            "token = \"pypi_live_9c1d4e\"\n",
+            "api_key = \"sk-live-4d2e7f\"\n",
+            // 全大写但没有下划线（AWS 那种形态）
+            "token = \"AKIAIOSFODNN7EXAMPLE\"\n",
+            // 全大写、有下划线、但明显是值不是名字（含 base64 常见字符）
+            "token = \"ABC_DEF_9+/=\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            let sensitive: Vec<&AuditFinding> = report
+                .findings
+                .iter()
+                .filter(|finding| finding.rule_id == "SEC-SENS-001")
+                .collect();
+            assert!(
+                sensitive
+                    .iter()
+                    .any(|finding| matches!(finding.severity, AuditSeverity::Critical)),
+                "{source:?} 是真凭据，必须仍然是阻断级"
+            );
+        }
+    }
+
+    #[test]
+    fn test_a_credential_mechanism_name_is_not_a_hardcoded_credential() {
+        // 第二轮实验里那一次确凿误拒的原文：值说的是「用哪个提供者」，
+        // 是 Cargo 文档推荐的写法，不是秘密。
+        let engine = AuditEngine::new();
+        for source in [
+            "credential-provider = \"cargo:token\"\n",
+            "credential-helper = \"libsecret\"\n",
+            "auth-method = \"oauth-device\"\n",
+            // 带路径的键也要认（真实 Cargo 清单里就是这个形状）
+            "[registries.private-registry]\ncredential-provider = \"cargo:token\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            assert!(
+                high_risk_instances(&report).is_empty(),
+                "{source:?} 里的值指向凭据机制而不是秘密，不该阻断，实际：{:?}",
+                high_risk_instances(&report).keys().collect::<Vec<_>>()
+            );
+        }
+    }
+
+    #[test]
+    fn test_a_real_secret_still_blocks_next_to_mechanism_keys() {
+        // 豁免必须收得紧：换了键、或者值长得像秘密，就照旧阻断
+        let engine = AuditEngine::new();
+        for source in [
+            // 键就是秘密（不在机制键名单里）
+            "credential = \"user:hunter2\"\n",
+            // 机制键，但值是秘密形态：带数字、大写、或就是口令
+            "credential-provider = \"user:hunter2\"\n",
+            "credential-provider = \"hunter2\"\n",
+            "credential-provider = \"AKIAIOSFODNN7EXAMPLE\"\n",
+            "credential-provider = \"sk-live-9c1d4e\"\n",
+        ] {
+            let report = engine.audit_source(source);
+            let sensitive: Vec<&AuditFinding> = report
+                .findings
+                .iter()
+                .filter(|finding| finding.rule_id == "SEC-SENS-001")
+                .collect();
+            assert!(
+                sensitive
+                    .iter()
+                    .any(|finding| matches!(finding.severity, AuditSeverity::Critical)),
+                "{source:?} 是秘密形态，必须仍然是阻断级"
+            );
+        }
     }
 
     #[test]

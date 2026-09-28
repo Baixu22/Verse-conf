@@ -1,11 +1,14 @@
 # verseconf-mcp
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
 **简体中文** | [English](README.en.md)
 
 把 VerseConf 的校验、审计与确定性编辑能力，以**工具协议**（Model Context Protocol 风格）
 暴露给 Agent 宿主。
 
-宿主不需要更换配置格式，也不需要理解 VerseConf 语法细节——它只需要调用工具。
+**只有 `verseconf_check_write` 接受多格式输入**（VCF / TOML / JSON / JSONC）；
+其余四个旧工具仍只接受 VCF。JSON / JSONC 能力仅在当前源码中，未发布，不能据此推断已发布包的能力。
 
 ## 为什么是工具，而不是一种新格式
 

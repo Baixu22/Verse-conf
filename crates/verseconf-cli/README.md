@@ -1,5 +1,7 @@
 # verseconf-cli
 
+> **冻结说明（2026-09-28）**：已停止独立产品开发，不承诺后续发布或持续维护。以下仅为历史源码参考；安全边界与最终决定见 [CLOSEOUT.md](../../docs/CLOSEOUT.md)。
+
 **简体中文** | [English](README.en.md)
 
 VerseConf 配置语言的命令行工具。
