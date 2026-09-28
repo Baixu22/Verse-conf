@@ -20,12 +20,6 @@ jobs:
           node-version: 20
       - name: Verify closeout snapshot and original freezes
         run: node benchmark/verify-closeout.mjs
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - name: Build native gate required by classifier replay
-        run: cargo build -p verseconf-mcp --locked
-      - name: Verify native gate is executable
-        run: ./target/debug/verseconf-mcp --list-tools
       - name: Test analysis and historical refusal classifier
         run: node --test benchmark/analysis/cluster_report.test.mjs benchmark/gate-increment/classify.test.mjs
 
